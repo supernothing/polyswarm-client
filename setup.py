@@ -1,23 +1,16 @@
 from setuptools import setup
 
-
-
-
 setup(
-    name='microengine',
+    name='polyswarm-client',
     version='0.1',
-    description='Collection of sample microengine implementations and a basic microengine framework',
+    description='Client library to simplify interacting with a polyswarmd instance',
     author='PolySwarm Developers',
     author_email='info@polyswarm.io',
-    url='https://github.com/polyswarm/microengine',
+    url='https://github.com/polyswarm/polyswarm-client',
     license='MIT',
     include_package_data=True,
-    packages=['microengine', 'microengine-unit-test'],
+    packages=['polyswarmclient'],
     package_dir={
-        'microengine': 'src/microengine', 'microengine-unit-test': 'src/microengine',
-    },
-    data_files=[('test_data',['src/microengine/test_data/keyfile'])],
-    entry_points={
-        'console_scripts': ['microengine=microengine.__main__:main', 'microengine-unit-test=microengine.testbase:main'],
-    },
+        'polyswarmclient': 'src/polyswarmclient'
+    }
 )
