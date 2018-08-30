@@ -9,12 +9,12 @@ import websockets
 from web3 import Web3
 w3 = Web3()
 
-from events import Callback, Schedule, RevealAssertion, SettleBounty
+from polyswarmclient.events import Callback, Schedule, RevealAssertion, SettleBounty
 
 # These values come from the BountyRegistry contract
 MINIMUM_BID = 62500000000000000
+ASSERTION_REVEAL_WINDOW = 25
 ARBITER_VOTE_WINDOW = 25
-ASSERTION_REVEAL_WINDOW = 100
 
 
 def check_response(response):
@@ -44,6 +44,7 @@ class Client(object):
         self.polyswarmd_uri = polyswarmd_uri
         self.api_key = api_key
         self.tx_error_fatal = tx_error_fatal
+        self.params = {}
 
         with open(keyfile, 'r') as f:
             self.priv_key = w3.eth.account.decrypt(f.read(), password)
@@ -52,8 +53,8 @@ class Client(object):
             self.priv_key).address
         logging.info('Using account: %s', self.account)
 
-        self.schedule = Schedule()
-        self.session = None
+        self.__schedule = Schedule()
+        self.__session = None
 
         # Events from polyswarmd
         self.on_new_block = Callback()
@@ -75,7 +76,11 @@ class Client(object):
         """
         if event_loop is None:
             event_loop = asyncio.get_event_loop()
-        event_loop.run_until_complete(listen_for_events(self))
+        event_loop.run_until_complete(self.listen_for_events())
+
+
+    def schedule(self, expiration, event):
+        self.__schedule.put(expiration, event)
 
 
     async def get_artifact(self, ipfs_uri, index):
@@ -87,7 +92,7 @@ class Client(object):
         Returns:
             (bytes): Content of the artifact
         """
-        if self.session is None:
+        if self.__session is None:
             raise Exception('Not running')
 
         if not is_valid_ipfs_uri(ipfs_uri):
@@ -95,7 +100,7 @@ class Client(object):
 
         uri = '{0}/artifacts/{1}/{2}'.format(
             self.polyswarmd_uri, ipfs_uri, index)
-        async with self.session.get(uri) as response:
+        async with self.__session.get(uri, params=self.params) as response:
             if response.status == 200:
                 return await response.read()
 
@@ -104,10 +109,9 @@ class Client(object):
 
     # Async iterator helper class
     class __GetArtifacts(object):
-        def __init__(self, client, session, ipfs_uri):
+        def __init__(self, client, ipfs_uri):
             self.i = 0
             self.client = client
-            self.session = session
             self.ipfs_uri = ipfs_uri
 
         async def __aiter__(self):
@@ -118,7 +122,7 @@ class Client(object):
             self.i += 1
 
             if i < 256:
-                content = await self.client.get_artifact(self.session, self.ipfs_uri, i)
+                content = await self.client.get_artifact(self.ipfs_uri, i)
                 if content:
                     return content
 
@@ -126,10 +130,10 @@ class Client(object):
 
 
     def get_artifacts(self, ipfs_uri):
-        if self.session is None:
+        if self.__session is None:
             raise Exception('Not running')
 
-        return Client.__GetArtifacts(self, self.session, ipfs_uri)
+        return Client.__GetArtifacts(self, ipfs_uri)
 
 
     async def post_transactions(self, transactions):
@@ -140,7 +144,7 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if self.session is None:
+        if self.__session is None:
             raise Exception('Not running')
 
         signed = []
@@ -151,14 +155,14 @@ class Client(object):
 
         uri = '{0}/transactions'.format(self.polyswarmd_uri)
 
-        async with self.session.post(
-                uri, json={'transactions': signed}) as response:
+        async with self.__session.post(uri, params=self.params, json={'transactions': signed}) as response:
             j = await response.json()
-            if self.tx_error_fatal and 'errors' in j.get('result', {}):
-                logging.error('Received fatal transaction error: %s', j)
-                sys.exit(1)
+        logging.debug('POST /transactions: %s', j)
+        if self.tx_error_fatal and 'errors' in j.get('result', {}):
+            logging.error('Received fatal transaction error: %s', j)
+            sys.exit(1)
 
-            return j
+        return j
 
 
     async def post_bounty(self, amount, uri, duration):
@@ -171,7 +175,7 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if self.session is None:
+        if self.__session is None:
             raise Exception('Not running')
 
         uri = '{0}/bounties'.format(self.polyswarmd_uri)
@@ -181,8 +185,9 @@ class Client(object):
             'duration': duration,
         }
 
-        async with self.session.post(uri, json=bounty) as response:
+        async with self.__session.post(uri, params=self.params, json=bounty) as response:
             response = await response.json()
+        logging.debug('POST /bounties: %s', j)
         if not check_response(response):
             return None, []
 
@@ -208,7 +213,7 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if self.session is None:
+        if self.__session is None:
             raise Exception('Not running')
 
         uri = '{0}/bounties/{1}/assertions'.format(
@@ -219,8 +224,9 @@ class Client(object):
             'verdicts': verdicts,
         }
 
-        async with self.session.post(uri, json=assertion) as response:
+        async with self.__session.post(uri, params=self.params, json=assertion) as response:
             response = await response.json()
+        logging.debug('POST /bounties/%s/assertions: %s', guid, response)
         if not check_response(response):
             return None, []
 
@@ -248,7 +254,7 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if self.session is None:
+        if self.__session is None:
             raise Exception('Not running')
 
         uri = '{0}/bounties/{1}/assertions/{2}/reveal'.format(
@@ -259,8 +265,9 @@ class Client(object):
             'metadata': metadata,
         }
 
-        async with self.session.post(uri, json=reveal) as response:
+        async with self.__session.post(uri, params=self.params, json=reveal) as response:
             response = await response.json()
+        logging.debug('POST /bounties/%s/assertions/%s/reveal: %s', guid, index, response)
         if not check_response(response):
             return None
 
@@ -285,7 +292,7 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if self.session is None:
+        if self.__session is None:
             raise Exception('Not running')
 
         uri = '{0}/bounties/{1}/vote'.format(self.polyswarmd_uri, guid)
@@ -294,8 +301,9 @@ class Client(object):
             'valid_bloom': valid_bloom,
         }
 
-        async with self.session.post(uri, json=vote) as response:
+        async with self.__session.post(uri, params=self.params, json=vote) as response:
             response = await response.json()
+        logging.debug('POST /bounties/%s/vote: %s', guid, response)
         if not check_response(response):
             return None, []
 
@@ -318,14 +326,15 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if self.session is None:
+        if self.__session is None:
             raise Exception('Not running')
 
         uri = '{0}/bounties/{1}/settle'.format(
             self.polyswarmd_uri, guid)
 
-        async with self.session.post(uri) as response:
+        async with self.__session.post(uri, params=self.params) as response:
             response = await response.json()
+        logging.debug('POST /bounties/%s/settle: %s', guid, response)
         if not check_response(response):
             return Nonce
 
@@ -349,11 +358,11 @@ class Client(object):
             Response JSON parsed from polyswarmd containing emitted events
         """
         ret = []
-        while self.schedule.peek() and self.schedule.peek()[0] < number:
-            exp, task = self.schedule_get()
-            if isinstance(task, self.RevealAssertion):
+        while self.__schedule.peek() and self.__schedule.peek()[0] < number:
+            exp, task = self.__schedule.get()
+            if isinstance(task, RevealAssertion):
                 ret.append(await self.on_reveal_assertion_due.run(task.guid, task.index, task.nonce, task.verdicts, task.metadata))
-            elif isinstance(task, self.SettleBounty):
+            elif isinstance(task, SettleBounty):
                 ret.append(await self.on_settle_bounty_due.run(task.guid))
 
         return ret
@@ -366,12 +375,14 @@ class Client(object):
 
         assert(uri.startswith('http'))
         wsuri = uri.replace('http', 'ws', 1)
+        if not self.api_key:
+            wsuri += '?account=' + self.account
 
+        self.params = {'account': self.account if not self.api_key else {}}
         headers = {'Authorization': self.api_key} if self.api_key else {}
-        params = {'account': self.account if not self.api_key else {}}
         async with aiohttp.ClientSession(headers=headers) as session:
             try:
-                self.session = session
+                self.__session = session
                 async with websockets.connect(wsuri, extra_headers=headers) as ws:
                     while True:
                         event = json.loads(await ws.recv())

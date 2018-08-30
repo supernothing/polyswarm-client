@@ -1,10 +1,11 @@
 import functools
-from polyswarmclient import Client
+from polyswarmclient import Client, MINIMUM_BID, ASSERTION_REVEAL_WINDOW, ARBITER_VOTE_WINDOW
+from polyswarmclient.events import RevealAssertion, SettleBounty
 
 class Microengine(object):
-    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=False):
+    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1):
         self.testing = testing
-        self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing)
+        self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0)
         self.client.on_new_bounty.register(functools.partial(Microengine.handle_new_bounty, self))
         self.client.on_reveal_assertion_due.register(functools.partial(Microengine.handle_reveal_assertion, self))
         self.client.on_settle_bounty_due.register(functools.partial(Microengine.handle_settle_bounty, self))
@@ -35,8 +36,11 @@ class Microengine(object):
         return MINIMUM_BID
 
 
-    async def handle_new_bounty(self, session, guid, author, uri, amount,
-                                  expiration):
+    def run(self, event_loop=None):
+        self.client.run(event_loop)
+
+
+    async def handle_new_bounty(self, guid, author, uri, amount, expiration):
         """Scan and assert on a posted bounty
 
         Args:
@@ -44,26 +48,27 @@ class Microengine(object):
             author (str): The bounty author
             uri (str): IPFS hash of the root artifact
             amount (str): Amount of the bounty in base NCT units (10 ^ -18)
-            expiration (int): Block number of the bounty's expiration
+            expiration (str): Block number of the bounty's expiration
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
         mask = []
         verdicts = []
         metadatas = []
-        for content in self.client.get_artifacts(uri):
+        async for content in self.client.get_artifacts(uri):
             bit, verdict, metadata = await self.scan(guid, content)
             mask.append(bit)
             verdicts.append(verdict)
             metadatas.append(metadata)
 
+        expiration = int(expiration)
         nonce, assertions = await self.client.post_assertion(guid, self.bid(guid), mask, verdicts)
         for a in assertions:
             ra = RevealAssertion(guid, a['index'], nonce, verdicts, ';'.join(metadatas))
-            self.schedule.put(expiration, ra)
+            self.client.schedule(expiration, ra)
 
-            sb = self.SettleBounty(guid)
-            self.schedule_put(expiration + ASSERTION_REVEAL_WINDOW + ARBITER_VOTE_WINDOW, sb)
+            sb = SettleBounty(guid)
+            self.client.schedule(expiration + ASSERTION_REVEAL_WINDOW + ARBITER_VOTE_WINDOW, sb)
 
         return assertions
 
