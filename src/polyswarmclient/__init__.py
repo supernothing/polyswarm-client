@@ -4,17 +4,11 @@ import base58
 import json
 import logging
 import sys
-import websockets
-
+import websockets 
 from web3 import Web3
 w3 = Web3()
 
 from polyswarmclient.events import Callback, Schedule, RevealAssertion, SettleBounty
-
-# These values come from the BountyRegistry contract
-MINIMUM_BID = 62500000000000000
-ASSERTION_REVEAL_WINDOW = 25
-ARBITER_VOTE_WINDOW = 25
 
 
 def check_response(response):
@@ -56,6 +50,11 @@ class Client(object):
         self.__schedule = Schedule()
         self.__session = None
 
+        self.bounty_parameters = {}
+
+        # Events from client
+        self.on_run = Callback()
+
         # Events from polyswarmd
         self.on_new_block = Callback()
         self.on_new_bounty = Callback()
@@ -83,7 +82,33 @@ class Client(object):
         self.__schedule.put(expiration, event)
 
 
-    async def get_artifact(self, ipfs_uri, index):
+    async def get_bounty_parameters(self, chain='home'):
+        """Get bounty parameters from polyswarmd
+
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events
+        """
+        if self.__session is None:
+            raise Exception('Not running')
+
+        uri = '{0}/bounties/parameters'.format(self.polyswarmd_uri)
+
+        params = self.params
+        params['chain'] = chain
+        async with self.__session.get(uri, params=params) as response:
+            response = await response.json()
+        logging.debug('GET /bounties/parameters: %s', response)
+        if not check_response(response):
+            return None
+
+        try:
+            return response['result']
+        except:
+            logging.warning('expected bounty parameters, got: %s', response)
+            return None
+
+
+    async def get_artifact(self, ipfs_uri, index, chain='home'):
         """Retrieve an artifact from IPFS via polyswarmd
 
         Args:
@@ -100,6 +125,8 @@ class Client(object):
 
         uri = '{0}/artifacts/{1}/{2}'.format(
             self.polyswarmd_uri, ipfs_uri, index)
+        params = self.params
+        params['chain'] = chain
         async with self.__session.get(uri, params=self.params) as response:
             if response.status == 200:
                 return await response.read()
@@ -136,7 +163,7 @@ class Client(object):
         return Client.__GetArtifacts(self, ipfs_uri)
 
 
-    async def post_transactions(self, transactions):
+    async def post_transactions(self, transactions, chain='home'):
         """Post a set of (signed) transactions to Ethereum via polyswarmd, parsing the emitted events
 
         Args:
@@ -155,6 +182,8 @@ class Client(object):
 
         uri = '{0}/transactions'.format(self.polyswarmd_uri)
 
+        params = self.params
+        params['chain'] = chain
         async with self.__session.post(uri, params=self.params, json={'transactions': signed}) as response:
             j = await response.json()
         logging.debug('POST /transactions: %s', j)
@@ -165,7 +194,7 @@ class Client(object):
         return j
 
 
-    async def post_bounty(self, amount, uri, duration):
+    async def post_bounty(self, amount, uri, duration, chain='home'):
         """Post a bounty to polyswarmd
 
         Args:
@@ -185,24 +214,26 @@ class Client(object):
             'duration': duration,
         }
 
+        params = self.params
+        params['chain'] = chain
         async with self.__session.post(uri, params=self.params, json=bounty) as response:
             response = await response.json()
         logging.debug('POST /bounties: %s', j)
         if not check_response(response):
-            return None, []
+            return []
 
-        response = await self.post_transactions(response['result']['transactions'])
+        response = await self.post_transactions(response['result']['transactions'], chain)
         if not check_response(response):
-            return None, []
+            return []
 
         try:
-            return nonce, response['result']['bounties']
+            return response['result']['bounties']
         except:
             logging.warning('expected bounty, got: %s', response)
-            return None, []
+            return []
 
 
-    async def post_assertion(self, guid, bid, mask, verdicts):
+    async def post_assertion(self, guid, bid, mask, verdicts, chain='home'):
         """Post an assertion to polyswarmd
 
         Args:
@@ -224,6 +255,8 @@ class Client(object):
             'verdicts': verdicts,
         }
 
+        params = self.params
+        params['chain'] = chain
         async with self.__session.post(uri, params=self.params, json=assertion) as response:
             response = await response.json()
         logging.debug('POST /bounties/%s/assertions: %s', guid, response)
@@ -231,7 +264,7 @@ class Client(object):
             return None, []
 
         nonce = response['result']['nonce']
-        response = await self.post_transactions(response['result']['transactions'])
+        response = await self.post_transactions(response['result']['transactions'], chain)
         if not check_response(response):
             return None, []
 
@@ -242,7 +275,7 @@ class Client(object):
             return None, []
 
 
-    async def post_reveal(self, guid, index, nonce, verdicts, metadata):
+    async def post_reveal(self, guid, index, nonce, verdicts, metadata, chain='home'):
         """Post an assertion reveal to polyswarmd
 
         Args:
@@ -265,24 +298,26 @@ class Client(object):
             'metadata': metadata,
         }
 
+        params = self.params
+        params['chain'] = chain
         async with self.__session.post(uri, params=self.params, json=reveal) as response:
             response = await response.json()
         logging.debug('POST /bounties/%s/assertions/%s/reveal: %s', guid, index, response)
         if not check_response(response):
-            return None
+            return []
 
-        response = await self.post_transactions(response['result']['transactions'])
+        response = await self.post_transactions(response['result']['transactions'], chain)
         if not check_response(response):
-            return None
+            return []
 
         try:
             return response['result']['reveals']
         except:
             logging.warning('expected reveal, got: %s', response)
-            return None
+            return []
 
 
-    async def post_vote(self, guid, verdicts, valid_bloom):
+    async def post_vote(self, guid, verdicts, valid_bloom, chain='home'):
         """Post a bounty to polyswarmd
 
         Args:
@@ -301,24 +336,26 @@ class Client(object):
             'valid_bloom': valid_bloom,
         }
 
+        params = self.params
+        params['chain'] = chain
         async with self.__session.post(uri, params=self.params, json=vote) as response:
             response = await response.json()
         logging.debug('POST /bounties/%s/vote: %s', guid, response)
         if not check_response(response):
-            return None, []
+            return []
 
-        response = await self.post_transactions(response['result']['transactions'])
+        response = await self.post_transactions(response['result']['transactions'], chain)
         if not check_response(response):
-            return None, []
+            return []
 
         try:
-            return nonce, response['result']['verdicts']
+            return response['result']['verdicts']
         except:
             logging.warning('expected verdicts, got: %s', response)
-            return None, []
+            return []
 
 
-    async def settle_bounty(self, guid):
+    async def settle_bounty(self, guid, chain='home'):
         """Settle a bounty via polyswarmd
 
         Args:
@@ -332,21 +369,23 @@ class Client(object):
         uri = '{0}/bounties/{1}/settle'.format(
             self.polyswarmd_uri, guid)
 
+        params = self.params
+        params['chain'] = chain
         async with self.__session.post(uri, params=self.params) as response:
             response = await response.json()
         logging.debug('POST /bounties/%s/settle: %s', guid, response)
         if not check_response(response):
             return Nonce
 
-        response = await self.post_transactions(response['result']['transactions'])
+        response = await self.post_transactions(response['result']['transactions'], chain)
         if not check_response(response):
-            return None
+            return []
 
         try:
             return response['result']['transfers']
         except:
             logging.warning('expected transfer, got: %s', response)
-            return None
+            return []
 
 
     async def __handle_scheduled_events(self, number):
@@ -384,6 +423,11 @@ class Client(object):
             try:
                 self.__session = session
                 async with websockets.connect(wsuri, extra_headers=headers) as ws:
+                    await self.on_run.run()
+
+                    self.bounty_parameters['home'] = await self.get_bounty_parameters('home')
+                    self.bounty_parameters['side'] = await self.get_bounty_parameters('side')
+
                     while True:
                         event = json.loads(await ws.recv())
                         if event['event'] == 'block':
