@@ -70,6 +70,22 @@ class RevealAssertion(Event):
         self.metadata = metadata
 
 
+class VoteOnVerdict(Event):
+    """A scheduled vote from an arbiter"""
+
+    def __init__(self, guid, verdicts, valid_bloom):
+        """Initialize a vote on verdict event
+
+        Args:
+            guid (str): GUID of the bounty being voted on
+            verdicts (List[bool]): List of verdicts for each artifact in the bounty
+            valid_bloom (bool): Is the bloom filter submitted with the bounty valid
+        """
+        super().__init__(guid)
+        self.verdicts = verdicts
+        self.valid_bloom = valid_bloom
+
+
 class SettleBounty(Event):
     """A bounty scheduled to be settled"""
 

@@ -47,8 +47,11 @@ class Client(object):
             self.priv_key).address
         logging.info('Using account: %s', self.account)
 
-        self.__schedule = Schedule()
         self.__session = None
+        self.__schedule = {
+            'home': Schedule(),
+            'side': Schedule()
+        }
 
         self.bounty_parameters = {}
 
@@ -75,11 +78,44 @@ class Client(object):
         """
         if event_loop is None:
             event_loop = asyncio.get_event_loop()
-        event_loop.run_until_complete(self.listen_for_events())
+
+        event_loop.run_until_complete(self.__handle_on_run)
+        event_loop.run_until_complete(asyncio.gather(self.listen_for_events('home'), self.listen_for_events('side'))
 
 
-    def schedule(self, expiration, event):
-        self.__schedule.put(expiration, event)
+    async def __handle_on_run(self):
+        self.params = {'account': self.account if not self.api_key else {}}
+        headers = {'Authorization': self.api_key} if self.api_key else {})
+        async with aiohttp.ClientSession(headers=headers) as self.__session:
+            self.bounty_parameters['home'] = await self.get_bounty_parameters('home')
+            self.bounty_parameters['side'] = await self.get_bounty_parameters('side')
+
+            await self.on_run.run()
+
+    async def __handle_scheduled_events(self, number, chain='home'):
+        """Perform scheduled events when a new block is reported
+
+        Args:
+            number (int): The current block number reported from polyswarmd
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events
+        """
+        assert(chain == 'home' or chain == 'side')
+        ret = []
+        while self.__schedule[chain].peek() and self.__schedule[chain].peek()[0] < number:
+            exp, task = self.__schedule[chain].get()
+            if isinstance(task, RevealAssertion):
+                ret.append(await self.on_reveal_assertion_due.run(guid=task.guid, index=task.index, nonce=task.nonce,
+                    verdicts=task.verdicts, metadata=task.metadata, chain=chain))
+            elif isinstance(task, SettleBounty):
+                ret.append(await self.on_settle_bounty_due.run(guid=task.guid, chain=chain))
+
+        return ret
+
+
+    def schedule(self, expiration, event, chain='home'):
+        assert(chain == 'home' or chain == 'side')
+        self.__schedule[chain].put(expiration, event)
 
 
     async def get_bounty_parameters(self, chain='home'):
@@ -88,7 +124,8 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if self.__session is None:
+        assert(chain == 'home' or chain == 'side')
+        if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
         uri = '{0}/bounties/parameters'.format(self.polyswarmd_uri)
@@ -108,7 +145,7 @@ class Client(object):
             return None
 
 
-    async def get_artifact(self, ipfs_uri, index, chain='home'):
+    async def get_artifact(self, ipfs_uri, index):
         """Retrieve an artifact from IPFS via polyswarmd
 
         Args:
@@ -117,7 +154,7 @@ class Client(object):
         Returns:
             (bytes): Content of the artifact
         """
-        if self.__session is None:
+        if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
         if not is_valid_ipfs_uri(ipfs_uri):
@@ -126,7 +163,6 @@ class Client(object):
         uri = '{0}/artifacts/{1}/{2}'.format(
             self.polyswarmd_uri, ipfs_uri, index)
         params = self.params
-        params['chain'] = chain
         async with self.__session.get(uri, params=self.params) as response:
             if response.status == 200:
                 return await response.read()
@@ -157,7 +193,7 @@ class Client(object):
 
 
     def get_artifacts(self, ipfs_uri):
-        if self.__session is None:
+        if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
         return Client.__GetArtifacts(self, ipfs_uri)
@@ -171,7 +207,8 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if self.__session is None:
+        assert(chain == 'home' or chain == 'side')
+        if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
         signed = []
@@ -204,7 +241,8 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if self.__session is None:
+        assert(chain == 'home' or chain == 'side')
+        if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
         uri = '{0}/bounties'.format(self.polyswarmd_uri)
@@ -244,7 +282,8 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if self.__session is None:
+        assert(chain == 'home' or chain == 'side')
+        if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
         uri = '{0}/bounties/{1}/assertions'.format(
@@ -287,7 +326,8 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if self.__session is None:
+        assert(chain == 'home' or chain == 'side')
+        if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
         uri = '{0}/bounties/{1}/assertions/{2}/reveal'.format(
@@ -327,7 +367,8 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if self.__session is None:
+        assert(chain == 'home' or chain == 'side')
+        if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
         uri = '{0}/bounties/{1}/vote'.format(self.polyswarmd_uri, guid)
@@ -363,7 +404,8 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if self.__session is None:
+        assert(chain == 'home' or chain == 'side')
+        if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
         uri = '{0}/bounties/{1}/settle'.format(
@@ -388,100 +430,68 @@ class Client(object):
             return []
 
 
-    async def __handle_scheduled_events(self, number):
-        """Perform scheduled events when a new block is reported
-
-        Args:
-            number (int): The current block number reported from polyswarmd
-        Returns:
-            Response JSON parsed from polyswarmd containing emitted events
-        """
-        ret = []
-        while self.__schedule.peek() and self.__schedule.peek()[0] < number:
-            exp, task = self.__schedule.get()
-            if isinstance(task, RevealAssertion):
-                ret.append(await self.on_reveal_assertion_due.run(task.guid, task.index, task.nonce, task.verdicts, task.metadata))
-            elif isinstance(task, SettleBounty):
-                ret.append(await self.on_settle_bounty_due.run(task.guid))
-
-        return ret
-
-
-    async def listen_for_events(self):
+    async def listen_for_events(self, chain='home'):
         """Listen for events via websocket connection to polyswarmd
         """
-        uri = '{0}/events'.format(self.polyswarmd_uri)
+        assert(chain == 'home' or chain == 'side')
+        assert(self.polyswarmd_uri.startswith('http'))
 
-        assert(uri.startswith('http'))
-        wsuri = uri.replace('http', 'ws', 1)
-        if not self.api_key:
-            wsuri += '?account=' + self.account
+        # http:// -> ws://, https:// -> wss://
+        wsuri = '{0}/events?chain={1}'.format(self.polyswarmd_uri).replace('http', 'ws', 1)
+        async with websockets.connect(wsuri, extra_headers=headers) as ws:
+            while True:
+                event = json.loads(await ws.recv())
+                if event['event'] == 'block':
+                    number = event['data']['number']
+                    if number % 100 == 0:
+                        logging.debug('Block %s', number)
+                    results = await self.on_new_block.run(number=number, chain=chain)
+                    if results:
+                        logging.info('Block results: %s', results)
 
-        self.params = {'account': self.account if not self.api_key else {}}
-        headers = {'Authorization': self.api_key} if self.api_key else {}
-        async with aiohttp.ClientSession(headers=headers) as session:
-            try:
-                self.__session = session
-                async with websockets.connect(wsuri, extra_headers=headers) as ws:
-                    await self.on_run.run()
+                    results = await self.__handle_scheduled_events(number)
+                    if results:
+                        logging.info('Scheduled event results: %s', results)
+                elif event['event'] == 'bounty':
+                    data = event['data']
+                    logging.info('Received bounty: %s', data)
+                    results = await self.on_new_bounty.run(**data, chain=chain)
+                    if results:
+                        logging.info('Bounty results: %s', results)
+                elif event['event'] == 'assertion':
+                    data = event['data']
+                    logging.info('Received assertion: %s', data)
+                    results = await self.on_new_assertion.run(**data, chain=chain)
+                    if results:
+                        logging.info('Assertion results: %s', results)
+                elif event['event'] == 'reveal':
+                    data = event['data']
+                    logging.info('Received reveal: %s', data)
+                    results = await self.on_reveal_assertion.run(**data, chain=chain)
+                    if results:
+                        logging.info('Reveal results: %s', results)
+                elif event['event'] == 'verdict':
 
-                    self.bounty_parameters['home'] = await self.get_bounty_parameters('home')
-                    self.bounty_parameters['side'] = await self.get_bounty_parameters('side')
-
-                    while True:
-                        event = json.loads(await ws.recv())
-                        if event['event'] == 'block':
-                            number = event['data']['number']
-                            if number % 100 == 0:
-                                logging.debug('Block %s', number)
-                            results = await self.on_new_block.run(number)
-                            if results:
-                                logging.info('Block results: %s', results)
-
-                            results = await self.__handle_scheduled_events(number)
-                            if results:
-                                logging.info('Scheduled event results: %s', results)
-                        elif event['event'] == 'bounty':
-                            data = event['data']
-                            logging.info('Received bounty: %s', data)
-                            results = await self.on_new_bounty.run(**data)
-                            if results:
-                                logging.info('Bounty results: %s', results)
-                        elif event['event'] == 'assertion':
-                            data = event['data']
-                            logging.info('Received assertion: %s', data)
-                            results = await self.on_new_assertion.run(**data)
-                            if results:
-                                logging.info('Assertion results: %s', results)
-                        elif event['event'] == 'reveal':
-                            data = event['data']
-                            logging.info('Received reveal: %s', data)
-                            results = await self.on_reveal_assertion.run(**data)
-                            if results:
-                                logging.info('Reveal results: %s', results)
-                        elif event['event'] == 'verdict':
-                            data = event['data']
-                            logging.info('Received verdict: %s', data)
-                            results = await self.on_new_verdict.run(**data)
-                            if results:
-                                logging.info('Verdict results: %s', results)
-                        elif event['event'] == 'quorum':
-                            data = event['data']
-                            logging.info('Received quorum: %s', data)
-                            results = await self.on_quorum.run(**data)
-                            if results:
-                                logging.info('Quorum results: %s', results)
-                        elif event['event'] == 'settled_bounty':
-                            data = event['data']
-                            logging.info('Received settled bounty: %s', data)
-                            results = await self.on_settled_bounty.run(**data)
-                            if results:
-                                logging.info('Settle bounty results: %s', results)
-                        elif event['event'] == 'initialized_channel':
-                            data = event['data']
-                            logging.info('Received initialized_channel: %s', data)
-                            results = await self.on_initialized_channel.run(**data)
-                            if results:
-                                logging.info('Initialized channel results: %s', results)
-            finally:
-                self.session = None
+                    data = event['data']
+                    logging.info('Received verdict: %s', data)
+                    results = await self.on_new_verdict.run(**data, chain=chain)
+                    if results:
+                        logging.info('Verdict results: %s', results)
+                elif event['event'] == 'quorum':
+                    data = event['data']
+                    logging.info('Received quorum: %s', data)
+                    results = await self.on_quorum.run(**data, chain=chain)
+                    if results:
+                        logging.info('Quorum results: %s', results)
+                elif event['event'] == 'settled_bounty':
+                    data = event['data']
+                    logging.info('Received settled bounty: %s', data)
+                    results = await self.on_settled_bounty.run(**data, chain=chain)
+                    if results:
+                        logging.info('Settle bounty results: %s', results)
+                elif event['event'] == 'initialized_channel':
+                    data = event['data']
+                    logging.info('Received initialized_channel: %s', data)
+                    results = await self.on_initialized_channel.run(**data, chain=chain)
+                    if results:
+                        logging.info('Initialized channel results: %s', results)
