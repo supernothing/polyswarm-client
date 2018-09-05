@@ -1,31 +1,15 @@
 import functools
 from polyswarmclient import Client
 from polyswarmclient.events import VoteOnBounty, SettleBounty
-from polyswarmclient.bloom import BloomFilter, FILTER_BITS
-
-
-def calculate_bloom(artifacts):
-    bf = BloomFilter()
-    for _, h in artifacts:
-        bf.add(h.encode('utf-8'))
-
-    v = int(bf)
-    ret = []
-    d = (1 << 256) - 1
-    for _ in range(FILTER_BITS // 256):
-        ret.insert(0, v % d)
-        v //= d
-
-    return ret
 
 
 class Arbiter(object):
     def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1):
         self.testing = testing
         self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0)
-        self.client.on_new_bounty.register(functools.partial(Microengine.handle_new_bounty, self))
-        self.client.on_vote_on_bounty_due.register(functools.partial(Microengine.handle_vote_on_bounty, self))
-        self.client.on_settle_bounty_due.register(functools.partial(Microengine.handle_settle_bounty, self))
+        self.client.on_new_bounty.register(functools.partial(Arbiter.handle_new_bounty, self))
+        self.client.on_vote_on_bounty_due.register(functools.partial(Arbiter.handle_vote_on_bounty, self))
+        self.client.on_settle_bounty_due.register(functools.partial(Arbiter.handle_settle_bounty, self))
 
     async def scan(self, guid, content):
         """Override this to implement custom scanning logic
@@ -60,19 +44,14 @@ class Arbiter(object):
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
-        mask = []
         verdicts = []
-        metadatas = []
         async for content in self.client.get_artifacts(uri):
-            bit, verdict, metadata = await self.scan(guid, content)
-            mask.append(bit)
+            _, verdict, _ = await self.scan(guid, content)
             verdicts.append(verdict)
-            metadatas.append(metadata)
 
         bounty = await self.client.get_bounty(guid)
-        artifacts = await self.client.list_artifacts(uri)
-        bloom = self.calculate_bloom(artifacts)
-        valid_bloom = int(bounty.get('bloom', 0)) == bloom.value
+        bloom = await self.calculate_bloom(artifacts)
+        valid_bloom = int(bounty.get('bloom', 0)) == bloom
 
         expiration = int(expiration)
         assertion_reveal_window = self.client.bounty_parameters['home']['assertion_reveal_window']
