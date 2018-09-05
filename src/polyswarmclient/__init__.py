@@ -68,7 +68,7 @@ class Client(object):
 
         # Events scheduled on block deadlines
         self.on_reveal_assertion_due = events.OnRevealAssertionDueCallback()
-        self.on_vote_on_verdict_due = events.OnVoteOnVerdictDueCallback()
+        self.on_vote_on_bounty= events.OnVoteOnBountyDueCallback()
         self.on_settle_bounty_due = events.OnSettledBountyCallback()
 
 
@@ -114,8 +114,8 @@ class Client(object):
                     verdicts=task.verdicts, metadata=task.metadata, chain=chain))
             elif isinstance(task, events.SettleBounty):
                 ret.append(await self.on_settle_bounty_due.run(bounty_guid=task.guid, chain=chain))
-            elif isinstance(task, events.VoteOnVerdict):
-                ret.append(await self.on_vote_on_verdict.run(bounty_guid=task.guid, verdicts=task.verdicts,
+            elif isinstance(task, events.VoteOnBounty):
+                ret.append(await self.on_vote_on_bounty.run(bounty_guid=task.guid, verdicts=task.verdicts,
                     valid_bloom=task.valid_bloom, chain=chain))
 
         return ret
