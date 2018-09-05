@@ -48,10 +48,11 @@ class Client(object):
         self.__session = None
         self.__schedule = {
             'home': events.Schedule(),
-            'side': events.Schedule()
+            'side': events.Schedule(),
         }
 
         self.bounty_parameters = {}
+        self.staking_parameters = {}
 
         # Events from client
         self.on_run = events.OnRunCallback()
@@ -68,8 +69,8 @@ class Client(object):
 
         # Events scheduled on block deadlines
         self.on_reveal_assertion_due = events.OnRevealAssertionDueCallback()
-        self.on_vote_on_bounty= events.OnVoteOnBountyDueCallback()
-        self.on_settle_bounty_due = events.OnSettledBountyCallback()
+        self.on_vote_on_bounty_due = events.OnVoteOnBountyDueCallback()
+        self.on_settle_bounty_due = events.OnSettleBountyDueCallback()
 
 
     def run(self, event_loop = None):
@@ -78,21 +79,31 @@ class Client(object):
         if event_loop is None:
             event_loop = asyncio.get_event_loop()
 
-        event_loop.run_until_complete(self.__run())
+        event_loop.run_until_complete(self.run_task())
 
 
-    async def __run(self):
+    async def run_task(self):
         self.params = {'account': self.account} if not self.api_key else {}
         headers = {'Authorization': self.api_key} if self.api_key else {}
         async with aiohttp.ClientSession(headers=headers) as self.__session:
             self.bounty_parameters['home'] = await self.get_bounty_parameters('home')
             self.bounty_parameters['side'] = await self.get_bounty_parameters('side')
 
+            self.staking_parameters['home'] = await self.get_staking_parameters('home')
+            self.staking_parameters['side'] = await self.get_staking_parameters('side')
+
             await self.on_run.run()
             await asyncio.gather(self.listen_for_events('home'), self.listen_for_events('side'))
 
 
     def schedule(self, expiration, event, chain='home'):
+        """Schedule an event to execute on a particular block
+
+        Args:
+            expiration (int): Which block to execute on
+            event (Event): Event to trigger on expiration block
+            chain (str): Which chain to operate on
+        """
         assert(chain == 'home' or chain == 'side')
         self.__schedule[chain].put(expiration, event)
 
@@ -102,6 +113,7 @@ class Client(object):
 
         Args:
             number (int): The current block number reported from polyswarmd
+            chain (str): Which chain to operate on
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -115,7 +127,7 @@ class Client(object):
             elif isinstance(task, events.SettleBounty):
                 ret.append(await self.on_settle_bounty_due.run(bounty_guid=task.guid, chain=chain))
             elif isinstance(task, events.VoteOnBounty):
-                ret.append(await self.on_vote_on_bounty.run(bounty_guid=task.guid, verdicts=task.verdicts,
+                ret.append(await self.on_vote_on_bounty_due.run(bounty_guid=task.guid, verdicts=task.verdicts,
                     valid_bloom=task.valid_bloom, chain=chain))
 
         return ret
@@ -124,8 +136,10 @@ class Client(object):
     async def get_bounty_parameters(self, chain='home'):
         """Get bounty parameters from polyswarmd
 
+        Args:
+            chain (str): Which chain to operate on
         Returns:
-            Response JSON parsed from polyswarmd containing emitted events
+            Response JSON parsed from polyswarmd containing bounty parameters
         """
         assert(chain == 'home' or chain == 'side')
         if self.__session is None or self.__session.closed:
@@ -145,6 +159,35 @@ class Client(object):
             return response['result']
         except:
             logging.warning('expected bounty parameters, got: %s', response)
+            return None
+
+
+    async def get_staking_parameters(self, chain='home'):
+        """Get staking parameters from polyswarmd
+
+        Args:
+            chain (str): Which chain to operate on
+        Returns:
+            Response JSON parsed from polyswarmd containing staking parameters
+        """
+        assert(chain == 'home' or chain == 'side')
+        if self.__session is None or self.__session.closed:
+            raise Exception('Not running')
+
+        uri = '{0}/staking/parameters'.format(self.polyswarmd_uri)
+
+        params = self.params
+        params['chain'] = chain
+        async with self.__session.get(uri, params=params) as response:
+            response = await response.json()
+        logging.debug('GET /staking/parameters?chain=%s: %s', chain, response)
+        if not check_response(response):
+            return None
+
+        try:
+            return response['result']
+        except:
+            logging.warning('expected staking parameters, got: %s', response)
             return None
 
 
@@ -184,6 +227,9 @@ class Client(object):
             return self
 
         async def __anext__(self):
+            if not is_valid_ipfs_uri(self.ipfs_uri):
+                raise StopAsyncIteration
+
             i = self.i
             self.i += 1
 
@@ -202,11 +248,46 @@ class Client(object):
         return Client.__GetArtifacts(self, ipfs_uri)
 
 
+    async def list_artifacts(self, ipfs_uri):
+        if self.__session is None or self.__session.closed:
+            raise Exception('Not running')
+
+        if not is_valid_ipfs_uri(ipfs_uri):
+            return None
+
+        uri = '{0}/artifacts/{1}'.format(self.polyswarmd_uri, ipfs_uri)
+        params = self.params
+        async with self.__session.get(uri, params=self.params) as response:
+            response = await response.json()
+        logging.debug('GET /artifacts/%s: %s', ipfs_uri, response)
+        if not check_response(response):
+            return []
+
+        return [(a['name'], a['hash']) for a in response.get('result', {})]
+
+
+    async def calculate_bloom(self, ipfs_uri):
+        """Calculate bloom filter for a set of artifacts
+
+        Args:
+            ipfs_uri (str): IPFS URI for the artifact set
+        Returns:
+            Bloom filter value for the artifact set
+        """
+        artifacts = await self.list_artifacts(ipfs_uri)
+        bf = bloom.BloomFilter()
+        for _, h in artifacts:
+            bf.add(h.encode('utf-8'))
+
+        return int(bf)
+
+
     async def post_transactions(self, transactions, chain='home'):
         """Post a set of (signed) transactions to Ethereum via polyswarmd, parsing the emitted events
 
         Args:
             transactions (List[Transaction]): The transactions to sign and post
+            chain (str): Which chain to operate on
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -225,22 +306,134 @@ class Client(object):
         params = self.params
         params['chain'] = chain
         async with self.__session.post(uri, params=self.params, json={'transactions': signed}) as response:
-            j = await response.json()
-        logging.debug('POST /transactions?chain=%s: %s', chain, j)
-        if self.tx_error_fatal and 'errors' in j.get('result', {}):
-            logging.error('Received fatal transaction error: %s', j)
+            response = await response.json()
+        logging.debug('POST /transactions?chain=%s: %s', chain, response)
+        if self.tx_error_fatal and 'errors' in response.get('result', {}):
+            logging.error('Received fatal transaction error: %s', response)
             sys.exit(1)
 
-        return j
+        return response
 
 
-    async def post_bounty(self, amount, uri, duration, chain='home'):
+    async def post_staking_deposit(self, amount, chain='home', base_nonce=None):
+        """Post a deposit to the staking contract
+
+        Args:
+            amount (int): The amount to stake
+            chain (str): Which chain to operate on
+            base_nonce (int): Base nonce to use, automatically calculated if None
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events
+        """
+        assert(chain == 'home' or chain == 'side')
+        if self.__session is None or self.__session.closed:
+            raise Exception('Not running')
+
+        uri = '{0}/staking/deposit'.format(self.polyswarmd_uri)
+        bounty = {
+            'amount': str(amount),
+        }
+
+        params = self.params
+        params['chain'] = chain
+        if base_nonce is not None:
+            params['base_nonce'] = base_nonce
+        async with self.__session.post(uri, params=self.params, json=bounty) as response:
+            response = await response.json()
+        logging.debug('POST /staking/deposit?chain=%s: %s', chain, response)
+        if not check_response(response):
+            return []
+
+        response = await self.post_transactions(response['result']['transactions'], chain)
+        if not check_response(response):
+            return []
+
+        try:
+            return response['result']['deposits']
+        except:
+            logging.warning('expected deposit, got: %s', response)
+            return []
+
+
+    async def post_staking_withdraw(self, amount, chain='home', base_nonce=None):
+        """Post a withdrawal to the staking contract
+
+        Args:
+            amount (int): The amount to withdraw
+            chain (str): Which chain to operate on
+            base_nonce (int): Base nonce to use, automatically calculated if None
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events
+        """
+        assert(chain == 'home' or chain == 'side')
+        if self.__session is None or self.__session.closed:
+            raise Exception('Not running')
+
+        uri = '{0}/staking/withdraw'.format(self.polyswarmd_uri)
+        bounty = {
+            'amount': str(amount),
+        }
+
+        params = self.params
+        params['chain'] = chain
+        if base_nonce is not None:
+            params['base_nonce'] = base_nonce
+        async with self.__session.post(uri, params=self.params, json=bounty) as response:
+            response = await response.json()
+        logging.debug('POST /staking/withdraw?chain=%s: %s', chain, response)
+        if not check_response(response):
+            return []
+
+        response = await self.post_transactions(response['result']['transactions'], chain)
+        if not check_response(response):
+            return []
+
+        try:
+            return response['result']['withdrawals']
+        except:
+            logging.warning('expected withdrawal, got: %s', response)
+            return []
+
+
+    async def get_bounty(self, guid, chain='home'):
+        """Get a bounty from polyswarmd
+
+        Args:
+            guid (str): GUID of the bounty to retrieve
+            chain (str): Which chain to operate on
+        Returns:
+            Response JSON parsed from polyswarmd containing bounty details
+        """
+        assert(chain == 'home' or chain == 'side')
+        if self.__session is None or self.__session.closed:
+            raise Exception('Not running')
+
+        uri = '{0}/bounties/{1}'.format(self.polyswarmd_uri, guid)
+
+        params = self.params
+        params['chain'] = chain
+        async with self.__session.get(uri, params=self.params) as response:
+            response = await response.json()
+        logging.debug('GET /bounties/%s?chain=%s: %s', guid, chain, response)
+        if not check_response(response):
+            return []
+
+        try:
+            return response['result']
+        except:
+            logging.warning('expected bounty, got: %s', response)
+            return []
+
+
+    async def post_bounty(self, amount, uri, duration, chain='home', base_nonce=None):
         """Post a bounty to polyswarmd
 
         Args:
             amount (int): The amount to put up as a bounty
             uri (str): URI of artifacts
             duration (int): Number of blocks to accept new assertions
+            chain (str): Which chain to operate on
+            base_nonce (int): Base nonce to use, automatically calculated if None
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -257,9 +450,11 @@ class Client(object):
 
         params = self.params
         params['chain'] = chain
+        if base_nonce is not None:
+            params['base_nonce'] = base_nonce
         async with self.__session.post(uri, params=self.params, json=bounty) as response:
             response = await response.json()
-        logging.debug('POST /bounties?chain=%s: %s', chain, j)
+        logging.debug('POST /bounties?chain=%s: %s', chain, response)
         if not check_response(response):
             return []
 
@@ -274,7 +469,38 @@ class Client(object):
             return []
 
 
-    async def post_assertion(self, guid, bid, mask, verdicts, chain='home'):
+    async def get_assertion(self, bounty_guid, index, chain='home'):
+        """Get an assertion from polyswarmd
+
+        Args:
+            bounty_guid (str): GUID of the bounty to retrieve the assertion from
+            index (int): Index of the assertion
+            chain (str): Which chain to operate on
+        Returns:
+            Response JSON parsed from polyswarmd containing assertion details
+        """
+        assert(chain == 'home' or chain == 'side')
+        if self.__session is None or self.__session.closed:
+            raise Exception('Not running')
+
+        uri = '{0}/bounties/{1}/assertions/{2}'.format(self.polyswarmd_uri, bounty_guid, index)
+
+        params = self.params
+        params['chain'] = chain
+        async with self.__session.get(uri, params=self.params) as response:
+            response = await response.json()
+        logging.debug('GET /bounties/%s/assertions/%s?chain=%s: %s', bounty_guid, index, chain, response)
+        if not check_response(response):
+            return []
+
+        try:
+            return response['result']
+        except:
+            logging.warning('expected assertion, got: %s', response)
+            return []
+
+
+    async def post_assertion(self, guid, bid, mask, verdicts, chain='home', base_nonce=None):
         """Post an assertion to polyswarmd
 
         Args:
@@ -282,6 +508,8 @@ class Client(object):
             bid (int): The amount to bid
             mask (List[bool]): Which artifacts in the bounty to assert on
             verdicts (List[bool]): Verdict (malicious/benign) for each of the artifacts in the bounty
+            chain (str): Which chain to operate on
+            base_nonce (int): Base nonce to use, automatically calculated if None
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -299,6 +527,8 @@ class Client(object):
 
         params = self.params
         params['chain'] = chain
+        if base_nonce is not None:
+            params['base_nonce'] = base_nonce
         async with self.__session.post(uri, params=self.params, json=assertion) as response:
             response = await response.json()
         logging.debug('POST /bounties/%s/assertions?chain=%s: %s', chain, guid, response)
@@ -317,7 +547,7 @@ class Client(object):
             return None, []
 
 
-    async def post_reveal(self, guid, index, nonce, verdicts, metadata, chain='home'):
+    async def post_reveal(self, guid, index, nonce, verdicts, metadata, chain='home', base_nonce=None):
         """Post an assertion reveal to polyswarmd
 
         Args:
@@ -326,6 +556,8 @@ class Client(object):
             nonce (str): Secret nonce used to reveal assertion
             verdicts (List[bool]): Verdict (malicious/benign) for each of the artifacts in the bounty
             metadata (str): Optional metadata
+            chain (str): Which chain to operate on
+            base_nonce (int): Base nonce to use, automatically calculated if None
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -343,6 +575,8 @@ class Client(object):
 
         params = self.params
         params['chain'] = chain
+        if base_nonce is not None:
+            params['base_nonce'] = base_nonce
         async with self.__session.post(uri, params=self.params, json=reveal) as response:
             response = await response.json()
         logging.debug('POST /bounties/%s/assertions/%s/reveal?chain=%s: %s', guid, index, chain, response)
@@ -360,13 +594,15 @@ class Client(object):
             return []
 
 
-    async def post_vote(self, guid, verdicts, valid_bloom, chain='home'):
+    async def post_vote(self, guid, verdicts, valid_bloom, chain='home', base_nonce=None):
         """Post a bounty to polyswarmd
 
         Args:
             guid (str): The bounty which we are voting on
             verdicts (List[bool]): Verdict (malicious/benign) for each of the artifacts in the bounty
             valid_bloom (bool): Is the bloom filter reported by the bounty poster valid
+            chain (str): Which chain to operate on
+            base_nonce (int): Base nonce to use, automatically calculated if None
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -382,6 +618,8 @@ class Client(object):
 
         params = self.params
         params['chain'] = chain
+        if base_nonce is not None:
+            params['base_nonce'] = base_nonce
         async with self.__session.post(uri, params=self.params, json=vote) as response:
             response = await response.json()
         logging.debug('POST /bounties/%s/vote?chain=%s: %s', guid, chain, response)
@@ -399,11 +637,13 @@ class Client(object):
             return []
 
 
-    async def settle_bounty(self, guid, chain='home'):
+    async def settle_bounty(self, guid, chain='home', base_nonce=None):
         """Settle a bounty via polyswarmd
 
         Args:
             guid (str): The bounty which we are settling
+            chain (str): Which chain to operate on
+            base_nonce (int): Base nonce to use, automatically calculated if None
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -416,6 +656,8 @@ class Client(object):
 
         params = self.params
         params['chain'] = chain
+        if base_nonce is not None:
+            params['base_nonce'] = base_nonce
         async with self.__session.post(uri, params=self.params) as response:
             response = await response.json()
         logging.debug('POST /bounties/%s/settle?chain=%s: %s', guid, chain, response)
@@ -435,6 +677,9 @@ class Client(object):
 
     async def listen_for_events(self, chain='home'):
         """Listen for events via websocket connection to polyswarmd
+
+        Args:
+            chain (str): Which chain to operate on
         """
         assert(chain == 'home' or chain == 'side')
         assert(self.polyswarmd_uri.startswith('http'))

@@ -271,6 +271,3 @@ class OnSettleBountyDueCallback(Callback):
             chain (str): Chain event received on
         """
         return await super().run(bounty_guid, chain)
-
-
-
