@@ -8,8 +8,6 @@ import websockets
 from web3 import Web3
 w3 = Web3()
 
-from polyswarmclient.events import Callback, Schedule, RevealAssertion, SettleBounty
-
 
 def check_response(response):
     """Check the status of responses from polyswarmd
@@ -49,28 +47,29 @@ class Client(object):
 
         self.__session = None
         self.__schedule = {
-            'home': Schedule(),
-            'side': Schedule()
+            'home': events.Schedule(),
+            'side': events.Schedule()
         }
 
         self.bounty_parameters = {}
 
         # Events from client
-        self.on_run = Callback()
+        self.on_run = events.OnRunCallback()
 
         # Events from polyswarmd
-        self.on_new_block = Callback()
-        self.on_new_bounty = Callback()
-        self.on_new_assertion = Callback()
-        self.on_reveal_assertion = Callback()
-        self.on_new_verdict = Callback()
-        self.on_quorum = Callback()
-        self.on_settled_bounty = Callback()
-        self.on_initialized_channel = Callback()
+        self.on_new_block = events.OnNewBlockCallback()
+        self.on_new_bounty = events.OnNewBountyCallback()
+        self.on_new_assertion = events.OnNewAssertionCallback()
+        self.on_reveal_assertion = events.OnRevealAssertionCallback()
+        self.on_new_verdict = events.OnNewVerdictCallback()
+        self.on_quorum_reached = events.OnQuorumReachedCallback()
+        self.on_settled_bounty = events.OnSettledBountyCallback()
+        self.on_initialized_channel = events.OnInitializedChannelCallback()
 
         # Events scheduled on block deadlines
-        self.on_reveal_assertion_due = Callback()
-        self.on_settle_bounty_due = Callback()
+        self.on_reveal_assertion_due = events.OnRevealAssertionDueCallback()
+        self.on_vote_on_verdict_due = events.OnVoteOnVerdictDueCallback()
+        self.on_settle_bounty_due = events.OnSettledBountyCallback()
 
 
     def run(self, event_loop = None):
@@ -79,18 +78,24 @@ class Client(object):
         if event_loop is None:
             event_loop = asyncio.get_event_loop()
 
-        event_loop.run_until_complete(self.__handle_on_run)
-        event_loop.run_until_complete(asyncio.gather(self.listen_for_events('home'), self.listen_for_events('side'))
+        event_loop.run_until_complete(self.__run())
 
 
-    async def __handle_on_run(self):
-        self.params = {'account': self.account if not self.api_key else {}}
-        headers = {'Authorization': self.api_key} if self.api_key else {})
+    async def __run(self):
+        self.params = {'account': self.account} if not self.api_key else {}
+        headers = {'Authorization': self.api_key} if self.api_key else {}
         async with aiohttp.ClientSession(headers=headers) as self.__session:
             self.bounty_parameters['home'] = await self.get_bounty_parameters('home')
             self.bounty_parameters['side'] = await self.get_bounty_parameters('side')
 
             await self.on_run.run()
+            await asyncio.gather(self.listen_for_events('home'), self.listen_for_events('side'))
+
+
+    def schedule(self, expiration, event, chain='home'):
+        assert(chain == 'home' or chain == 'side')
+        self.__schedule[chain].put(expiration, event)
+
 
     async def __handle_scheduled_events(self, number, chain='home'):
         """Perform scheduled events when a new block is reported
@@ -104,18 +109,16 @@ class Client(object):
         ret = []
         while self.__schedule[chain].peek() and self.__schedule[chain].peek()[0] < number:
             exp, task = self.__schedule[chain].get()
-            if isinstance(task, RevealAssertion):
-                ret.append(await self.on_reveal_assertion_due.run(guid=task.guid, index=task.index, nonce=task.nonce,
+            if isinstance(task, events.RevealAssertion):
+                ret.append(await self.on_reveal_assertion_due.run(bounty_guid=task.guid, index=task.index, nonce=task.nonce,
                     verdicts=task.verdicts, metadata=task.metadata, chain=chain))
-            elif isinstance(task, SettleBounty):
-                ret.append(await self.on_settle_bounty_due.run(guid=task.guid, chain=chain))
+            elif isinstance(task, events.SettleBounty):
+                ret.append(await self.on_settle_bounty_due.run(bounty_guid=task.guid, chain=chain))
+            elif isinstance(task, events.VoteOnVerdict):
+                ret.append(await self.on_vote_on_verdict.run(bounty_guid=task.guid, verdicts=task.verdicts,
+                    valid_bloom=task.valid_bloom, chain=chain))
 
         return ret
-
-
-    def schedule(self, expiration, event, chain='home'):
-        assert(chain == 'home' or chain == 'side')
-        self.__schedule[chain].put(expiration, event)
 
 
     async def get_bounty_parameters(self, chain='home'):
@@ -134,7 +137,7 @@ class Client(object):
         params['chain'] = chain
         async with self.__session.get(uri, params=params) as response:
             response = await response.json()
-        logging.debug('GET /bounties/parameters: %s', response)
+        logging.debug('GET /bounties/parameters?chain=%s: %s', chain, response)
         if not check_response(response):
             return None
 
@@ -223,7 +226,7 @@ class Client(object):
         params['chain'] = chain
         async with self.__session.post(uri, params=self.params, json={'transactions': signed}) as response:
             j = await response.json()
-        logging.debug('POST /transactions: %s', j)
+        logging.debug('POST /transactions?chain=%s: %s', chain, j)
         if self.tx_error_fatal and 'errors' in j.get('result', {}):
             logging.error('Received fatal transaction error: %s', j)
             sys.exit(1)
@@ -256,7 +259,7 @@ class Client(object):
         params['chain'] = chain
         async with self.__session.post(uri, params=self.params, json=bounty) as response:
             response = await response.json()
-        logging.debug('POST /bounties: %s', j)
+        logging.debug('POST /bounties?chain=%s: %s', chain, j)
         if not check_response(response):
             return []
 
@@ -298,7 +301,7 @@ class Client(object):
         params['chain'] = chain
         async with self.__session.post(uri, params=self.params, json=assertion) as response:
             response = await response.json()
-        logging.debug('POST /bounties/%s/assertions: %s', guid, response)
+        logging.debug('POST /bounties/%s/assertions?chain=%s: %s', chain, guid, response)
         if not check_response(response):
             return None, []
 
@@ -342,7 +345,7 @@ class Client(object):
         params['chain'] = chain
         async with self.__session.post(uri, params=self.params, json=reveal) as response:
             response = await response.json()
-        logging.debug('POST /bounties/%s/assertions/%s/reveal: %s', guid, index, response)
+        logging.debug('POST /bounties/%s/assertions/%s/reveal?chain=%s: %s', guid, index, chain, response)
         if not check_response(response):
             return []
 
@@ -381,7 +384,7 @@ class Client(object):
         params['chain'] = chain
         async with self.__session.post(uri, params=self.params, json=vote) as response:
             response = await response.json()
-        logging.debug('POST /bounties/%s/vote: %s', guid, response)
+        logging.debug('POST /bounties/%s/vote?chain=%s: %s', guid, chain, response)
         if not check_response(response):
             return []
 
@@ -415,7 +418,7 @@ class Client(object):
         params['chain'] = chain
         async with self.__session.post(uri, params=self.params) as response:
             response = await response.json()
-        logging.debug('POST /bounties/%s/settle: %s', guid, response)
+        logging.debug('POST /bounties/%s/settle?chain=%s: %s', guid, chain, response)
         if not check_response(response):
             return Nonce
 
@@ -437,58 +440,61 @@ class Client(object):
         assert(self.polyswarmd_uri.startswith('http'))
 
         # http:// -> ws://, https:// -> wss://
-        wsuri = '{0}/events?chain={1}'.format(self.polyswarmd_uri).replace('http', 'ws', 1)
-        async with websockets.connect(wsuri, extra_headers=headers) as ws:
+        wsuri = '{0}/events?chain={1}'.format(self.polyswarmd_uri, chain).replace('http', 'ws', 1)
+        last_block = 0
+        async with websockets.connect(wsuri) as ws:
             while True:
                 event = json.loads(await ws.recv())
                 if event['event'] == 'block':
                     number = event['data']['number']
+                    if number <= last_block:
+                        continue
                     if number % 100 == 0:
-                        logging.debug('Block %s', number)
+                        logging.debug('Block %s on chain %s', number, chain)
                     results = await self.on_new_block.run(number=number, chain=chain)
                     if results:
-                        logging.info('Block results: %s', results)
+                        logging.info('Block results on chain %s: %s', chain, results)
 
                     results = await self.__handle_scheduled_events(number)
                     if results:
-                        logging.info('Scheduled event results: %s', results)
+                        logging.info('Scheduled event results on chain %s: %s', chain, results)
                 elif event['event'] == 'bounty':
                     data = event['data']
-                    logging.info('Received bounty: %s', data)
+                    logging.info('Received bounty on chain %s: %s', chain, data)
                     results = await self.on_new_bounty.run(**data, chain=chain)
                     if results:
-                        logging.info('Bounty results: %s', results)
+                        logging.info('Bounty resultson chain %s: %s', chain, results)
                 elif event['event'] == 'assertion':
                     data = event['data']
-                    logging.info('Received assertion: %s', data)
+                    logging.info('Received assertion on chain %s: %s', chain, data)
                     results = await self.on_new_assertion.run(**data, chain=chain)
                     if results:
-                        logging.info('Assertion results: %s', results)
+                        logging.info('Assertion results on chain %s: %s', chain, results)
                 elif event['event'] == 'reveal':
                     data = event['data']
-                    logging.info('Received reveal: %s', data)
+                    logging.info('Received reveal on chain %s: %s', chain, data)
                     results = await self.on_reveal_assertion.run(**data, chain=chain)
                     if results:
-                        logging.info('Reveal results: %s', results)
+                        logging.info('Reveal results on chain %s: %s', chain, results)
                 elif event['event'] == 'verdict':
 
                     data = event['data']
-                    logging.info('Received verdict: %s', data)
+                    logging.info('Received verdict on chain %s: %s', chain, data)
                     results = await self.on_new_verdict.run(**data, chain=chain)
                     if results:
-                        logging.info('Verdict results: %s', results)
+                        logging.info('Verdict results on chain %s: %s', chain, results)
                 elif event['event'] == 'quorum':
                     data = event['data']
-                    logging.info('Received quorum: %s', data)
-                    results = await self.on_quorum.run(**data, chain=chain)
+                    logging.info('Received quorum on chain %s: %s', chain, data)
+                    results = await self.on_quorum_reached.run(**data, chain=chain)
                     if results:
-                        logging.info('Quorum results: %s', results)
+                        logging.info('Quorum results on chain %s: %s', chain, results)
                 elif event['event'] == 'settled_bounty':
                     data = event['data']
-                    logging.info('Received settled bounty: %s', data)
+                    logging.info('Received settled bounty on chain %s: %s', chain, data)
                     results = await self.on_settled_bounty.run(**data, chain=chain)
                     if results:
-                        logging.info('Settle bounty results: %s', results)
+                        logging.info('Settle bounty results on chain %s: %s', chain, results)
                 elif event['event'] == 'initialized_channel':
                     data = event['data']
                     logging.info('Received initialized_channel: %s', data)

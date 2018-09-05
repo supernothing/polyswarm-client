@@ -40,7 +40,7 @@ class Microengine(object):
         self.client.run(event_loop)
 
 
-    async def handle_new_bounty(self, guid, author, uri, amount, expiration):
+    async def handle_new_bounty(self, guid, author, uri, amount, expiration, chain):
         """Scan and assert on a posted bounty
 
         Args:
@@ -49,6 +49,7 @@ class Microengine(object):
             uri (str): IPFS hash of the root artifact
             amount (str): Amount of the bounty in base NCT units (10 ^ -18)
             expiration (str): Block number of the bounty's expiration
+            chain (str): Is this on the home or side chain?
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
@@ -64,19 +65,19 @@ class Microengine(object):
         expiration = int(expiration)
         assertion_reveal_window = self.client.bounty_parameters['home']['assertion_reveal_window']
         arbiter_vote_window = self.client.bounty_parameters['home']['arbiter_vote_window']
-        nonce, assertions = await self.client.post_assertion(guid, self.bid(guid), mask, verdicts)
+        nonce, assertions = await self.client.post_assertion(guid, self.bid(guid), mask, verdicts, chain)
         for a in assertions:
             ra = RevealAssertion(guid, a['index'], nonce, verdicts, ';'.join(metadatas))
-            self.client.schedule(expiration, ra)
+            self.client.schedule(expiration, ra, chain)
 
             sb = SettleBounty(guid)
-            self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb)
+            self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
 
         return assertions
 
-    async def handle_reveal_assertion(self, guid, index, nonce, verdicts, metadata):
-        return await self.client.post_reveal(guid, index, nonce, verdicts, metadata)
+    async def handle_reveal_assertion(self, bounty_guid, index, nonce, verdicts, metadata, chain):
+        return await self.client.post_reveal(bounty_guid, index, nonce, verdicts, metadata, chain)
 
 
-    async def handle_settle_bounty(self, guid):
-        return await self.client.settle_bounty(guid)
+    async def handle_settle_bounty(self, bounty_guid, chain):
+        return await self.client.settle_bounty(bounty_guid, chain)

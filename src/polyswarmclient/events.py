@@ -21,6 +21,137 @@ class Callback(object):
         return ret
 
 
+# Create these subclasses so we can document the parameters to each callback
+class OnRunCallback(Callback):
+    """Called upon entering the event loop for the first time, use for initialization"""
+
+    async def run(self):
+        """Run the registered callbacks"""
+        return await super().run()
+
+
+class OnNewBlockCallback(Callback):
+    """Called upon receiving a new block, scheduled events triggered separately"""
+
+    async def run(self, number, chain):
+        """Run the registered callbacks
+
+        Args:
+            number (int): Block number received
+            chain (str): Chain event received on
+        """
+        return await super().run(number, chain)
+
+
+class OnNewBountyCallback(Callback):
+    """Called upon receiving a new bounty"""
+
+    async def run(self, guid, author, amount, uri, expiration, chain):
+        """Run the registered callbacks
+
+        Args:
+            guid (str): Bounty GUID
+            author (str): Author of the bounty
+            uri (str): URI of the artifacts in the bounty
+            expiration (int): Block number the bounty expires on
+            chain (str): Chain event received on
+        """
+        return await super().run(guid, author, amount, uri, expiration, chain)
+
+
+class OnNewAssertionCallback(Callback):
+    """Called upon receiving a new assertion"""
+
+    async def run(self, bounty_guid, author, index, bid, mask, commitment, chain):
+        """Run the registered callbacks
+
+        Args:
+            bounty_guid (str): Bounty GUID
+            author (str): Author of the assertion
+            index (int): Index of the assertion within the bounty
+            mask (List[bool]): Bitmask indicating which artifacts are being asserted on
+            commitment (int): Commitment hash representing the assertion's confidential verdicts
+            chain (str): Chain event received on
+        """
+        return await super().run(bounty_guid, author, index, bid, mask, commitment, chain)
+
+
+class OnRevealAssertionCallback(Callback):
+    """Called upon receiving a new assertion reveal"""
+
+    async def run(self, bounty_guid, author, index, nonce, verdicts, metadata, chain):
+        """Run the registered callbacks
+
+        Args:
+            bounty_guid (str): Bounty GUID
+            author (str): Author of the assertion
+            index (int): Index of the assertion within the bounty
+            nonce (int): Nonce used to calculate the commitment hash for this assertion
+            verdicts (List[bool]): Bitmask indicating malicious or benign verdicts for each artifact
+            metadata (str): Optional metadata for this assertion
+            chain (str): Chain event received on
+        """
+        return await super().run(bounty_guid, author, index, nonce, verdicts, metadata, chain)
+
+
+class OnNewVerdictCallback(Callback):
+    """Called upon receiving a new arbiter vote"""
+
+    async def run(self, bounty_guid, vericts, voter, chain):
+        """Run the registered callbacks
+
+        Args:
+            bounty_guid (str): Bounty GUID
+            verdicts (List[bool]): Bitmask indicating malicious or benign verdicts for each artifact
+            voter (str): Which arbiter is voting
+            chain (str): Chain event received on
+        """
+        return await super().run(bounty_guid, verdicts, voter, chain)
+
+
+class OnQuorumReachedCallback(Callback):
+    """Called upon a bounty reaching quorum"""
+
+    async def run(self, quorum_block, chain):
+        """Run the registered callbacks
+
+        Args:
+            quorum_block (int): Block the bounty reached quorum on
+            chain (str): Chain event received on
+        """
+        return await super().run(quorum_block, chain)
+
+
+class OnSettledBountyCallback(Callback):
+    """Called upon a bounty being settled"""
+
+    async def run(self, settled_block, settler, chain):
+        """Run the registered callbacks
+
+        Args:
+            settled_block (int): Block the bounty was settled on
+            settler (str): Address settling the bounty
+            chain (str): Chain event received on
+        """
+        return await super().run(settled_block, settler, chain)
+
+
+class OnInitializedChannelCallback(Callback):
+    """Called upon a channel being initialized"""
+
+    async def run(self, guid, ambassador, expert, multi_signature):
+        """Run the registered callbacks
+
+        Args:
+            guid (str): GUID of the channel
+            ambassador (str): Address of the ambassador
+            expert (str): Address of the expert
+            msig (str): Address of the multi sig contract
+            chain (str): Chain event received on
+        """
+        return await super().run(guid, ambassador, expert, msig, chain)
+
+
 class Schedule(object):
     def __init__(self):
         self.queue = PriorityQueue()
@@ -70,6 +201,23 @@ class RevealAssertion(Event):
         self.metadata = metadata
 
 
+class OnRevealAssertionDueCallback(Callback):
+    """Called when an assertion is needing to be revealed"""
+
+    async def run(self, bounty_guid, index, nonce, verdicts, metadata, chain):
+        """Run the registered callbacks
+
+        Args:
+            bounty_guid (str): GUID of the bounty being asserted on
+            index (int): Index of the assertion to reveal
+            nonce (str): Secret nonce used to reveal assertion
+            verdicts (List[bool]): List of verdicts for each artifact in the bounty
+            metadata (str): Optional metadata
+            chain (str): Chain event received on
+        """
+        return await super().run(bounty_guid, index, nonce, verdicts, metadata, chain)
+
+
 class VoteOnVerdict(Event):
     """A scheduled vote from an arbiter"""
 
@@ -86,6 +234,21 @@ class VoteOnVerdict(Event):
         self.valid_bloom = valid_bloom
 
 
+class OnVoteOnVerdictDueCallback(Callback):
+    """Called when a bounty is needing to be voted on"""
+
+    async def run(self, bounty_guid, verdicts, valid_bloom, chain):
+        """Run the registered callbacks
+
+        Args:
+            bounty_guid (str): GUID of the bounty being voted on
+            verdicts (List[bool]): List of verdicts for each artifact in the bounty
+            valid_bloom (bool): Is the bloom filter submitted with the bounty valid
+            chain (str): Chain event received on
+        """
+        return await super().run(bounty_guid, verdicts, valid_bloom, chain)
+
+
 class SettleBounty(Event):
     """A bounty scheduled to be settled"""
 
@@ -96,3 +259,18 @@ class SettleBounty(Event):
             guid (str): GUID of the bounty being asserted on
         """
         super().__init__(guid)
+
+class OnSettleBountyDueCallback(Callback):
+    """Called when a bounty is needing to be settled"""
+
+    async def run(self, bounty_guid, chain):
+        """Run the registered callbacks
+
+        Args:
+            bounty_guid (str): GUID of the bounty being voted on
+            chain (str): Chain event received on
+        """
+        return await super().run(bounty_guid, chain)
+
+
+
