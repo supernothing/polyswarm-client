@@ -44,14 +44,14 @@ class Microengine(object):
         self.client.run(event_loop)
 
 
-    async def handle_new_bounty(self, guid, author, uri, amount, expiration, chain):
+    async def handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
         """Scan and assert on a posted bounty
 
         Args:
             guid (str): The bounty to assert on
             author (str): The bounty author
-            uri (str): IPFS hash of the root artifact
             amount (str): Amount of the bounty in base NCT units (10 ^ -18)
+            uri (str): IPFS hash of the root artifact
             expiration (str): Block number of the bounty's expiration
             chain (str): Is this on the home or side chain?
         Returns:

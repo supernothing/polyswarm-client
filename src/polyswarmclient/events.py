@@ -97,7 +97,7 @@ class OnRevealAssertionCallback(Callback):
 class OnNewVerdictCallback(Callback):
     """Called upon receiving a new arbiter vote"""
 
-    async def run(self, bounty_guid, vericts, voter, chain):
+    async def run(self, bounty_guid, verdicts, voter, chain):
         """Run the registered callbacks
 
         Args:

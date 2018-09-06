@@ -6,6 +6,8 @@ import logging
 import sys
 import websockets 
 
+from polyswarmclient import bloom, events
+
 from web3 import Web3
 w3 = Web3()
 
@@ -32,6 +34,7 @@ def is_valid_ipfs_uri(ipfs_uri):
     except:
         pass
 
+    logging.error('Invalid IPFS URI: %s', ipfs_uri)
     return False
 
 
@@ -41,7 +44,8 @@ class Client(object):
             raise ValueError('Refusing to send API key over insecure transport')
 
         protocol = 'http://' if insecure_transport else 'https://'
-        self.polyswarmd_uri = protocol + polyswarm_addr
+        self.polyswarmd_uri = protocol + polyswarmd_addr
+        self.api_key = api_key
 
         self.tx_error_fatal = tx_error_fatal
         self.params = {}
@@ -265,10 +269,10 @@ class Client(object):
 
     async def list_artifacts(self, ipfs_uri):
         if self.__session is None or self.__session.closed:
-            raise xception('Not running')
+            raise Exception('Not running')
 
         if not is_valid_ipfs_uri(ipfs_uri):
-            return None
+            return []
 
         uri = '{0}/artifacts/{1}'.format(self.polyswarmd_uri, ipfs_uri)
         params = self.params
