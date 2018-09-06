@@ -1,15 +1,16 @@
 import functools
 from polyswarmclient import Client
-from polyswarmclient.events import RevealAssertion, SettleBounty
+from polyswarmclient.events import VoteOnBounty, SettleBounty
 
-class Microengine(object):
+
+class Arbiter(object):
     def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False, scanner=None):
         self.testing = testing
         self.scanner = scanner
         self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
-        self.client.on_new_bounty.register(functools.partial(Microengine.handle_new_bounty, self))
-        self.client.on_reveal_assertion_due.register(functools.partial(Microengine.handle_reveal_assertion, self))
-        self.client.on_settle_bounty_due.register(functools.partial(Microengine.handle_settle_bounty, self))
+        self.client.on_new_bounty.register(functools.partial(Arbiter.handle_new_bounty, self))
+        self.client.on_vote_on_bounty_due.register(functools.partial(Arbiter.handle_vote_on_bounty, self))
+        self.client.on_settle_bounty_due.register(functools.partial(Arbiter.handle_settle_bounty, self))
 
     async def scan(self, guid, content):
         """Override this to implement custom scanning logic
@@ -29,16 +30,6 @@ class Microengine(object):
 
         return True, True, ''
 
-    def bid(self, guid):
-        """Override this to implement custom bid calculation logic
-
-        Args:
-            guid (str): GUID of the bounty under analysis, use to correlate with artifacts in the same bounty
-        Returns:
-            (int): Amount of NCT to bid in base NCT units (10 ^ -18)
-        """
-        return self.client.bounty_parameters['home']['assertion_bid_minimum']
-
 
     def run(self, event_loop=None):
         self.client.run(event_loop)
@@ -57,30 +48,28 @@ class Microengine(object):
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
-        mask = []
         verdicts = []
-        metadatas = []
         async for content in self.client.get_artifacts(uri):
-            bit, verdict, metadata = await self.scan(guid, content)
-            mask.append(bit)
+            _, verdict, _ = await self.scan(guid, content)
             verdicts.append(verdict)
-            metadatas.append(metadata)
+
+        bounty = await self.client.get_bounty(guid)
+        bloom = await self.calculate_bloom(artifacts)
+        valid_bloom = int(bounty.get('bloom', 0)) == bloom
 
         expiration = int(expiration)
         assertion_reveal_window = self.client.bounty_parameters['home']['assertion_reveal_window']
         arbiter_vote_window = self.client.bounty_parameters['home']['arbiter_vote_window']
-        nonce, assertions = await self.client.post_assertion(guid, self.bid(guid), mask, verdicts, chain)
-        for a in assertions:
-            ra = RevealAssertion(guid, a['index'], nonce, verdicts, ';'.join(metadatas))
-            self.client.schedule(expiration, ra, chain)
 
-            sb = SettleBounty(guid)
-            self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
+        vb = VoteOnBounty(guid, verdicts, valid_bloom)
+        self.client.schedule(expiration + assertion_reveal_window, vb, chain)
 
-        return assertions
+        sb = SettleBounty(guid)
+        self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
 
-    async def handle_reveal_assertion(self, bounty_guid, index, nonce, verdicts, metadata, chain):
-        return await self.client.post_reveal(bounty_guid, index, nonce, verdicts, metadata, chain)
+
+    async def handle_vote_on_bounty(self, bounty_guid, verdicts, valid_bloom, chain):
+        return await self.client.post_vote(bounty_guid, verdicts, valid_bloom, chain)
 
 
     async def handle_settle_bounty(self, bounty_guid, chain):
