@@ -5,6 +5,7 @@ import json
 import logging
 import sys
 import websockets 
+
 from web3 import Web3
 w3 = Web3()
 
@@ -18,7 +19,10 @@ def check_response(response):
         (bool): True if successful else False
     """
     status = response.get('status')
-    return status and status == 'OK'
+    ret = status and status == 'OK'
+    if not ret:
+        logging.error('Received unexpected failure response from polyswarmd: %s', response)
+    return ret
 
 
 def is_valid_ipfs_uri(ipfs_uri):
@@ -32,9 +36,13 @@ def is_valid_ipfs_uri(ipfs_uri):
 
 
 class Client(object):
-    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, tx_error_fatal=False):
-        self.polyswarmd_uri = polyswarmd_uri
-        self.api_key = api_key
+    def __init__(self, polyswarmd_addr, keyfile, password, api_key=None, tx_error_fatal=False, insecure_transport=False):
+        if api_key and insecure_transport:
+            raise ValueError('Refusing to send API key over insecure transport')
+
+        protocol = 'http://' if insecure_transport else 'https://'
+        self.polyswarmd_uri = protocol + polyswarm_addr
+
         self.tx_error_fatal = tx_error_fatal
         self.params = {}
 
@@ -83,6 +91,9 @@ class Client(object):
 
 
     async def run_task(self):
+       if self.api_key and not self.polyswarmd_uri.startswith('https://'):
+            raise Exception('Refusing to send API key over insecure transport')
+
         self.params = {'account': self.account} if not self.api_key else {}
         headers = {'Authorization': self.api_key} if self.api_key else {}
         async with aiohttp.ClientSession(headers=headers) as self.__session:
@@ -104,7 +115,8 @@ class Client(object):
             event (Event): Event to trigger on expiration block
             chain (str): Which chain to operate on
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         self.__schedule[chain].put(expiration, event)
 
 
@@ -117,7 +129,8 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         ret = []
         while self.__schedule[chain].peek() and self.__schedule[chain].peek()[0] < number:
             exp, task = self.__schedule[chain].get()
@@ -141,9 +154,10 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing bounty parameters
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         uri = '{0}/bounties/parameters'.format(self.polyswarmd_uri)
 
@@ -158,7 +172,7 @@ class Client(object):
         try:
             return response['result']
         except:
-            logging.warning('expected bounty parameters, got: %s', response)
+            logging.error('Expected bounty parameters, got: %s', response)
             return None
 
 
@@ -170,9 +184,10 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing staking parameters
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         uri = '{0}/staking/parameters'.format(self.polyswarmd_uri)
 
@@ -187,7 +202,7 @@ class Client(object):
         try:
             return response['result']
         except:
-            logging.warning('expected staking parameters, got: %s', response)
+            logging.error('Expected staking parameters, got: %s', response)
             return None
 
 
@@ -201,7 +216,7 @@ class Client(object):
             (bytes): Content of the artifact
         """
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         if not is_valid_ipfs_uri(ipfs_uri):
             return None
@@ -243,14 +258,14 @@ class Client(object):
 
     def get_artifacts(self, ipfs_uri):
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         return Client.__GetArtifacts(self, ipfs_uri)
 
 
     async def list_artifacts(self, ipfs_uri):
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise xception('Not running')
 
         if not is_valid_ipfs_uri(ipfs_uri):
             return None
@@ -291,9 +306,10 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         signed = []
         for tx in transactions:
@@ -325,9 +341,10 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         uri = '{0}/staking/deposit'.format(self.polyswarmd_uri)
         bounty = {
@@ -351,7 +368,7 @@ class Client(object):
         try:
             return response['result']['deposits']
         except:
-            logging.warning('expected deposit, got: %s', response)
+            logging.error('Expected deposit, got: %s', response)
             return []
 
 
@@ -365,9 +382,10 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         uri = '{0}/staking/withdraw'.format(self.polyswarmd_uri)
         bounty = {
@@ -391,7 +409,7 @@ class Client(object):
         try:
             return response['result']['withdrawals']
         except:
-            logging.warning('expected withdrawal, got: %s', response)
+            logging.error('Expected withdrawal, got: %s', response)
             return []
 
 
@@ -404,9 +422,10 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing bounty details
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         uri = '{0}/bounties/{1}'.format(self.polyswarmd_uri, guid)
 
@@ -421,7 +440,7 @@ class Client(object):
         try:
             return response['result']
         except:
-            logging.warning('expected bounty, got: %s', response)
+            logging.error('Expected bounty, got: %s', response)
             return []
 
 
@@ -437,9 +456,10 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         uri = '{0}/bounties'.format(self.polyswarmd_uri)
         bounty = {
@@ -465,7 +485,7 @@ class Client(object):
         try:
             return response['result']['bounties']
         except:
-            logging.warning('expected bounty, got: %s', response)
+            logging.error('Expected bounty, got: %s', response)
             return []
 
 
@@ -479,9 +499,10 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing assertion details
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         uri = '{0}/bounties/{1}/assertions/{2}'.format(self.polyswarmd_uri, bounty_guid, index)
 
@@ -496,7 +517,7 @@ class Client(object):
         try:
             return response['result']
         except:
-            logging.warning('expected assertion, got: %s', response)
+            logging.error('Expected assertion, got: %s', response)
             return []
 
 
@@ -513,9 +534,10 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         uri = '{0}/bounties/{1}/assertions'.format(
             self.polyswarmd_uri, guid)
@@ -543,7 +565,7 @@ class Client(object):
         try:
             return nonce, response['result']['assertions']
         except:
-            logging.warning('expected assertion, got: %s', response)
+            logging.error('Expected assertion, got: %s', response)
             return None, []
 
 
@@ -561,9 +583,10 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         uri = '{0}/bounties/{1}/assertions/{2}/reveal'.format(
             self.polyswarmd_uri, guid, index)
@@ -590,7 +613,7 @@ class Client(object):
         try:
             return response['result']['reveals']
         except:
-            logging.warning('expected reveal, got: %s', response)
+            logging.error('Expected reveal, got: %s', response)
             return []
 
 
@@ -606,9 +629,10 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         uri = '{0}/bounties/{1}/vote'.format(self.polyswarmd_uri, guid)
         vote = {
@@ -633,7 +657,7 @@ class Client(object):
         try:
             return response['result']['verdicts']
         except:
-            logging.warning('expected verdicts, got: %s', response)
+            logging.error('Expected verdicts, got: %s', response)
             return []
 
 
@@ -647,9 +671,10 @@ class Client(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+            raise Exception('not running')
 
         uri = '{0}/bounties/{1}/settle'.format(
             self.polyswarmd_uri, guid)
@@ -671,7 +696,7 @@ class Client(object):
         try:
             return response['result']['transfers']
         except:
-            logging.warning('expected transfer, got: %s', response)
+            logging.error('Expected transfer, got: %s', response)
             return []
 
 
@@ -681,7 +706,8 @@ class Client(object):
         Args:
             chain (str): Which chain to operate on
         """
-        assert(chain == 'home' or chain == 'side')
+        if chain != 'home' and chain != 'side':
+            raise ValueError('chain parametermust be "home" or "side"')
         assert(self.polyswarmd_uri.startswith('http'))
 
         # http:// -> ws://, https:// -> wss://
@@ -708,7 +734,7 @@ class Client(object):
                     logging.info('Received bounty on chain %s: %s', chain, data)
                     results = await self.on_new_bounty.run(**data, chain=chain)
                     if results:
-                        logging.info('Bounty resultson chain %s: %s', chain, results)
+                        logging.info('Bounty results on chain %s: %s', chain, results)
                 elif event['event'] == 'assertion':
                     data = event['data']
                     logging.info('Received assertion on chain %s: %s', chain, data)

@@ -5,10 +5,10 @@ from polyswarmclient.events import SettleBounty
 
 
 class Ambassador(object):
-    def __init__(self, polyswarmd_uri, keyfile, password, chain='home', api_key=None, testing=-1):
+    def __init__(self, polyswarmd_uri, keyfile, password, chain='home', api_key=None, testing=-1, insecure_transport=False):
         self.chain = chain
         self.testing = testing
-        self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0)
+        self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
         self.client.on_run.register(functools.partial(Ambassador.handle_run, self))
         self.client.on_settle_bounty_due.register(functools.partial(Microengine.handle_settle_bounty, self))
 
