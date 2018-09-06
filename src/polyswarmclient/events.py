@@ -218,7 +218,7 @@ class OnRevealAssertionDueCallback(Callback):
         return await super().run(bounty_guid, index, nonce, verdicts, metadata, chain)
 
 
-class VoteOnVerdict(Event):
+class VoteOnBounty(Event):
     """A scheduled vote from an arbiter"""
 
     def __init__(self, guid, verdicts, valid_bloom):
@@ -234,7 +234,7 @@ class VoteOnVerdict(Event):
         self.valid_bloom = valid_bloom
 
 
-class OnVoteOnVerdictDueCallback(Callback):
+class OnVoteOnBountyDueCallback(Callback):
     """Called when a bounty is needing to be voted on"""
 
     async def run(self, bounty_guid, verdicts, valid_bloom, chain):
@@ -271,6 +271,3 @@ class OnSettleBountyDueCallback(Callback):
             chain (str): Chain event received on
         """
         return await super().run(bounty_guid, chain)
-
-
-
