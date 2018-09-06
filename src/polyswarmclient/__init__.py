@@ -78,10 +78,13 @@ class Client(object):
         if event_loop is None:
             event_loop = asyncio.get_event_loop()
 
-        event_loop.run_until_complete(self.__run())
+        event_loop.run_until_complete(self.run_task())
 
 
-    async def __run(self):
+    async def run_task(self):
+        if self.api_key and not self.polyswarmd_uri.startswith('https://'):
+            raise Exception('Refusing to send API key over insecure transport')
+
         self.params = {'account': self.account} if not self.api_key else {}
         headers = {'Authorization': self.api_key} if self.api_key else {}
         async with aiohttp.ClientSession(headers=headers) as self.__session:
