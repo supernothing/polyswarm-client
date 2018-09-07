@@ -35,14 +35,14 @@ class Arbiter(object):
         self.client.run(event_loop)
 
 
-    async def handle_new_bounty(self, guid, author, uri, amount, expiration, chain):
+    async def handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
         """Scan and assert on a posted bounty
 
         Args:
             guid (str): The bounty to assert on
             author (str): The bounty author
-            uri (str): IPFS hash of the root artifact
             amount (str): Amount of the bounty in base NCT units (10 ^ -18)
+            uri (str): IPFS hash of the root artifact
             expiration (str): Block number of the bounty's expiration
             chain (str): Is this on the home or side chain?
         Returns:
@@ -50,11 +50,11 @@ class Arbiter(object):
         """
         verdicts = []
         async for content in self.client.get_artifacts(uri):
-            _, verdict, _ = await self.scan(guid, content)
+            bit, verdict, metadata = await self.scan(guid, content)
             verdicts.append(verdict)
 
         bounty = await self.client.get_bounty(guid)
-        bloom = await self.calculate_bloom(artifacts)
+        bloom = await self.client.calculate_bloom(uri)
         valid_bloom = int(bounty.get('bloom', 0)) == bloom
 
         expiration = int(expiration)
