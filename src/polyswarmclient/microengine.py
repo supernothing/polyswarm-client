@@ -1,4 +1,6 @@
+import logging
 import functools
+
 from polyswarmclient import Client
 from polyswarmclient.events import RevealAssertion, SettleBounty
 
@@ -37,7 +39,7 @@ class Microengine(object):
         Returns:
             (int): Amount of NCT to bid in base NCT units (10 ^ -18)
         """
-        return self.client.bounty_parameters['home']['assertion_bid_minimum']
+        return self.client.bounties.parameters['home']['assertion_bid_minimum']
 
 
     def run(self, event_loop=None):
@@ -67,9 +69,9 @@ class Microengine(object):
             metadatas.append(metadata)
 
         expiration = int(expiration)
-        assertion_reveal_window = self.client.bounty_parameters['home']['assertion_reveal_window']
-        arbiter_vote_window = self.client.bounty_parameters['home']['arbiter_vote_window']
-        nonce, assertions = await self.client.post_assertion(guid, self.bid(guid), mask, verdicts, chain)
+        assertion_reveal_window = self.client.bounties.parameters['home']['assertion_reveal_window']
+        arbiter_vote_window = self.client.bounties.parameters['home']['arbiter_vote_window']
+        nonce, assertions = await self.client.bounties.post_assertion(guid, self.bid(guid), mask, verdicts, chain)
         for a in assertions:
             ra = RevealAssertion(guid, a['index'], nonce, verdicts, ';'.join(metadatas))
             self.client.schedule(expiration, ra, chain)
@@ -80,8 +82,8 @@ class Microengine(object):
         return assertions
 
     async def handle_reveal_assertion(self, bounty_guid, index, nonce, verdicts, metadata, chain):
-        return await self.client.post_reveal(bounty_guid, index, nonce, verdicts, metadata, chain)
+        return await self.client.bounties.post_reveal(bounty_guid, index, nonce, verdicts, metadata, chain)
 
 
     async def handle_settle_bounty(self, bounty_guid, chain):
-        return await self.client.settle_bounty(bounty_guid, chain)
+        return await self.client.bounties.settle_bounty(bounty_guid, chain)

@@ -1,4 +1,6 @@
 import functools
+import logging
+
 from polyswarmclient import Client
 from polyswarmclient.events import VoteOnBounty, SettleBounty
 
@@ -8,6 +10,7 @@ class Arbiter(object):
         self.testing = testing
         self.scanner = scanner
         self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
+        self.client.on_run.register(functools.partial(Arbiter.handle_run, self))
         self.client.on_new_bounty.register(functools.partial(Arbiter.handle_new_bounty, self))
         self.client.on_vote_on_bounty_due.register(functools.partial(Arbiter.handle_vote_on_bounty, self))
         self.client.on_settle_bounty_due.register(functools.partial(Arbiter.handle_settle_bounty, self))
@@ -31,9 +34,16 @@ class Arbiter(object):
         return True, True, ''
 
 
-    def run(self, event_loop=None):
-        self.client.run(event_loop)
+    def run(self, loop=None):
+        self.client.run(loop)
 
+
+    async def handle_run(self, loop, chain):
+        min_stake = self.client.staking.parameters[chain]['minimum_stake']
+        balance = await self.client.staking.get_total_balance(chain)
+        if balance < min_stake:
+            deposits = await self.client.staking.post_deposit(min_stake - balance, chain)
+            logging.info('Depositing stake: %s', deposits)
 
     async def handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
         """Scan and assert on a posted bounty
@@ -53,13 +63,13 @@ class Arbiter(object):
             bit, verdict, metadata = await self.scan(guid, content)
             verdicts.append(verdict)
 
-        bounty = await self.client.get_bounty(guid)
-        bloom = await self.client.calculate_bloom(uri)
+        bounty = await self.client.bounties.get_bounty(guid)
+        bloom = await self.client.bounties.calculate_bloom(uri)
         valid_bloom = int(bounty.get('bloom', 0)) == bloom
 
         expiration = int(expiration)
-        assertion_reveal_window = self.client.bounty_parameters['home']['assertion_reveal_window']
-        arbiter_vote_window = self.client.bounty_parameters['home']['arbiter_vote_window']
+        assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
+        arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
 
         vb = VoteOnBounty(guid, verdicts, valid_bloom)
         self.client.schedule(expiration + assertion_reveal_window, vb, chain)
@@ -69,8 +79,8 @@ class Arbiter(object):
 
 
     async def handle_vote_on_bounty(self, bounty_guid, verdicts, valid_bloom, chain):
-        return await self.client.post_vote(bounty_guid, verdicts, valid_bloom, chain)
+        return await self.client.bounties.post_vote(bounty_guid, verdicts, valid_bloom, chain)
 
 
     async def handle_settle_bounty(self, bounty_guid, chain):
-        return await self.client.settle_bounty(bounty_guid, chain)
+        return await self.client.bounties.settle_bounty(bounty_guid, chain)

@@ -1,3 +1,5 @@
+import logging
+
 from functools import total_ordering
 from queue import PriorityQueue
 
@@ -13,21 +15,30 @@ class Callback(object):
         self.cbs.remove(f)
 
     async def run(self, *args, **kwargs):
-        ret = []
+        results = []
         for cb in self.cbs:
             local_ret = await cb(*args, **kwargs)
             if local_ret is not None:
-                ret.append(local_ret)
-        return ret
+                results.append(local_ret)
+
+        if results:
+            logging.info('%s callback results: %s', type(self).__name__, results)
+
+        return results
 
 
 # Create these subclasses so we can document the parameters to each callback
 class OnRunCallback(Callback):
     """Called upon entering the event loop for the first time, use for initialization"""
 
-    async def run(self):
-        """Run the registered callbacks"""
-        return await super().run()
+    async def run(self, loop, chain):
+        """Run the registered callbacks
+        
+        Args:
+            loop (asyncio.BaseEventLoop): Loop we are running on
+            chain (str): Chain event received on
+        """
+        return await super().run(loop, chain)
 
 
 class OnNewBlockCallback(Callback):
@@ -112,14 +123,15 @@ class OnNewVerdictCallback(Callback):
 class OnQuorumReachedCallback(Callback):
     """Called upon a bounty reaching quorum"""
 
-    async def run(self, quorum_block, chain):
+    async def run(self, bounty_guid, quorum_block, chain):
         """Run the registered callbacks
 
         Args:
+            bounty_guid (str): Bounty GUID
             quorum_block (int): Block the bounty reached quorum on
             chain (str): Chain event received on
         """
-        return await super().run(quorum_block, chain)
+        return await super().run(bounty_guid, quorum_block, chain)
 
 
 class OnSettledBountyCallback(Callback):
