@@ -220,6 +220,25 @@ class Client(object):
         async with self.base_nonce_lock[chain]:
             self.base_nonce[chain] = await self.make_request('GET', '/nonce', chain)
 
+
+    async def list_artifacts(self, ipfs_uri):
+        if self.__session is None or self.__session.closed:
+            raise Exception('Not running')
+
+        if not is_valid_ipfs_uri(ipfs_uri):
+            return []
+
+        uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}'.format(ipfs_uri))
+        params = self.params
+        async with self.__session.get(uri, params=self.params) as response:
+            response = await response.json()
+        logging.debug('GET /artifacts/%s: %s', ipfs_uri, response)
+        if not check_response(response):
+            return []
+
+        return [(a['name'], a['hash']) for a in response.get('result', {})]
+
+
     async def get_artifact(self, ipfs_uri, index):
         """Retrieve an artifact from IPFS via polyswarmd
 
@@ -269,22 +288,8 @@ class Client(object):
         return Client.__GetArtifacts(self, ipfs_uri)
 
 
-    async def list_artifacts(self, ipfs_uri):
-        if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
-
-        if not is_valid_ipfs_uri(ipfs_uri):
-            return []
-
-        uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}'.format(ipfs_uri))
-        params = self.params
-        async with self.__session.get(uri, params=self.params) as response:
-            response = await response.json()
-        logging.debug('GET /artifacts/%s: %s', ipfs_uri, response)
-        if not check_response(response):
-            return []
-
-        return [(a['name'], a['hash']) for a in response.get('result', {})]
+    async def post_artifacts(self):
+        pass
 
 
     def schedule(self, expiration, event, chain='home'):
