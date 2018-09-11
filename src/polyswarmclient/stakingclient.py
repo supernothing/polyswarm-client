@@ -1,0 +1,82 @@
+import logging
+
+
+class StakingClient(object):
+    def __init__(self, client):
+        self.__client = client
+        self.parameters = {}
+
+
+    async def get_parameters(self, chain='home'):
+        """Get staking parameters from polyswarmd
+
+        Args:
+            chain (str): Which chain to operate on
+        Returns:
+            Response JSON parsed from polyswarmd containing staking parameters
+        """
+        self.parameters[chain] = await self.__client.make_request('GET', '/staking/parameters', chain)
+        if self.parameters[chain] is None:
+            raise Exception('Error retrieving bounty parameters')
+
+
+    async def get_total_balance(self, chain='home'):
+        """Get total staking balance from polyswarmd
+
+        Args:
+            chain (str): Which chain to operate on
+        Returns:
+            Response JSON parsed from polyswarmd containing staking balance
+        """
+        uri = '/{0}/staking/total'.format(self.client.account)
+        return await self.__client.make_request('GET', uri, chain)
+
+
+    async def get_withdrawable_balance(self, chain='home'):
+        """Get withdrawable staking balance from polyswarmd
+
+        Args:
+            chain (str): Which chain to operate on
+        Returns:
+            Response JSON parsed from polyswarmd containing staking balance
+        """
+        uri = '/{0}/staking/withdrawable'.format(self.client.account)
+        return await self.__client.make_request('GET', uri, chain)
+
+
+    async def post_deposit(self, amount, chain='home'):
+        """Post a deposit to the staking contract
+
+        Args:
+            amount (int): The amount to stake
+            chain (str): Which chain to operate on
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events
+        """
+        deposit = {
+            'amount': str(amount),
+        }
+        transactions = await self.__client.make_request('POST', '/staking/deposit', chain, json=deposit, track_nonce=True)
+        results = await self.__client.post_transactions(transactions, chain)
+        if not 'deposits' in results:
+            logging.error('Expected deposit, received: %s', results)
+        return results
+
+
+    async def post_withdraw(self, amount, chain='home'):
+        """Post a withdrawal to the staking contract
+
+        Args:
+            amount (int): The amount to withdraw
+            chain (str): Which chain to operate on
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events
+        """
+        withdrawal = {
+            'amount': str(amount),
+        }
+        transactions = await self.__client.make_request('POST', '/staking/withdraw', chain, json=withdrawal, track_nonce=True)
+        results = await self.__client.post_transactions(transactions, chain)
+        if not 'withdrawals' in results:
+            logging.error('Expected withdrawal, received: %s', results)
+        return results

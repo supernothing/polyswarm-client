@@ -13,12 +13,16 @@ class Callback(object):
         self.cbs.remove(f)
 
     async def run(self, *args, **kwargs):
-        ret = []
+        results = []
         for cb in self.cbs:
             local_ret = await cb(*args, **kwargs)
             if local_ret is not None:
-                ret.append(local_ret)
-        return ret
+                results.append(local_ret)
+
+        if results:
+            logging.info('%s callback results: %s', type(self).__name__, results)
+
+        return results
 
 
 # Create these subclasses so we can document the parameters to each callback
