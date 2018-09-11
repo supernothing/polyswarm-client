@@ -7,7 +7,10 @@ import sys
 import websockets 
 
 from urllib.parse import urljoin
-from polyswarmclient import bloom, events
+from polyswarmclient import events
+from polyswarmclient.bountiesclient import BountiesClient
+from polyswarmclient.stakingclient import StakingClient
+from polyswarmclient.offersclient import OffersClient
 
 from web3 import Web3
 w3 = Web3()
@@ -95,17 +98,17 @@ class Client(object):
         self.on_settle_bounty_due = events.OnSettleBountyDueCallback()
 
 
-    def run(self, loop=None):
+    def run(self, loop, chains={'home', 'side'}):
         """Run this microengine
         Args:
             loop (asyncio.BaseEventLoop): Event loop to run on, defaults to default event loop
         """
         if not loop:
             loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.run_task(loop))
+        loop.run_until_complete(self.run_task(loop, chains))
 
 
-    async def run_task(self, loop):
+    async def run_task(self, loop, chains={'home', 'side'}):
         if self.api_key and not self.polyswarmd_uri.startswith('https://'):
             raise Exception('Refusing to send API key over insecure transport')
 
@@ -113,25 +116,24 @@ class Client(object):
         headers = {'Authorization': self.api_key} if self.api_key else {}
         try:
             async with aiohttp.ClientSession(headers=headers) as self.__session:
-                self.bounties = BountyClient(self)
-                await self.bounties.get_parameters('home')
-                await self.bounties.get_parameters('side')
-
+                self.bounties = BountiesClient(self)
                 self.staking = StakingClient(self)
-                await self.staking.get_parameters('home')
-                await self.staking.get_parameters('side')
-
                 self.offers = OffersClient(self)
 
-                await self.on_run.run()
-                await asyncio.gather(self.listen_for_events('home', loop), self.listen_for_events('side', loop))
+                for chain in chains:
+                    await self.update_base_nonce(chain)
+                    await self.bounties.get_parameters(chain)
+                    await self.staking.get_parameters(chain)
+                    await self.on_run.run(loop, chain)
+
+                await asyncio.gather(*[self.listen_for_events(loop, chain) for chain in chains])
         finally:
             self.__session = None
             self.bounties = None
             self.staking = None
             self.offers = None
 
-    async def make_request(self, method, path, chain, json=None, track_nonce=False)
+    async def make_request(self, method, path, chain, json=None, track_nonce=False):
         """Make a request to polyswarmd, expecting a json response
 
         Args:
@@ -144,7 +146,7 @@ class Client(object):
             Response JSON parsed from polyswarmd
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('chain parameter must be "home" or "side"')
+            raise ValueError('chain parameter must be "home" or "side", got {0}'.format(chain))
         if self.__session is None or self.__session.closed:
             raise Exception('not running')
 
@@ -156,16 +158,17 @@ class Client(object):
             await self.base_nonce_lock[chain].acquire()
             params['base_nonce'] = self.base_nonce[chain]
 
+        response = {}
         try:
             async with self.__session.request(method, uri, params=params, json=json) as response:
                 response = await response.json()
-            logging.debug('%s %s?%s: %s', method, path, '&'.join([a + '=' + b for (a, b) in params.items()]), response)
+            logging.debug('%s %s?%s: %s', method, path, '&'.join([a + '=' + str(b) for (a, b) in params.items()]), response)
         finally:
             result = response.get('result', {})
-            transactions = result.get('transactions', [])
+            transactions = result.get('transactions', []) if isinstance(result, dict) else []
             if track_nonce and transactions:
-                base_nonce[chain] += len(transactions)
-                base_nonce_lock[chain].release()
+                self.base_nonce[chain] += len(transactions)
+                self.base_nonce_lock[chain].release()
 
 
         if not check_response(response):
@@ -184,7 +187,7 @@ class Client(object):
             Response JSON parsed from polyswarmd containing emitted events
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('chain parameter must be "home" or "side"')
+            raise ValueError('chain parameter must be "home" or "side", got {0}'.format(chain))
         if self.__session is None or self.__session.closed:
             raise Exception('not running')
 
@@ -198,7 +201,7 @@ class Client(object):
         if response is None:
             response = {}
 
-        if not response or 'errors' in response.get('result', {})):
+        if not response or 'errors' in response.get('result', {}):
             if self.tx_error_fatal:
                 logging.error('Received fatal transaction error: %s', response)
                 sys.exit(1)
@@ -208,14 +211,14 @@ class Client(object):
         return response
 
 
-    async def update_base_nonce(self, chain='home')
+    async def update_base_nonce(self, chain='home'):
         """Update account's nonce from polyswarmd
         Args:
             chain (str): Which chain to operate on
             Integer value of nonce
         """
-        async with self.base_nonce_lock:
-            base_nonce[chain] = await self.make_request('GET', '/nonce', chain)
+        async with self.base_nonce_lock[chain]:
+            self.base_nonce[chain] = await self.make_request('GET', '/nonce', chain)
 
     async def get_artifact(self, ipfs_uri, index):
         """Retrieve an artifact from IPFS via polyswarmd
@@ -226,7 +229,7 @@ class Client(object):
         Returns:
             (bytes): Content of the artifact
         """
-        path = '/artifacts/{1}/{2}'.format(ipfs_uri, index)
+        uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}/{1}'.format(ipfs_uri, index))
         async with self.__session.get(uri, params=self.params) as response:
             if response.status == 200:
                 return await response.read()
@@ -273,7 +276,7 @@ class Client(object):
         if not is_valid_ipfs_uri(ipfs_uri):
             return []
 
-        uri = '{0}/artifacts/{1}'.format(self.polyswarmd_uri, ipfs_uri)
+        uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}'.format(ipfs_uri))
         params = self.params
         async with self.__session.get(uri, params=self.params) as response:
             response = await response.json()
@@ -293,7 +296,7 @@ class Client(object):
             chain (str): Which chain to operate on
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('chain parameter must be "home" or "side"')
+            raise ValueError('chain parameter must be "home" or "side", got {0}'.format(chain))
         self.__schedule[chain].put(expiration, event)
 
 
@@ -306,7 +309,7 @@ class Client(object):
             chain (str): Which chain to operate on
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('chain parameter must be "home" or "side"')
+            raise ValueError('chain parameter must be "home" or "side", got {0}'.format(chain))
         while self.__schedule[chain].peek() and self.__schedule[chain].peek()[0] < number:
             exp, task = self.__schedule[chain].get()
             if isinstance(task, events.RevealAssertion):
@@ -327,7 +330,7 @@ class Client(object):
             chain (str): Which chain to operate on
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('chain parameter must be "home" or "side"')
+            raise ValueError('chain parameter must be "home" or "side", got {0}'.format(chain))
         assert(self.polyswarmd_uri.startswith('http'))
 
         # http:// -> ws://, https:// -> wss://

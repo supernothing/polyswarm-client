@@ -28,8 +28,8 @@ class StakingClient(object):
         Returns:
             Response JSON parsed from polyswarmd containing staking balance
         """
-        uri = '/{0}/staking/total'.format(self.client.account)
-        return await self.__client.make_request('GET', uri, chain)
+        path = '/balances/{0}/staking/total'.format(self.__client.account)
+        return int(await self.__client.make_request('GET', path, chain))
 
 
     async def get_withdrawable_balance(self, chain='home'):
@@ -40,8 +40,8 @@ class StakingClient(object):
         Returns:
             Response JSON parsed from polyswarmd containing staking balance
         """
-        uri = '/{0}/staking/withdrawable'.format(self.client.account)
-        return await self.__client.make_request('GET', uri, chain)
+        path = '/balances/{0}/staking/withdrawable'.format(self.__client.account)
+        return int(await self.__client.make_request('GET', path, chain))
 
 
     async def post_deposit(self, amount, chain='home'):
@@ -56,11 +56,16 @@ class StakingClient(object):
         deposit = {
             'amount': str(amount),
         }
-        transactions = await self.__client.make_request('POST', '/staking/deposit', chain, json=deposit, track_nonce=True)
+        results = await self.__client.make_request('POST', '/staking/deposit', chain, json=deposit, track_nonce=True)
+        if not results:
+            logging.error('Expected transactions, received: %s', results)
+            return {}
+
+        transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
         if not 'deposits' in results:
             logging.error('Expected deposit, received: %s', results)
-        return results
+        return results.get('deposits', [])
 
 
     async def post_withdraw(self, amount, chain='home'):
@@ -75,8 +80,13 @@ class StakingClient(object):
         withdrawal = {
             'amount': str(amount),
         }
-        transactions = await self.__client.make_request('POST', '/staking/withdraw', chain, json=withdrawal, track_nonce=True)
+        results = await self.__client.make_request('POST', '/staking/withdraw', chain, json=withdrawal, track_nonce=True)
+        if not results:
+            logging.error('Expected transactions, received: %s', results)
+            return {}
+
+        transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
         if not 'withdrawals' in results:
             logging.error('Expected withdrawal, received: %s', results)
-        return results
+        return results.get('withdrawals', [])

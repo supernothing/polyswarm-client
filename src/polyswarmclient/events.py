@@ -1,3 +1,5 @@
+import logging
+
 from functools import total_ordering
 from queue import PriorityQueue
 
@@ -29,9 +31,14 @@ class Callback(object):
 class OnRunCallback(Callback):
     """Called upon entering the event loop for the first time, use for initialization"""
 
-    async def run(self):
-        """Run the registered callbacks"""
-        return await super().run()
+    async def run(self, loop, chain):
+        """Run the registered callbacks
+        
+        Args:
+            loop (asyncio.BaseEventLoop): Loop we are running on
+            chain (str): Chain event received on
+        """
+        return await super().run(loop, chain)
 
 
 class OnNewBlockCallback(Callback):
@@ -116,14 +123,15 @@ class OnNewVerdictCallback(Callback):
 class OnQuorumReachedCallback(Callback):
     """Called upon a bounty reaching quorum"""
 
-    async def run(self, quorum_block, chain):
+    async def run(self, bounty_guid, quorum_block, chain):
         """Run the registered callbacks
 
         Args:
+            bounty_guid (str): Bounty GUID
             quorum_block (int): Block the bounty reached quorum on
             chain (str): Chain event received on
         """
-        return await super().run(quorum_block, chain)
+        return await super().run(bounty_guid, quorum_block, chain)
 
 
 class OnSettledBountyCallback(Callback):

@@ -26,17 +26,17 @@ class Ambassador(object):
         return None
 
 
-    def run(self, event_loop=None):
-        self.client.run(event_loop)
+    def run(self, loop=None):
+        self.client.run(loop)
 
 
-    def handle_run(self):
-        asyncio.ensure_future(self.run_task())
+    async def handle_run(self, loop, chain):
+        loop.create_task(self.run_task(chain))
 
 
-    async def run_task(self):
-        assertion_reveal_window = self.client.bounty_parameters['home']['assertion_reveal_window']
-        arbiter_vote_window = self.client.bounty_parameters['home']['arbiter_vote_window']
+    async def run_task(self, chain):
+        assertion_reveal_window = self.client.bounty_parameters[chain]['assertion_reveal_window']
+        arbiter_vote_window = self.client.bounty_parameters[chain]['arbiter_vote_window']
 
         artifact = await self.next_artifact()
         while artifact is not None:
