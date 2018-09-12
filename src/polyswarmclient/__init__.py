@@ -133,6 +133,7 @@ class Client(object):
             self.staking = None
             self.offers = None
 
+
     async def make_request(self, method, path, chain, json=None, track_nonce=False):
         """Make a request to polyswarmd, expecting a json response
 
@@ -232,7 +233,9 @@ class Client(object):
         params = self.params
         async with self.__session.get(uri, params=self.params) as response:
             response = await response.json()
+
         logging.debug('GET /artifacts/%s: %s', ipfs_uri, response)
+
         if not check_response(response):
             return []
 
@@ -288,8 +291,48 @@ class Client(object):
         return Client.__GetArtifacts(self, ipfs_uri)
 
 
-    async def post_artifacts(self):
-        pass
+    async def post_artifacts(self, files):
+        """Post artifacts to polyswarmd, flexible files parameter to support different use-cases
+
+        Args:
+            files (list[(file_name, contents)]): The artifacts to upload, accepts one of:
+                (file_name, bytes): File name and contents to upload
+                (file_name, file_obj): (Optional) file name and file object to upload
+                (file_name, None): File name to open and upload
+        Returns:
+            (str): IPFS URI of the uploaded artifact
+        """
+        with aiohttp.MultipartWriter('related') as mpwritier:
+            to_close = []
+            try:
+                for file_name, f in files:
+                    # If contents is None, open file_name for reading and
+                    # remember to close it
+                    if f is None:
+                        f = open(file_name, 'rb')
+                        to_close.append(f)
+
+                    # If file_name is None and our file object has a name
+                    # attribute, use it
+                    if file_name is None and hasattr(f, name):
+                        file_name = f.name
+
+                    part = mpwriter.append(f, {'Content-Type': 'application/octet-stream'})
+                    part.set_content_disposition('attachment', filename=file_name)
+
+                uri = urljoin(self.polyswarmd_uri, '/artifacts')
+                async with self.__session.post(uri, data=mpwriter) as response:
+                    response = await response.json()
+
+                logging.debug('POST/artifacts: %s', response)
+
+                if not check_response(response):
+                    return None
+
+                return response.get('result')
+            finally:
+                for f in to_close:
+                    f.close()
 
 
     def schedule(self, expiration, event, chain='home'):
@@ -339,7 +382,7 @@ class Client(object):
         assert(self.polyswarmd_uri.startswith('http'))
 
         # http:// -> ws://, https:// -> wss://
-        wsuri = '{0}/events?chain={1}'.format(self.polyswarmd_uri, chain).replace('http', 'ws', 1)
+        wsuri = urljoin(self.polyswarmd_uri.replace('http', 'ws', 1), '/events?chain={1}'.format(chain))
         last_block = 0
         async with websockets.connect(wsuri) as ws:
             while True:

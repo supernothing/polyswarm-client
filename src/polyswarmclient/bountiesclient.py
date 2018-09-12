@@ -51,12 +51,12 @@ class BountiesClient(object):
         return await self.__client.make_request('GET', path, chain)
 
 
-    async def post_bounty(self, amount, uri, duration, chain='home'):
+    async def post_bounty(self, amount, artifact_uri, duration, chain='home'):
         """Post a bounty to polyswarmd
 
         Args:
             amount (int): The amount to put up as a bounty
-            uri (str): URI of artifacts
+            artifact_uri (str): URI of artifacts
             duration (int): Number of blocks to accept new assertions
             chain (str): Which chain to operate on
         Returns:
@@ -64,7 +64,7 @@ class BountiesClient(object):
         """
         bounty = {
             'amount': str(amount),
-            'uri': uri,
+            'uri': artifact_uri,
             'duration': duration,
         }
         results = await self.__client.make_request('POST', '/bounties', chain, json=bounty, track_nonce=True)

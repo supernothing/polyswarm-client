@@ -41,7 +41,7 @@ class Ambassador(object):
         artifact = await self.next_artifact()
         while artifact is not None:
             amount, ipfs_uri, duration = artifact
-            bounties self.client.post_bounty(amount, uri, duration, self.chain)
+            bounties = self.client.post_bounty(amount, uri, duration, self.chain)
 
             for bounty in bounties:
                 expiration = bounty['expiration']
