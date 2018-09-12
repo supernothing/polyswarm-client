@@ -3,8 +3,9 @@ import asyncio
 import base58
 import json
 import logging
+import os
 import sys
-import websockets 
+import websockets
 
 from urllib.parse import urljoin
 from polyswarmclient import events
@@ -35,7 +36,7 @@ def is_valid_ipfs_uri(ipfs_uri):
     # TODO: Further multihash validation
     try:
         return len(ipfs_uri) < 100 and base58.b58decode(ipfs_uri)
-    except:
+    except Exception:
         pass
 
     logging.error('Invalid IPFS URI: %s', ipfs_uri)
@@ -97,7 +98,6 @@ class Client(object):
         self.on_vote_on_bounty_due = events.OnVoteOnBountyDueCallback()
         self.on_settle_bounty_due = events.OnSettleBountyDueCallback()
 
-
     def run(self, loop, chains={'home', 'side'}):
         """Run this microengine
         Args:
@@ -106,7 +106,6 @@ class Client(object):
         if not loop:
             loop = asyncio.get_event_loop()
         loop.run_until_complete(self.run_task(loop, chains))
-
 
     async def run_task(self, loop, chains={'home', 'side'}):
         if self.api_key and not self.polyswarmd_uri.startswith('https://'):
@@ -133,7 +132,6 @@ class Client(object):
             self.staking = None
             self.offers = None
 
-
     async def make_request(self, method, path, chain, json=None, track_nonce=False):
         """Make a request to polyswarmd, expecting a json response
 
@@ -154,7 +152,7 @@ class Client(object):
         uri = urljoin(self.polyswarmd_uri, path)
 
         params = self.params
-        params['chain'] =  chain
+        params['chain'] = chain
         if track_nonce:
             await self.base_nonce_lock[chain].acquire()
             params['base_nonce'] = self.base_nonce[chain]
@@ -171,12 +169,10 @@ class Client(object):
                 self.base_nonce[chain] += len(transactions)
                 self.base_nonce_lock[chain].release()
 
-
         if not check_response(response):
             return None
 
         return response.get('result')
-
 
     async def post_transactions(self, transactions, chain='home'):
         """Post a set of (signed) transactions to Ethereum via polyswarmd, parsing the emitted events
@@ -211,7 +207,6 @@ class Client(object):
 
         return response
 
-
     async def update_base_nonce(self, chain='home'):
         """Update account's nonce from polyswarmd
         Args:
@@ -220,7 +215,6 @@ class Client(object):
         """
         async with self.base_nonce_lock[chain]:
             self.base_nonce[chain] = await self.make_request('GET', '/nonce', chain)
-
 
     async def list_artifacts(self, ipfs_uri):
         if self.__session is None or self.__session.closed:
@@ -241,7 +235,6 @@ class Client(object):
 
         return [(a['name'], a['hash']) for a in response.get('result', {})]
 
-
     async def get_artifact(self, ipfs_uri, index):
         """Retrieve an artifact from IPFS via polyswarmd
 
@@ -257,7 +250,6 @@ class Client(object):
                 return await response.read()
 
             return None
-
 
     # Async iterator helper class
     class __GetArtifacts(object):
@@ -283,13 +275,11 @@ class Client(object):
 
             raise StopAsyncIteration
 
-
     def get_artifacts(self, ipfs_uri):
         if self.__session is None or self.__session.closed:
             raise Exception('not running')
 
         return Client.__GetArtifacts(self, ipfs_uri)
-
 
     async def post_artifacts(self, files):
         """Post artifacts to polyswarmd, flexible files parameter to support different use-cases
@@ -317,6 +307,9 @@ class Client(object):
                     if file_name is None and hasattr(f, name):
                         file_name = f.name
 
+                    if file_name:
+                        file_name = os.path.basename(file_name)
+
                     part = mpwriter.append(f, {'Content-Type': 'application/octet-stream'})
                     part.set_content_disposition('attachment', filename=file_name)
 
@@ -334,7 +327,6 @@ class Client(object):
                 for f in to_close:
                     f.close()
 
-
     def schedule(self, expiration, event, chain='home'):
         """Schedule an event to execute on a particular block
 
@@ -346,7 +338,6 @@ class Client(object):
         if chain != 'home' and chain != 'side':
             raise ValueError('chain parameter must be "home" or "side", got {0}'.format(chain))
         self.__schedule[chain].put(expiration, event)
-
 
     async def __handle_scheduled_events(self, number, loop, chain='home'):
         """Perform scheduled events when a new block is reported
@@ -362,13 +353,12 @@ class Client(object):
             exp, task = self.__schedule[chain].get()
             if isinstance(task, events.RevealAssertion):
                 loop.create_task(self.on_reveal_assertion_due.run(bounty_guid=task.guid, index=task.index, nonce=task.nonce,
-                    verdicts=task.verdicts, metadata=task.metadata, chain=chain))
+                        verdicts=task.verdicts, metadata=task.metadata, chain=chain))
             elif isinstance(task, events.SettleBounty):
                 loop.create_task(self.on_settle_bounty_due.run(bounty_guid=task.guid, chain=chain))
             elif isinstance(task, events.VoteOnBounty):
                 loop.create_task(self.on_vote_on_bounty_due.run(bounty_guid=task.guid, verdicts=task.verdicts,
-                    valid_bloom=task.valid_bloom, chain=chain))
-
+                        valid_bloom=task.valid_bloom, chain=chain))
 
     async def listen_for_events(self, loop, chain='home'):
         """Listen for events via websocket connection to polyswarmd

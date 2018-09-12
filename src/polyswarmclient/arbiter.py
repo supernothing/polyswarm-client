@@ -33,10 +33,8 @@ class Arbiter(object):
 
         return True, True, ''
 
-
     def run(self, loop=None):
         self.client.run(loop)
-
 
     async def handle_run(self, loop, chain):
         min_stake = self.client.staking.parameters[chain]['minimum_stake']
@@ -77,10 +75,8 @@ class Arbiter(object):
         sb = SettleBounty(guid)
         self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
 
-
     async def handle_vote_on_bounty(self, bounty_guid, verdicts, valid_bloom, chain):
         return await self.client.bounties.post_vote(bounty_guid, verdicts, valid_bloom, chain)
-
 
     async def handle_settle_bounty(self, bounty_guid, chain):
         return await self.client.bounties.settle_bounty(bounty_guid, chain)

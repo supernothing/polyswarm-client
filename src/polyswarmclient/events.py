@@ -272,6 +272,7 @@ class SettleBounty(Event):
         """
         super().__init__(guid)
 
+
 class OnSettleBountyDueCallback(Callback):
     """Called when a bounty is needing to be settled"""
 
