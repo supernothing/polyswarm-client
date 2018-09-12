@@ -286,31 +286,31 @@ class Client(object):
         """Post artifacts to polyswarmd, flexible files parameter to support different use-cases
 
         Args:
-            files (list[(file_name, contents)]): The artifacts to upload, accepts one of:
-                (file_name, bytes): File name and contents to upload
-                (file_name, file_obj): (Optional) file name and file object to upload
-                (file_name, None): File name to open and upload
+            files (list[(filename, contents)]): The artifacts to upload, accepts one of:
+                (filename, bytes): File name and contents to upload
+                (filename, file_obj): (Optional) file name and file object to upload
+                (filename, None): File name to open and upload
         Returns:
             (str): IPFS URI of the uploaded artifact
         """
-        with aiohttp.MultipartWriter('related') as mpwriter:
+        with aiohttp.MultipartWriter('form-data') as mpwriter:
             to_close = []
             try:
-                for file_name, f in files:
-                    # If contents is None, open file_name for reading and remember to close it
+                for filename, f in files:
+                    # If contents is None, open filename for reading and remember to close it
                     if f is None:
-                        f = open(file_name, 'rb')
+                        f = open(filename, 'rb')
                         to_close.append(f)
 
-                    # If file_name is None and our file object has a name attribute, use it
-                    if file_name is None and hasattr(f, name):
-                        file_name = f.name
+                    # If filename is None and our file object has a name attribute, use it
+                    if filename is None and hasattr(f, name):
+                        filename = f.name
 
-                    if file_name:
-                        file_name = os.path.basename(file_name)
+                    if filename:
+                        filename = os.path.basename(filename)
 
-                    payload = aiohttp.payload.get_payload(f, headers={'Content-Type': 'application/octet-stream'})
-                    payload.set_content_disposition('attachment', filename=file_name)
+                    payload = aiohttp.payload.get_payload(f, content_type='application/octet-stream')
+                    payload.set_content_disposition('form-data', name='file', filename=filename)
                     mpwriter.append_payload(payload)
 
                 uri = urljoin(self.polyswarmd_uri, '/artifacts')
