@@ -4,6 +4,7 @@ import functools
 from polyswarmclient import Client
 from polyswarmclient.events import RevealAssertion, SettleBounty
 
+
 class Microengine(object):
     def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False, scanner=None):
         self.testing = testing
@@ -41,10 +42,8 @@ class Microengine(object):
         """
         return self.client.bounties.parameters['home']['assertion_bid_minimum']
 
-
     def run(self, event_loop=None):
         self.client.run(event_loop)
-
 
     async def handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
         """Scan and assert on a posted bounty
@@ -83,7 +82,6 @@ class Microengine(object):
 
     async def handle_reveal_assertion(self, bounty_guid, index, nonce, verdicts, metadata, chain):
         return await self.client.bounties.post_reveal(bounty_guid, index, nonce, verdicts, metadata, chain)
-
 
     async def handle_settle_bounty(self, bounty_guid, chain):
         return await self.client.bounties.settle_bounty(bounty_guid, chain)

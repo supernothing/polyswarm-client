@@ -5,13 +5,12 @@ from polyswarmclient.events import SettleBounty
 
 
 class Ambassador(object):
-    def __init__(self, polyswarmd_uri, keyfile, password, chain='home', api_key=None, testing=-1, insecure_transport=False):
-        self.chain = chain
+    def __init__(self, polyswarmd_uri, keyfile, password, chains='home', api_key=None, testing=-1, insecure_transport=False):
+        self.chains = chains
         self.testing = testing
         self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
         self.client.on_run.register(functools.partial(Ambassador.handle_run, self))
         self.client.on_settle_bounty_due.register(functools.partial(Microengine.handle_settle_bounty, self))
-
 
     async def next_artifact(self):
         """Override this to implement different artifact submission queues
@@ -25,14 +24,11 @@ class Ambassador(object):
         """
         return None
 
-
     def run(self, loop=None):
-        self.client.run(loop)
-
+        self.client.run(loop, self.chains)
 
     async def handle_run(self, loop, chain):
         loop.create_task(self.run_task(chain))
-
 
     async def run_task(self, chain):
         assertion_reveal_window = self.client.bounty_parameters[chain]['assertion_reveal_window']
@@ -41,7 +37,7 @@ class Ambassador(object):
         artifact = await self.next_artifact()
         while artifact is not None:
             amount, ipfs_uri, duration = artifact
-            bounties self.client.post_bounty(amount, uri, duration, self.chain)
+            bounties = self.client.post_bounty(amount, uri, duration, self.chain)
 
             for bounty in bounties:
                 expiration = bounty['expiration']
@@ -49,7 +45,6 @@ class Ambassador(object):
                 self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
 
             artifact = await self.next_artifact()
-
 
     async def handle_settle_bounty(self, bounty_guid, chain):
         return await self.client.settle_bounty(bounty_guid, chain)

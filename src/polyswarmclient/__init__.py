@@ -3,8 +3,9 @@ import asyncio
 import base58
 import json
 import logging
+import os
 import sys
-import websockets 
+import websockets
 
 from urllib.parse import urljoin
 from polyswarmclient import events
@@ -35,7 +36,7 @@ def is_valid_ipfs_uri(ipfs_uri):
     # TODO: Further multihash validation
     try:
         return len(ipfs_uri) < 100 and base58.b58decode(ipfs_uri)
-    except:
+    except Exception:
         pass
 
     logging.error('Invalid IPFS URI: %s', ipfs_uri)
@@ -97,7 +98,6 @@ class Client(object):
         self.on_vote_on_bounty_due = events.OnVoteOnBountyDueCallback()
         self.on_settle_bounty_due = events.OnSettleBountyDueCallback()
 
-
     def run(self, loop, chains={'home', 'side'}):
         """Run this microengine
         Args:
@@ -106,7 +106,6 @@ class Client(object):
         if not loop:
             loop = asyncio.get_event_loop()
         loop.run_until_complete(self.run_task(loop, chains))
-
 
     async def run_task(self, loop, chains={'home', 'side'}):
         if self.api_key and not self.polyswarmd_uri.startswith('https://'):
@@ -152,8 +151,8 @@ class Client(object):
 
         uri = urljoin(self.polyswarmd_uri, path)
 
-        params = self.params
-        params['chain'] =  chain
+        params = dict(self.params)
+        params['chain'] = chain
         if track_nonce:
             await self.base_nonce_lock[chain].acquire()
             params['base_nonce'] = self.base_nonce[chain]
@@ -170,12 +169,10 @@ class Client(object):
                 self.base_nonce[chain] += len(transactions)
                 self.base_nonce_lock[chain].release()
 
-
         if not check_response(response):
             return None
 
         return response.get('result')
-
 
     async def post_transactions(self, transactions, chain='home'):
         """Post a set of (signed) transactions to Ethereum via polyswarmd, parsing the emitted events
@@ -210,7 +207,6 @@ class Client(object):
 
         return response
 
-
     async def update_base_nonce(self, chain='home'):
         """Update account's nonce from polyswarmd
         Args:
@@ -219,6 +215,25 @@ class Client(object):
         """
         async with self.base_nonce_lock[chain]:
             self.base_nonce[chain] = await self.make_request('GET', '/nonce', chain)
+
+    async def list_artifacts(self, ipfs_uri):
+        if self.__session is None or self.__session.closed:
+            raise Exception('Not running')
+
+        if not is_valid_ipfs_uri(ipfs_uri):
+            return []
+
+        uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}'.format(ipfs_uri))
+        params = dict(self.params)
+        async with self.__session.get(uri, params=self.params) as response:
+            response = await response.json()
+
+        logging.debug('GET /artifacts/%s: %s', ipfs_uri, response)
+
+        if not check_response(response):
+            return []
+
+        return [(a['name'], a['hash']) for a in response.get('result', {})]
 
     async def get_artifact(self, ipfs_uri, index):
         """Retrieve an artifact from IPFS via polyswarmd
@@ -230,12 +245,12 @@ class Client(object):
             (bytes): Content of the artifact
         """
         uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}/{1}'.format(ipfs_uri, index))
-        async with self.__session.get(uri, params=self.params) as response:
+        params = dict(self.params)
+        async with self.__session.get(uri, params=params) as response:
             if response.status == 200:
                 return await response.read()
 
             return None
-
 
     # Async iterator helper class
     class __GetArtifacts(object):
@@ -261,31 +276,57 @@ class Client(object):
 
             raise StopAsyncIteration
 
-
     def get_artifacts(self, ipfs_uri):
         if self.__session is None or self.__session.closed:
             raise Exception('not running')
 
         return Client.__GetArtifacts(self, ipfs_uri)
 
+    async def post_artifacts(self, files):
+        """Post artifacts to polyswarmd, flexible files parameter to support different use-cases
 
-    async def list_artifacts(self, ipfs_uri):
-        if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+        Args:
+            files (list[(filename, contents)]): The artifacts to upload, accepts one of:
+                (filename, bytes): File name and contents to upload
+                (filename, file_obj): (Optional) file name and file object to upload
+                (filename, None): File name to open and upload
+        Returns:
+            (str): IPFS URI of the uploaded artifact
+        """
+        with aiohttp.MultipartWriter('form-data') as mpwriter:
+            to_close = []
+            try:
+                for filename, f in files:
+                    # If contents is None, open filename for reading and remember to close it
+                    if f is None:
+                        f = open(filename, 'rb')
+                        to_close.append(f)
 
-        if not is_valid_ipfs_uri(ipfs_uri):
-            return []
+                    # If filename is None and our file object has a name attribute, use it
+                    if filename is None and hasattr(f, name):
+                        filename = f.name
 
-        uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}'.format(ipfs_uri))
-        params = self.params
-        async with self.__session.get(uri, params=self.params) as response:
-            response = await response.json()
-        logging.debug('GET /artifacts/%s: %s', ipfs_uri, response)
-        if not check_response(response):
-            return []
+                    if filename:
+                        filename = os.path.basename(filename)
 
-        return [(a['name'], a['hash']) for a in response.get('result', {})]
+                    payload = aiohttp.payload.get_payload(f, content_type='application/octet-stream')
+                    payload.set_content_disposition('form-data', name='file', filename=filename)
+                    mpwriter.append_payload(payload)
 
+                uri = urljoin(self.polyswarmd_uri, '/artifacts')
+                params = dict(self.params)
+                async with self.__session.post(uri, params=params, data=mpwriter) as response:
+                    response = await response.json()
+
+                logging.debug('POST/artifacts: %s', response)
+
+                if not check_response(response):
+                    return None
+
+                return response.get('result')
+            finally:
+                for f in to_close:
+                    f.close()
 
     def schedule(self, expiration, event, chain='home'):
         """Schedule an event to execute on a particular block
@@ -298,7 +339,6 @@ class Client(object):
         if chain != 'home' and chain != 'side':
             raise ValueError('chain parameter must be "home" or "side", got {0}'.format(chain))
         self.__schedule[chain].put(expiration, event)
-
 
     async def __handle_scheduled_events(self, number, loop, chain='home'):
         """Perform scheduled events when a new block is reported
@@ -314,13 +354,12 @@ class Client(object):
             exp, task = self.__schedule[chain].get()
             if isinstance(task, events.RevealAssertion):
                 loop.create_task(self.on_reveal_assertion_due.run(bounty_guid=task.guid, index=task.index, nonce=task.nonce,
-                    verdicts=task.verdicts, metadata=task.metadata, chain=chain))
+                        verdicts=task.verdicts, metadata=task.metadata, chain=chain))
             elif isinstance(task, events.SettleBounty):
                 loop.create_task(self.on_settle_bounty_due.run(bounty_guid=task.guid, chain=chain))
             elif isinstance(task, events.VoteOnBounty):
                 loop.create_task(self.on_vote_on_bounty_due.run(bounty_guid=task.guid, verdicts=task.verdicts,
-                    valid_bloom=task.valid_bloom, chain=chain))
-
+                        valid_bloom=task.valid_bloom, chain=chain))
 
     async def listen_for_events(self, loop, chain='home'):
         """Listen for events via websocket connection to polyswarmd
@@ -334,7 +373,7 @@ class Client(object):
         assert(self.polyswarmd_uri.startswith('http'))
 
         # http:// -> ws://, https:// -> wss://
-        wsuri = '{0}/events?chain={1}'.format(self.polyswarmd_uri, chain).replace('http', 'ws', 1)
+        wsuri = '{0}/events?chain={1}'.format(self.polyswarmd_uri.replace('http', 'ws', 1), chain)
         last_block = 0
         async with websockets.connect(wsuri) as ws:
             while True:
