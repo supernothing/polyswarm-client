@@ -151,7 +151,7 @@ class Client(object):
 
         uri = urljoin(self.polyswarmd_uri, path)
 
-        params = self.params
+        params = dict(self.params)
         params['chain'] = chain
         if track_nonce:
             await self.base_nonce_lock[chain].acquire()
@@ -224,7 +224,7 @@ class Client(object):
             return []
 
         uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}'.format(ipfs_uri))
-        params = self.params
+        params = dict(self.params)
         async with self.__session.get(uri, params=self.params) as response:
             response = await response.json()
 
@@ -245,7 +245,8 @@ class Client(object):
             (bytes): Content of the artifact
         """
         uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}/{1}'.format(ipfs_uri, index))
-        async with self.__session.get(uri, params=self.params) as response:
+        params = dict(self.params)
+        async with self.__session.get(uri, params=params) as response:
             if response.status == 200:
                 return await response.read()
 
@@ -292,29 +293,29 @@ class Client(object):
         Returns:
             (str): IPFS URI of the uploaded artifact
         """
-        with aiohttp.MultipartWriter('related') as mpwritier:
+        with aiohttp.MultipartWriter('related') as mpwriter:
             to_close = []
             try:
                 for file_name, f in files:
-                    # If contents is None, open file_name for reading and
-                    # remember to close it
+                    # If contents is None, open file_name for reading and remember to close it
                     if f is None:
                         f = open(file_name, 'rb')
                         to_close.append(f)
 
-                    # If file_name is None and our file object has a name
-                    # attribute, use it
+                    # If file_name is None and our file object has a name attribute, use it
                     if file_name is None and hasattr(f, name):
                         file_name = f.name
 
                     if file_name:
                         file_name = os.path.basename(file_name)
 
-                    part = mpwriter.append(f, {'Content-Type': 'application/octet-stream'})
-                    part.set_content_disposition('attachment', filename=file_name)
+                    payload = aiohttp.payload.get_payload(f, headers={'Content-Type': 'application/octet-stream'})
+                    payload.set_content_disposition('attachment', filename=file_name)
+                    mpwriter.append_payload(payload)
 
                 uri = urljoin(self.polyswarmd_uri, '/artifacts')
-                async with self.__session.post(uri, data=mpwriter) as response:
+                params = dict(self.params)
+                async with self.__session.post(uri, params=params, data=mpwriter) as response:
                     response = await response.json()
 
                 logging.debug('POST/artifacts: %s', response)
@@ -372,7 +373,7 @@ class Client(object):
         assert(self.polyswarmd_uri.startswith('http'))
 
         # http:// -> ws://, https:// -> wss://
-        wsuri = urljoin(self.polyswarmd_uri.replace('http', 'ws', 1), '/events?chain={1}'.format(chain))
+        wsuri = '{0}/events?chain={1}'.format(self.polyswarmd_uri.replace('http', 'ws', 1), chain)
         last_block = 0
         async with websockets.connect(wsuri) as ws:
             while True:
