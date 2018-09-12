@@ -6,7 +6,8 @@ from polyswarmclient.events import VoteOnBounty, SettleBounty
 
 
 class Arbiter(object):
-    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False, scanner=None):
+    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False, scanner=None, chains={'home'}):
+        self.chains = chains
         self.testing = testing
         self.scanner = scanner
         self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
@@ -15,12 +16,13 @@ class Arbiter(object):
         self.client.on_vote_on_bounty_due.register(functools.partial(Arbiter.handle_vote_on_bounty, self))
         self.client.on_settle_bounty_due.register(functools.partial(Arbiter.handle_settle_bounty, self))
 
-    async def scan(self, guid, content):
+    async def scan(self, guid, content, chain):
         """Override this to implement custom scanning logic
 
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
             content (bytes): Content of the artifact to be scan
+            chain (str): Chain we are operating on
         Returns:
             (bool, bool, str): Tuple of bit, verdict, metadata
 
@@ -29,12 +31,12 @@ class Arbiter(object):
             metadata (str): Optional metadata about this artifact
         """
         if self.scanner:
-            return await self.scacnner.scan(guid, content)
+            return await self.scacnner.scan(guid, content, chain)
 
         return True, True, ''
 
     def run(self, loop=None):
-        self.client.run(loop)
+        self.client.run(loop, self.chains)
 
     async def handle_run(self, loop, chain):
         min_stake = self.client.staking.parameters[chain]['minimum_stake']
@@ -58,7 +60,7 @@ class Arbiter(object):
         """
         verdicts = []
         async for content in self.client.get_artifacts(uri):
-            bit, verdict, metadata = await self.scan(guid, content)
+            bit, verdict, metadata = await self.scan(guid, content, chain)
             verdicts.append(verdict)
 
         bounty = await self.client.bounties.get_bounty(guid)
