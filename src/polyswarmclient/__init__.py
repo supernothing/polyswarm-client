@@ -198,7 +198,9 @@ class Client(object):
         if response is None:
             response = {}
 
-        if not response or 'errors' in response.get('result', {}):
+        if not response:
+            logging.warning('Received no events for transaction')
+        elif 'errors' in response.get('result', {}):
             if self.tx_error_fatal:
                 logging.error('Received fatal transaction error: %s', response)
                 sys.exit(1)
@@ -376,7 +378,7 @@ class Client(object):
         wsuri = '{0}/events?chain={1}'.format(self.polyswarmd_uri.replace('http', 'ws', 1), chain)
         last_block = 0
         async with websockets.connect(wsuri) as ws:
-            while True:
+            while not ws.closed:
                 event = json.loads(await ws.recv())
                 if event['event'] == 'block':
                     number = event['data']['number']
