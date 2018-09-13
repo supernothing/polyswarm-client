@@ -1,5 +1,5 @@
 class Scanner(object):
-    async def scan(self, guid, content):
+    async def scan(self, guid, content, chain):
         """Override this to implement custom scanning logic
 
         Args:
