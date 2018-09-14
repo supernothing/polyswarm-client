@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import functools
 
@@ -8,12 +9,16 @@ from polyswarmclient.events import RevealAssertion, SettleBounty
 class Microengine(object):
     def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False, scanner=None, chains={'home'}):
         self.chains = chains
-        self.testing = testing
         self.scanner = scanner
         self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
         self.client.on_new_bounty.register(functools.partial(Microengine.handle_new_bounty, self))
         self.client.on_reveal_assertion_due.register(functools.partial(Microengine.handle_reveal_assertion, self))
         self.client.on_settle_bounty_due.register(functools.partial(Microengine.handle_settle_bounty, self))
+
+        self.testing = testing
+        self.bounties_seen = 0
+        self.reveals_posted = 0
+        self.settles_posted = 0
 
     async def scan(self, guid, content, chain):
         """Override this to implement custom scanning logic
@@ -45,8 +50,8 @@ class Microengine(object):
         """
         return self.client.bounties.parameters[chain]['assertion_bid_minimum']
 
-    def run(self, loop=None):
-        self.client.run(loop, self.chains)
+    def run(self):
+        self.client.run(self.chains)
 
     async def handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
         """Scan and assert on a posted bounty
@@ -61,6 +66,12 @@ class Microengine(object):
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
+        self.bounties_seen += 1
+        if self.testing > 0 and self.bounties_seen > self.testing:
+            logging.warning('Received new bounty, but finished with testing mode')
+            return []
+        logging.info('Testing mode, %s bounties remaining', self.testing - self.bounties_seen)
+
         mask = []
         verdicts = []
         metadatas = []
@@ -86,7 +97,22 @@ class Microengine(object):
         return assertions
 
     async def handle_reveal_assertion(self, bounty_guid, index, nonce, verdicts, metadata, chain):
+        self.reveals_posted += 1
+        if self.testing > 0 and self.reveals_posted > self.testing:
+            logging.warning('Scheduled reveal, but finished with testing mode')
+            return []
+        logging.info('Testing mode, %s reveals remaining', self.testing - self.reveals_posted)
         return await self.client.bounties.post_reveal(bounty_guid, index, nonce, verdicts, metadata, chain)
 
     async def handle_settle_bounty(self, bounty_guid, chain):
-        return await self.client.bounties.settle_bounty(bounty_guid, chain)
+        self.settles_posted += 1
+        if self.testing > 0 and self.settles_posted > self.testing:
+            logging.warning('Scheduled settle, but finished with testing mode')
+            return []
+        logging.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
+
+        ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
+        if self.testing > 0 and self.settles_posted >= self.testing:
+            logging.info("All testing bounties complete, exiting")
+            self.client.stop()
+        return ret

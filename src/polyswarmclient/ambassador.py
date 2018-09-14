@@ -8,12 +8,15 @@ from polyswarmclient.events import SettleBounty
 
 
 class Ambassador(object):
-    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False, chains={'home'}):
+    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains={'home'}):
         self.chains = chains
-        self.testing = testing
         self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
         self.client.on_run.register(functools.partial(Ambassador.handle_run, self))
         self.client.on_settle_bounty_due.register(functools.partial(Ambassador.handle_settle_bounty, self))
+
+        self.testing = testing
+        self.bounties_posted = 0
+        self.settles_posted = 0
 
     async def next_bounty(self, chain):
         """Override this to implement different bounty submission queues
@@ -29,11 +32,11 @@ class Ambassador(object):
         """
         return None
 
-    def run(self, loop=None):
-        self.client.run(loop, self.chains)
+    def run(self):
+        self.client.run(self.chains)
 
-    async def handle_run(self, loop, chain):
-        loop.create_task(self.run_task(chain))
+    async def handle_run(self, chain):
+        asyncio.get_event_loop().create_task(self.run_task(chain))
 
     async def run_task(self, chain):
         assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
@@ -42,12 +45,12 @@ class Ambassador(object):
         bounty = await self.next_bounty(chain)
         while bounty is not None:
             # Exit if we are in testing mode
-            if self.testing == 0:
-                logging.info('All testing bounties submitted, exiting...')
-                sys.exit(0)
-            self.testing -= 1
+            if self.testing > 0 and self.bounties_posted >= self.testing:
+                logging.info('All testing bounties submitted')
+                break
+            self.bounties_posted += 1
 
-            logging.info('Submitting bounty: %s', bounty)
+            logging.info('Submitting bounty %s: %s', self.bounties_posted, bounty)
             amount, ipfs_uri, duration = bounty
             bounties = await self.client.bounties.post_bounty(amount, ipfs_uri, duration, chain)
 
@@ -61,4 +64,14 @@ class Ambassador(object):
             bounty = await self.next_bounty(chain)
 
     async def handle_settle_bounty(self, bounty_guid, chain):
-        return await self.client.bounties.settle_bounty(bounty_guid, chain)
+        self.settles_posted += 1
+        if self.testing > 0 and self.settles_posted > self.testing:
+            logging.warning('Scheduled settle, but finished with testing mode')
+            return []
+        logging.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
+
+        ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
+        if self.testing > 0 and self.settles_posted == self.testing:
+            logging.info("All testing bounties complete, exiting")
+            self.client.stop()
+        return ret

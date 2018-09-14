@@ -1,3 +1,4 @@
+import asyncio
 import functools
 import logging
 
@@ -6,15 +7,19 @@ from polyswarmclient.events import VoteOnBounty, SettleBounty
 
 
 class Arbiter(object):
-    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False, scanner=None, chains={'home'}):
+    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=0, insecure_transport=False, scanner=None, chains={'home'}):
         self.chains = chains
-        self.testing = testing
         self.scanner = scanner
         self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
         self.client.on_run.register(functools.partial(Arbiter.handle_run, self))
         self.client.on_new_bounty.register(functools.partial(Arbiter.handle_new_bounty, self))
         self.client.on_vote_on_bounty_due.register(functools.partial(Arbiter.handle_vote_on_bounty, self))
         self.client.on_settle_bounty_due.register(functools.partial(Arbiter.handle_settle_bounty, self))
+
+        self.testing = testing
+        self.bounties_seen = 0
+        self.votes_posted = 0
+        self.settles_posted = 0
 
     async def scan(self, guid, content, chain):
         """Override this to implement custom scanning logic
@@ -35,10 +40,10 @@ class Arbiter(object):
 
         return True, True, ''
 
-    def run(self, loop=None):
-        self.client.run(loop, self.chains)
+    def run(self):
+        self.client.run(self.chains)
 
-    async def handle_run(self, loop, chain):
+    async def handle_run(self, chain):
         min_stake = self.client.staking.parameters[chain]['minimum_stake']
         balance = await self.client.staking.get_total_balance(chain)
         if balance < min_stake:
@@ -58,6 +63,12 @@ class Arbiter(object):
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
+        self.bounties_seen += 1
+        if self.testing > 0 and self.bounties_seen > self.testing:
+            logging.info('Received new bounty, but finished with testing mode')
+            return []
+        logging.info('Testing mode, %s bounties remaining', self.testing - self.bounties_seen)
+
         verdicts = []
         async for content in self.client.get_artifacts(uri):
             bit, verdict, metadata = await self.scan(guid, content, chain)
@@ -77,8 +88,25 @@ class Arbiter(object):
         sb = SettleBounty(guid)
         self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
 
+        return []
+
     async def handle_vote_on_bounty(self, bounty_guid, verdicts, valid_bloom, chain):
+        self.votes_posted += 1
+        if self.testing > 0 and self.votes_posted > self.testing:
+            logging.warning('Scheduled vote, but finished with testing mode')
+            return []
+        logging.info('Testing mode, %s votes remaining', self.testing - self.votes_posted)
         return await self.client.bounties.post_vote(bounty_guid, verdicts, valid_bloom, chain)
 
     async def handle_settle_bounty(self, bounty_guid, chain):
-        return await self.client.bounties.settle_bounty(bounty_guid, chain)
+        self.settles_posted += 1
+        if self.testing > 0 and self.settles_posted > self.testing:
+            logging.warning('Scheduled settle, but finished with testing mode')
+            return []
+        logging.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
+
+        ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
+        if self.testing > 0 and self.settles_posted >= self.testing:
+            logging.info("All testing bounties complete, exiting")
+            self.client.stop()
+        return ret

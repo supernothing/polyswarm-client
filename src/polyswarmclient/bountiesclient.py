@@ -192,5 +192,5 @@ class BountiesClient(object):
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
         if 'transfers' not in results:
-            logging.error('Expected transfer, received: %s', results)
+            logging.warning('No transfer event, received: %s (maybe expected)', results)
         return results.get('transfers', [])

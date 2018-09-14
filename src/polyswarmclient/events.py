@@ -31,14 +31,13 @@ class Callback(object):
 class OnRunCallback(Callback):
     """Called upon entering the event loop for the first time, use for initialization"""
 
-    async def run(self, loop, chain):
+    async def run(self, chain):
         """Run the registered callbacks
         
         Args:
-            loop (asyncio.BaseEventLoop): Loop we are running on
             chain (str): Chain event received on
         """
-        return await super().run(loop, chain)
+        return await super().run(chain)
 
 
 class OnNewBlockCallback(Callback):

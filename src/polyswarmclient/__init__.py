@@ -98,16 +98,15 @@ class Client(object):
         self.on_vote_on_bounty_due = events.OnVoteOnBountyDueCallback()
         self.on_settle_bounty_due = events.OnSettleBountyDueCallback()
 
-    def run(self, loop, chains={'home', 'side'}):
-        """Run this microengine
-        Args:
-            loop (asyncio.BaseEventLoop): Event loop to run on, defaults to default event loop
-        """
-        if not loop:
-            loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.run_task(loop, chains))
+    def run(self, chains={'home', 'side'}):
+        """Run this microengine"""
+        asyncio.get_event_loop().create_task(self.run_task(chains))
+        asyncio.get_event_loop().run_forever()
 
-    async def run_task(self, loop, chains={'home', 'side'}):
+    def stop(self):
+        asyncio.get_event_loop().stop()
+
+    async def run_task(self, chains={'home', 'side'}):
         if self.api_key and not self.polyswarmd_uri.startswith('https://'):
             raise Exception('Refusing to send API key over insecure transport')
 
@@ -123,9 +122,9 @@ class Client(object):
                     await self.update_base_nonce(chain)
                     await self.bounties.get_parameters(chain)
                     await self.staking.get_parameters(chain)
-                    await self.on_run.run(loop, chain)
+                    await self.on_run.run(chain)
 
-                await asyncio.gather(*[self.listen_for_events(loop, chain) for chain in chains])
+                await asyncio.gather(*[self.listen_for_events(chain) for chain in chains])
         finally:
             self.__session = None
             self.bounties = None
@@ -145,9 +144,9 @@ class Client(object):
             Response JSON parsed from polyswarmd
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('chain parameter must be "home" or "side", got {0}'.format(chain))
+            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
         if self.__session is None or self.__session.closed:
-            raise Exception('not running')
+            raise Exception('Not running')
 
         uri = urljoin(self.polyswarmd_uri, path)
 
@@ -184,9 +183,9 @@ class Client(object):
             Response JSON parsed from polyswarmd containing emitted events
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('chain parameter must be "home" or "side", got {0}'.format(chain))
+            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
         if self.__session is None or self.__session.closed:
-            raise Exception('not running')
+            raise Exception('Not running')
 
         signed = []
         for tx in transactions:
@@ -280,7 +279,7 @@ class Client(object):
 
     def get_artifacts(self, ipfs_uri):
         if self.__session is None or self.__session.closed:
-            raise Exception('not running')
+            raise Exception('Not running')
 
         return Client.__GetArtifacts(self, ipfs_uri)
 
@@ -339,39 +338,37 @@ class Client(object):
             chain (str): Which chain to operate on
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('chain parameter must be "home" or "side", got {0}'.format(chain))
+            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
         self.__schedule[chain].put(expiration, event)
 
-    async def __handle_scheduled_events(self, number, loop, chain='home'):
+    async def __handle_scheduled_events(self, number, chain='home'):
         """Perform scheduled events when a new block is reported
 
         Args:
             number (int): The current block number reported from polyswarmd
-            loop (asyncio.BaseEventLoop): Event loop we're running on
             chain (str): Which chain to operate on
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('chain parameter must be "home" or "side", got {0}'.format(chain))
+            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
         while self.__schedule[chain].peek() and self.__schedule[chain].peek()[0] < number:
             exp, task = self.__schedule[chain].get()
             if isinstance(task, events.RevealAssertion):
-                loop.create_task(self.on_reveal_assertion_due.run(bounty_guid=task.guid, index=task.index, nonce=task.nonce,
+                asyncio.get_event_loop().create_task(self.on_reveal_assertion_due.run(bounty_guid=task.guid, index=task.index, nonce=task.nonce,
                         verdicts=task.verdicts, metadata=task.metadata, chain=chain))
             elif isinstance(task, events.SettleBounty):
-                loop.create_task(self.on_settle_bounty_due.run(bounty_guid=task.guid, chain=chain))
+                asyncio.get_event_loop().create_task(self.on_settle_bounty_due.run(bounty_guid=task.guid, chain=chain))
             elif isinstance(task, events.VoteOnBounty):
-                loop.create_task(self.on_vote_on_bounty_due.run(bounty_guid=task.guid, verdicts=task.verdicts,
+                asyncio.get_event_loop().create_task(self.on_vote_on_bounty_due.run(bounty_guid=task.guid, verdicts=task.verdicts,
                         valid_bloom=task.valid_bloom, chain=chain))
 
-    async def listen_for_events(self, loop, chain='home'):
+    async def listen_for_events(self, chain='home'):
         """Listen for events via websocket connection to polyswarmd
 
         Args:
-            loop (asyncio.BaseEventLoop): Event loop we're running on
             chain (str): Which chain to operate on
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('chain parameter must be "home" or "side", got {0}'.format(chain))
+            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
         assert(self.polyswarmd_uri.startswith('http'))
 
         # http:// -> ws://, https:// -> wss://
@@ -386,33 +383,33 @@ class Client(object):
                         continue
                     if number % 100 == 0:
                         logging.debug('Block %s on chain %s', number, chain)
-                    loop.create_task(self.on_new_block.run(number=number, chain=chain))
-                    loop.create_task(self.__handle_scheduled_events(number, loop))
+                    asyncio.get_event_loop().create_task(self.on_new_block.run(number=number, chain=chain))
+                    asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number))
                 elif event['event'] == 'bounty':
                     data = event['data']
                     logging.info('Received bounty on chain %s: %s', chain, data)
-                    loop.create_task(self.on_new_bounty.run(**data, chain=chain))
+                    asyncio.get_event_loop().create_task(self.on_new_bounty.run(**data, chain=chain))
                 elif event['event'] == 'assertion':
                     data = event['data']
                     logging.info('Received assertion on chain %s: %s', chain, data)
-                    loop.create_task(self.on_new_assertion.run(**data, chain=chain))
+                    asyncio.get_event_loop().create_task(self.on_new_assertion.run(**data, chain=chain))
                 elif event['event'] == 'reveal':
                     data = event['data']
                     logging.info('Received reveal on chain %s: %s', chain, data)
-                    loop.create_task(self.on_reveal_assertion.run(**data, chain=chain))
+                    asyncio.get_event_loop().create_task(self.on_reveal_assertion.run(**data, chain=chain))
                 elif event['event'] == 'verdict':
                     data = event['data']
                     logging.info('Received verdict on chain %s: %s', chain, data)
-                    loop.create_task(self.on_new_verdict.run(**data, chain=chain))
+                    asyncio.get_event_loop().create_task(self.on_new_verdict.run(**data, chain=chain))
                 elif event['event'] == 'quorum':
                     data = event['data']
                     logging.info('Received quorum on chain %s: %s', chain, data)
-                    loop.create_task(self.on_quorum_reached.run(**data, chain=chain))
+                    asyncio.get_event_loop().create_task(self.on_quorum_reached.run(**data, chain=chain))
                 elif event['event'] == 'settled_bounty':
                     data = event['data']
                     logging.info('Received settled bounty on chain %s: %s', chain, data)
-                    loop.create_task(self.on_settled_bounty.run(**data, chain=chain))
+                    asyncio.get_event_loop().create_task(self.on_settled_bounty.run(**data, chain=chain))
                 elif event['event'] == 'initialized_channel':
                     data = event['data']
                     logging.info('Received initialized_channel: %s', data)
-                    loop.create_task(self.on_initialized_channel.run(**data, chain=chain))
+                    asyncio.get_event_loop().create_task(self.on_initialized_channel.run(**data, chain=chain))
