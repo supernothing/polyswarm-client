@@ -29,11 +29,11 @@ class Ambassador(object):
         """
         return None
 
-    def run(self, loop=None):
-        self.client.run(loop, self.chains)
+    def run(self):
+        self.client.run(self.chains)
 
-    async def handle_run(self, loop, chain):
-        loop.create_task(self.run_task(chain))
+    async def handle_run(self, chain):
+        asyncio.get_event_loop().create_task(self.run_task(chain))
 
     async def run_task(self, chain):
         assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
@@ -44,7 +44,7 @@ class Ambassador(object):
             # Exit if we are in testing mode
             if self.testing == 0:
                 logging.info('All testing bounties submitted, exiting...')
-                sys.exit(0)
+                self.client.stop()
             self.testing -= 1
 
             logging.info('Submitting bounty: %s', bounty)

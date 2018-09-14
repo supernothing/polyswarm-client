@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import functools
 
@@ -45,8 +46,8 @@ class Microengine(object):
         """
         return self.client.bounties.parameters[chain]['assertion_bid_minimum']
 
-    def run(self, loop=None):
-        self.client.run(loop, self.chains)
+    def run(self):
+        self.client.run(self.chains)
 
     async def handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
         """Scan and assert on a posted bounty
@@ -61,6 +62,10 @@ class Microengine(object):
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
+        if self.testing == 0:
+            logging.info('Received new bounty, but already submitted all test assertions')
+            return
+
         mask = []
         verdicts = []
         metadatas = []
@@ -82,6 +87,11 @@ class Microengine(object):
 
             sb = SettleBounty(guid)
             self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
+
+        self.testing -= 1
+        if self.testing == 0:
+            logging.info('Submitted all test assertions, exiting...')
+            self.client.stop()
 
         return assertions
 

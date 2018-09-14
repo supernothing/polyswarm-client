@@ -1,3 +1,4 @@
+import asyncio
 import functools
 import logging
 
@@ -35,10 +36,10 @@ class Arbiter(object):
 
         return True, True, ''
 
-    def run(self, loop=None):
-        self.client.run(loop, self.chains)
+    def run(self):
+        self.client.run(self.chains)
 
-    async def handle_run(self, loop, chain):
+    async def handle_run(self, chain):
         min_stake = self.client.staking.parameters[chain]['minimum_stake']
         balance = await self.client.staking.get_total_balance(chain)
         if balance < min_stake:
@@ -58,6 +59,10 @@ class Arbiter(object):
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
+        if self.testing == 0:
+            logging.info('Received new bounty, but already submitted all test verdicts')
+            return []
+
         verdicts = []
         async for content in self.client.get_artifacts(uri):
             bit, verdict, metadata = await self.scan(guid, content, chain)
@@ -76,6 +81,13 @@ class Arbiter(object):
 
         sb = SettleBounty(guid)
         self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
+
+        self.testing -= 1
+        if self.testing == 0:
+            logging.info('Submitted all test verdicts, exiting...')
+            self.client.stop()
+
+        return []
 
     async def handle_vote_on_bounty(self, bounty_guid, verdicts, valid_bloom, chain):
         return await self.client.bounties.post_vote(bounty_guid, verdicts, valid_bloom, chain)

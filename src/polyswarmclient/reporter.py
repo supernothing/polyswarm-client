@@ -54,7 +54,7 @@ class BountyProgress(object):
         if expected_current_stage == self.stage:
             self.stage = s
             return
-        raise Exception('invalid state transition {0} -> {1}'.format(self.stage, s))
+        raise Exception('Invalid state transition {0} -> {1}'.format(self.stage, s))
 
     def all_complete(self):
         # TODO advance
@@ -75,11 +75,11 @@ class Reporter(object):
         self.bounties = {}
         self.submitted = False
 
-    def run(self, event_loop=None):
-        self.client.run(event_loop, chains={'home'})
+    def run(self):
+        self.client.run(self.chains)
 
-    def handle_run(self, loop, chain):
-        loop.create_task(self.run_task(0, chain))
+    def handle_run(self, chain):
+        asyncio.get_event_loop().create_task(self.run_task(0, chain))
 
     async def run_task(self, number, chain):
         if not self.submitted:
