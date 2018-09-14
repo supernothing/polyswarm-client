@@ -65,10 +65,11 @@ class Ambassador(object):
 
     async def handle_settle_bounty(self, bounty_guid, chain):
         self.settles_posted += 1
-        if self.testing > 0 and self.settles_posted > self.testing:
-            logging.warning('Scheduled settle, but finished with testing mode')
-            return []
-        logging.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
+        if self.testing > 0:
+            if self.settles_posted > self.testing:
+                logging.warning('Scheduled settle, but finished with testing mode')
+                return []
+            logging.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
         if self.testing > 0 and self.settles_posted == self.testing:
