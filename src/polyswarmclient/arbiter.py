@@ -64,10 +64,11 @@ class Arbiter(object):
             Response JSON parsed from polyswarmd containing placed assertions
         """
         self.bounties_seen += 1
-        if self.testing > 0 and self.bounties_seen > self.testing:
-            logging.info('Received new bounty, but finished with testing mode')
-            return []
-        logging.info('Testing mode, %s bounties remaining', self.testing - self.bounties_seen)
+        if self.testing > 0:
+            if self.bounties_seen > self.testing:
+                logging.info('Received new bounty, but finished with testing mode')
+                return []
+            logging.info('Testing mode, %s bounties remaining', self.testing - self.bounties_seen)
 
         verdicts = []
         async for content in self.client.get_artifacts(uri):
@@ -92,18 +93,20 @@ class Arbiter(object):
 
     async def handle_vote_on_bounty(self, bounty_guid, verdicts, valid_bloom, chain):
         self.votes_posted += 1
-        if self.testing > 0 and self.votes_posted > self.testing:
-            logging.warning('Scheduled vote, but finished with testing mode')
-            return []
-        logging.info('Testing mode, %s votes remaining', self.testing - self.votes_posted)
+        if self.testing > 0:
+            if self.votes_posted > self.testing:
+                logging.warning('Scheduled vote, but finished with testing mode')
+                return []
+            logging.info('Testing mode, %s votes remaining', self.testing - self.votes_posted)
         return await self.client.bounties.post_vote(bounty_guid, verdicts, valid_bloom, chain)
 
     async def handle_settle_bounty(self, bounty_guid, chain):
         self.settles_posted += 1
-        if self.testing > 0 and self.settles_posted > self.testing:
-            logging.warning('Scheduled settle, but finished with testing mode')
-            return []
-        logging.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
+        if self.testing > 0:
+            if self.settles_posted > self.testing:
+                logging.warning('Scheduled settle, but finished with testing mode')
+                return []
+            logging.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
         if self.testing > 0 and self.settles_posted >= self.testing:
