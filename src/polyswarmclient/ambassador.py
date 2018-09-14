@@ -42,6 +42,15 @@ class Ambassador(object):
         assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
         arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
 
+        # HACK: In testing mode we start up ambassador/arbiter/microengine
+        # immediately and start submitting bounties, however arbiter has to wait
+        # a block for its staking tx to be mined before it starts respoonding.
+        # Add in a sleep for now, this will be addressed properly in
+        # polyswarm-client#5
+        if self.testing > 0:
+            logging.info('Waiting for arbiter and microengine')
+            await asyncio.sleep(5)
+
         bounty = await self.next_bounty(chain)
         while bounty is not None:
             # Exit if we are in testing mode
