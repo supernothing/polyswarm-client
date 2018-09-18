@@ -18,5 +18,17 @@ setup(
     install_requires=parse_requirements(),
     include_package_data=True,
     packages=['polyswarmclient'],
-    package_dir={'polyswarmclient': 'src/polyswarmclient'}
+    package_dir={
+        'polyswarmclient': 'src/polyswarmclient',
+        'ambassador': 'src/ambassador',
+        'arbiter': 'src/arbiter',
+        'microengine': 'src/microengine',
+    },
+    entry_points={
+        'console_scripts': [
+            'ambassador=ambassador.__main__:main',
+            'arbiter=arbiter.__main__:main',
+            'microengine=microengine.__main__:main',
+        ],
+    },
 )
