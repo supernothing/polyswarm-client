@@ -63,7 +63,11 @@ def choose_backend(backend):
         help='Activate testing mode for integration testing, respond to N bounties and N offers then exit')
 @click.option('--insecure-transport', is_flag=True,
         help='Connect to polyswarmd via http:// and ws://, mutially exclusive with --api-key')
-def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport):
+@click.option('--chains', multiple=True, default=['home'],
+        help='Chain(s) to operate on')
+#@click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
+#        help='Should the abassador send offers')
+def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains):
     """Entrypoint for the microengine driver
 
     Args:
@@ -82,7 +86,7 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
     logging.basicConfig(level=loglevel, format='%(levelname)s:%(name)s:%(asctime)s %(message)s')
 
     micro_engine_class = choose_backend(backend)
-    micro_engine_class(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport).run()
+    micro_engine_class(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, set(chains)).run()
 
 
 if __name__ == '__main__':

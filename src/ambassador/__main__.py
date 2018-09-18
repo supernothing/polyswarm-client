@@ -54,9 +54,11 @@ def choose_backend(backend):
         help='Activate testing mode for integration testing, respond to N bounties and N offers then exit')
 @click.option('--insecure-transport', is_flag=True,
         help='Connect to polyswarmd via http:// and ws://, mutially exclusive with --api-key')
+@click.option('--chains', multiple=True, default=['home'],
+        help='Chain(s) to operate on')
 #@click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #        help='Should the abassador send offers')
-def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport):
+def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains):
     """Entrypoint for the ambassador driver
 
     Args:
@@ -67,6 +69,7 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
         api_key(str): API key to use with polyswarmd
         testing (int): Mode to process N bounties then exit (optional)
         insecure_transport (bool): Connect to polyswarmd without TLS
+        chains (List[str]): Chain(s) to operate on
     """
     loglevel = getattr(logging, log.upper(), None)
     if not isinstance(loglevel, int):
@@ -75,7 +78,7 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
     logging.basicConfig(level=loglevel, format='%(levelname)s:%(name)s:%(asctime)s %(message)s')
 
     ambassador_class = choose_backend(backend)
-    ambassador_class(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport).run()
+    ambassador_class(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, set(chains)).run()
 
 
 if __name__ == '__main__':

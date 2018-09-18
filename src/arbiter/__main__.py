@@ -50,7 +50,9 @@ def choose_backend(backend):
         help='Activate testing mode for integration testing, respond to N bounties then exit')
 @click.option('--insecure-transport', is_flag=True,
         help='Connect to polyswarmd via http:// and ws://, mutially exclusive with --api-key')
-def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport):
+@click.option('--chains', multiple=True, default=['home'],
+        help='Chain(s) to operate on')
+def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains):
     """Entrypoint for the arbiter driver
 
     Args:
@@ -70,7 +72,7 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
     logging.basicConfig(level=loglevel)
 
     arbiter_class = choose_backend(backend)
-    arbiter_class(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport).run()
+    arbiter_class(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, set(chains)).run()
 
 
 if __name__ == "__main__":

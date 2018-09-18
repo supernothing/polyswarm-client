@@ -5,6 +5,7 @@ import os
 from polyswarmclient.ambassador import Ambassador
 
 ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
+ARTIFACT_BLACKLIST = os.getenv('ARTIFACT_BLACKLIST', 'truth.db').split(',')
 
 class FilesystemAmbassador(Ambassador):
     """Ambassador which submits artifacts from a directory"""
@@ -22,13 +23,11 @@ class FilesystemAmbassador(Ambassador):
             chains (set[str]): Chain(s) to operate on
         """
         super().__init__(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, chains)
-        
-        benign_path = os.path.join(ARTIFACT_DIRECTORY, 'benign')
-        benign_artifacts = [os.path.join(benign_path, a) for a in os.listdir(benign_path)]
-        malicious_path = os.path.join(ARTIFACT_DIRECTORY, 'malicious')
-        malicious_artifacts = [os.path.join(malicious_path, a) for a in os.listdir(malicious_path)]
 
-        self.artifacts = benign_artifacts + malicious_artifacts
+        self.artifacts = []
+        for root, dirs, files in os.walk(ARTIFACT_DIRECTORY):
+            for f in files:
+                self.artifacts.append(os.path.join(root, f))
 
     async def next_bounty(self, chain):
         """Submit either the EICAR test string or a benign sample

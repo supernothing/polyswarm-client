@@ -14,3 +14,6 @@ RUN set -x && pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 RUN set -x && pip install .
+
+# Build truth db for arbiter verbatim
+RUN cd docker && verbatimdbgen
