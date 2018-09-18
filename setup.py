@@ -17,7 +17,7 @@ setup(
     license='MIT',
     install_requires=parse_requirements(),
     include_package_data=True,
-    packages=['polyswarmclient'],
+    packages=['polyswarmclient', 'ambassador', 'arbiter', 'microengine'],
     package_dir={
         'polyswarmclient': 'src/polyswarmclient',
         'ambassador': 'src/ambassador',

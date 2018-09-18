@@ -11,7 +11,7 @@ CLAMD_TIMEOUT = 30.0
 class ClamavMicroengine(Microengine):
     """Microengine which scans samples through clamd"""
 
-    def __init__(self, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False):
+    def __init__(self, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains={'home'}):
         """Initialize a ClamAV microengine
 
         Args:
@@ -21,8 +21,9 @@ class ClamavMicroengine(Microengine):
             api_key (str): API key to use with polyswarmd
             testing (int): How many test bounties to respond to
             insecure_transport (bool): Connect to polyswarmd over an insecure transport
+            chains (set[str]): Chain(s) to operate on
         """
-        super().__init__(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport)
+        super().__init__(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, chains)
         self.clamd = clamd.ClamdNetworkSocket(CLAMD_HOST, CLAMD_PORT, CLAMD_TIMEOUT)
 
     async def scan(self, guid, content, chain):
@@ -31,6 +32,7 @@ class ClamavMicroengine(Microengine):
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
             content (bytes): Content of the artifact to be scan
+            chain (str): Chain sample is being sent from
         Returns:
             (bool, bool, str): Tuple of bit, verdict, metadata
 

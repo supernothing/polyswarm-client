@@ -14,6 +14,8 @@ class EicarAmbassador(Ambassador):
     async def next_bounty(self, chain):
         """Submit either the EICAR test string or a benign sample
 
+        Args:
+            chain (str): Chain sample is being requested from
         Returns:
             (int, str, int): Tuple of amount, ipfs_uri, duration, None to terminate submission
 

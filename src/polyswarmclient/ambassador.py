@@ -8,9 +8,9 @@ from polyswarmclient.events import SettleBounty
 
 
 class Ambassador(object):
-    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains={'home'}):
+    def __init__(self, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains={'home'}):
         self.chains = chains
-        self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
+        self.client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
         self.client.on_run.register(functools.partial(Ambassador.handle_run, self))
         self.client.on_settle_bounty_due.register(functools.partial(Ambassador.handle_settle_bounty, self))
 
