@@ -4,7 +4,7 @@ import os
 
 from polyswarmclient.microengine import Microengine
 
-RULES_DIR = 'data/yara-rules/'
+RULES_DIR = os.getenv('RULES_DIR', 'docker/yara-rules')
 
 
 class YaraMicroengine(Microengine):
@@ -23,7 +23,7 @@ class YaraMicroengine(Microengine):
             chains (set[str]): Chain(s) to operate on
         """
         super().__init__(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, chains)
-        self.rules = yara.compile(RULES_DIR + "malware/MALW_Eicar")
+        self.rules = yara.compile(os.path.join(RULES_DIR, "malware/MALW_Eicar"))
 
     async def scan(self, guid, content, chain):
         """Scan an artifact with YARA
