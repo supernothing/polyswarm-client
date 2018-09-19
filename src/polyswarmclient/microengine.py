@@ -42,7 +42,7 @@ class Microengine(object):
         if self.scanner:
             return await self.scanner.scan(guid, content, chain)
 
-        return True, True, ''
+        return False, False, ''
 
     def bid(self, guid, chain):
         """Override this to implement custom bid calculation logic

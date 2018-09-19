@@ -43,7 +43,7 @@ class Arbiter(object):
         if self.scanner:
             return await self.scacnner.scan(guid, content, chain)
 
-        return True, True, ''
+        return False, False, ''
 
     def run(self):
         self.client.run(self.chains)
