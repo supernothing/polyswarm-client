@@ -10,19 +10,15 @@ ARTIFACT_BLACKLIST = os.getenv('ARTIFACT_BLACKLIST', 'truth.db').split(',')
 class FilesystemAmbassador(Ambassador):
     """Ambassador which submits artifacts from a directory"""
 
-    def __init__(self, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains={'home'}):
+    def __init__(self, client, testing=0, chains={'home'}):
         """Initialize a filesystem ambassador
 
         Args:
-            polyswarmd_addr (str): Address of polyswarmd
-            keyfile (str): Path to private key file to use to sign transactions
-            password (str): Password to decrypt the encrypted private key
-            api_key (str): API key to use with polyswarmd
+            client (polyswwarmclient.Client): Client to use
             testing (int): How many test bounties to respond to
-            insecure_transport (bool): Connect to polyswarmd over an insecure transport
             chains (set[str]): Chain(s) to operate on
         """
-        super().__init__(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, chains)
+        super().__init__(client, testing, chains)
 
         self.artifacts = []
         for root, dirs, files in os.walk(ARTIFACT_DIRECTORY):

@@ -7,10 +7,10 @@ from polyswarmclient.events import VoteOnBounty, SettleBounty
 
 
 class Arbiter(object):
-    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=0, insecure_transport=False, scanner=None, chains={'home'}):
+    def __init__(self, client, testing=0, scanner=None, chains={'home'}):
+        self.client = client
         self.chains = chains
         self.scanner = scanner
-        self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
         self.client.on_run.register(functools.partial(Arbiter.handle_run, self))
         self.client.on_new_bounty.register(functools.partial(Arbiter.handle_new_bounty, self))
         self.client.on_vote_on_bounty_due.register(functools.partial(Arbiter.handle_vote_on_bounty, self))
@@ -20,6 +20,11 @@ class Arbiter(object):
         self.bounties_seen = 0
         self.votes_posted = 0
         self.settles_posted = 0
+
+    @classmethod
+    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, scanner=None, chains={'home'}):
+        client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
+        return cls(client, testing, scanner, chains)
 
     async def scan(self, guid, content, chain):
         """Override this to implement custom scanning logic

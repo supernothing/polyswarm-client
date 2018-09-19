@@ -7,10 +7,10 @@ from polyswarmclient.events import RevealAssertion, SettleBounty
 
 
 class Microengine(object):
-    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False, scanner=None, chains={'home'}):
+    def __init__(self, client, testing=0, scanner=None, chains={'home'}):
+        self.client = client
         self.chains = chains
         self.scanner = scanner
-        self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
         self.client.on_new_bounty.register(functools.partial(Microengine.handle_new_bounty, self))
         self.client.on_reveal_assertion_due.register(functools.partial(Microengine.handle_reveal_assertion, self))
         self.client.on_settle_bounty_due.register(functools.partial(Microengine.handle_settle_bounty, self))
@@ -19,6 +19,11 @@ class Microengine(object):
         self.bounties_seen = 0
         self.reveals_posted = 0
         self.settles_posted = 0
+
+    @classmethod
+    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, scanner=None, chains={'home'}):
+        client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
+        return cls(client, testing, scanner, chains)
 
     async def scan(self, guid, content, chain):
         """Override this to implement custom scanning logic
@@ -35,7 +40,7 @@ class Microengine(object):
             metadata (str): Optional metadata about this artifact
         """
         if self.scanner:
-            return await self.scacnner.scan(guid, content, chain)
+            return await self.scanner.scan(guid, content, chain)
 
         return True, True, ''
 

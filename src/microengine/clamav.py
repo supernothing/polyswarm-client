@@ -3,27 +3,15 @@ import os
 
 from io import BytesIO
 from polyswarmclient.microengine import Microengine
+from polyswarmclient.scanner import Scanner
 
 CLAMD_HOST = os.getenv('CLAMD_HOST', 'localhost')
 CLAMD_PORT = int(os.getenv('CLAMD_PORT', '3310'))
 CLAMD_TIMEOUT = 30.0
 
-class ClamavMicroengine(Microengine):
-    """Microengine which scans samples through clamd"""
 
-    def __init__(self, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains={'home'}):
-        """Initialize a ClamAV microengine
-
-        Args:
-            polyswarmd_addr (str): Address of polyswarmd
-            keyfile (str): Path to private key file to use to sign transactions
-            password (str): Password to decrypt the encrypted private key
-            api_key (str): API key to use with polyswarmd
-            testing (int): How many test bounties to respond to
-            insecure_transport (bool): Connect to polyswarmd over an insecure transport
-            chains (set[str]): Chain(s) to operate on
-        """
-        super().__init__(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, chains)
+class ClamavScanner(Scanner):
+    def __init__(self):
         self.clamd = clamd.ClamdNetworkSocket(CLAMD_HOST, CLAMD_PORT, CLAMD_TIMEOUT)
 
     async def scan(self, guid, content, chain):
@@ -32,7 +20,7 @@ class ClamavMicroengine(Microengine):
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
             content (bytes): Content of the artifact to be scan
-            chain (str): Chain sample is being sent from
+            chain (str): Chain we are operating on
         Returns:
             (bool, bool, str): Tuple of bit, verdict, metadata
 
@@ -45,3 +33,18 @@ class ClamavMicroengine(Microengine):
             return True, True, result[1]
 
         return True, False, ''
+
+
+class ClamavMicroengine(Microengine):
+    """Microengine which scans samples through clamd"""
+
+    def __init__(self, client, testing=0, scanner=None, chains={'home'}):
+        """Initialize a ClamAV microengine
+
+        Args:
+            client (polyswwarmclient.Client): Client to use
+            testing (int): How many test bounties to respond to
+            chains (set[str]): Chain(s) to operate on
+        """
+        scanner = ClamavScanner()
+        super().__init__(client, testing, scanner, chains)
