@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import microengine
 import os
 
@@ -15,7 +14,6 @@ class MultiMicroengine(Microengine):
 
     def __init__(self, client, testing=0, scanner=None, chains={'home'}):
         """Initialize a multi-backend microengine
-
     
         Args:
             client (polyswwarmclient.Client): Client to use
@@ -43,5 +41,4 @@ class MultiMicroengine(Microengine):
 
         # Unzip the result tuples
         bits, verdicts, metadatas = tuple(zip(*results))
-        logging.info('Multi-backend scans received: %s %s %s', any(bits), any(verdicts), ';'.join(metadatas))
         return any(bits), any(verdicts), ';'.join(metadatas)
