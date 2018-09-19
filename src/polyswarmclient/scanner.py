@@ -12,4 +12,4 @@ class Scanner(object):
             verdict (bool): Whether this artifact is malicious or not
             metadata (str): Optional metadata about this artifact
         """
-        return True, True, ''
+        return False, False, ''

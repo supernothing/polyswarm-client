@@ -42,7 +42,7 @@ class Microengine(object):
         if self.scanner:
             return await self.scanner.scan(guid, content, chain)
 
-        return True, True, ''
+        return False, False, ''
 
     def bid(self, guid, chain):
         """Override this to implement custom bid calculation logic
@@ -86,6 +86,9 @@ class Microengine(object):
             mask.append(bit)
             verdicts.append(verdict)
             metadatas.append(metadata)
+
+        if not any(mask):
+            return []
 
         expiration = int(expiration)
         assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
