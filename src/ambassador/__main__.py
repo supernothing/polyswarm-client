@@ -78,9 +78,9 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
     logging.basicConfig(level=loglevel, format='%(levelname)s:%(name)s:%(asctime)s %(message)s')
 
     ambassador_class = choose_backend(backend)
-    ambassador_class(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, set(chains)).run()
+    ambassador_class.connect(polyswarmd_addr, keyfile, password,
+            api_key=api_key, testing=testing, insecure_transport=insecure_transport, chains=set(chains)).run()
 
 
 if __name__ == '__main__':
     main()
-

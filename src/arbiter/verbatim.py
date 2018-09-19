@@ -10,19 +10,15 @@ ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
 class VerbatimArbiter(Arbiter):
     """Arbiter which matches hashes to a database of known samples"""
 
-    def __init__(self, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains={'home'}):
+    def __init__(self, client, testing=0, scanner=None, chains={'home'}):
         """Initialize a verbatim arbiter
 
         Args:
-            polyswarmd_addr (str): Address of polyswarmd
-            keyfile (str): Path to private key file to use to sign transactions
-            password (str): Password to decrypt the encrypted private key
-            api_key (str): API key to use with polyswarmd
+            client (polyswwarmclient.Client): Client to use
             testing (int): How many test bounties to respond to
-            insecure_transport (bool): Connect to polyswarmd over an insecure transport
             chains (set[str]): Chain(s) to operate on
         """
-        super().__init__(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, chains)
+        super().__init__(client, testing, None, chains)
         self.conn = sqlite3.connect(os.path.join(ARTIFACT_DIRECTORY, 'truth.db'))
 
     async def scan(self, guid, content, chain):
