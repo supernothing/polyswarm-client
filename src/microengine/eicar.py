@@ -24,4 +24,4 @@ class EicarMicroengine(Microengine):
         if content == EICAR:
             return True, True, ''
 
-        return False, False, ''
+        return True, False, ''

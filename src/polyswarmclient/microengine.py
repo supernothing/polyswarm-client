@@ -87,6 +87,9 @@ class Microengine(object):
             verdicts.append(verdict)
             metadatas.append(metadata)
 
+        if not any(mask):
+            return []
+
         expiration = int(expiration)
         assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
         arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
