@@ -80,7 +80,7 @@ class Arbiter(object):
             bit, verdict, metadata = await self.scan(guid, content, chain)
             verdicts.append(verdict)
 
-        bounty = await self.client.bounties.get_bounty(guid)
+        bounty = await self.client.bounties.get_bounty(guid, chain)
         bloom = await self.client.bounties.calculate_bloom(uri)
         valid_bloom = int(bounty.get('bloom', 0)) == bloom
 
