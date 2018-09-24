@@ -7,11 +7,11 @@ import os
 import sys
 import websockets
 
-from urllib.parse import urljoin
 from polyswarmclient import events
 from polyswarmclient.bountiesclient import BountiesClient
 from polyswarmclient.stakingclient import StakingClient
 from polyswarmclient.offersclient import OffersClient
+from urllib.parse import urljoin
 
 from web3 import Web3
 w3 = Web3()
@@ -76,6 +76,8 @@ class Client(object):
             'side': events.Schedule(),
         }
 
+        self.exit_code = 0
+
         self.bounties = None
         self.staking = None
         self.offers = None
@@ -98,10 +100,19 @@ class Client(object):
         self.on_vote_on_bounty_due = events.OnVoteOnBountyDueCallback()
         self.on_settle_bounty_due = events.OnSettleBountyDueCallback()
 
+    def __exception_handler(self, loop, context):
+        self.exit_code = -1
+        self.stop()
+        loop.default_exception_handler(context)
+
     def run(self, chains={'home', 'side'}):
-        """Run this microengine"""
+        """Run the main event loop"""
+        asyncio.get_event_loop().set_exception_handler(self.__exception_handler)
         asyncio.get_event_loop().create_task(self.run_task(chains))
         asyncio.get_event_loop().run_forever()
+        if self.exit_code:
+            logging.error('Detected unhandled exception, exiting with failure')
+            sys.exit(self.exit_code)
 
     def stop(self):
         asyncio.get_event_loop().stop()

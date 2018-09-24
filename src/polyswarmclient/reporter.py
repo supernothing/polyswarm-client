@@ -1,6 +1,5 @@
 import asyncio
 import base64
-import functools
 import logging
 import json
 import os
@@ -66,11 +65,11 @@ class Reporter(object):
         self.chains = chains
         self.testing = testing
         self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
-        self.client.on_new_block.register(functools.partial(Reporter.run_task, self))
-        self.client.on_new_block.register(functools.partial(Reporter.block_checker, self))
-        self.client.on_settle_bounty_due.register(functools.partial(Reporter.handle_settle_bounty, self))
-        # self.client.on_new_verdict.register(functools.partial(Reporter.handle_verdict, self))
-        self.client.on_new_assertion.register(functools.partial(Reporter.handle_assertion, self))
+        self.client.on_new_block.register(self.run_task)
+        self.client.on_new_block.register(self.block_checker)
+        self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
+        # self.client.on_new_verdict.register(self.handle_verdict)
+        self.client.on_new_assertion.register(self.handle_assertion)
 
         self.bounties = {}
         self.submitted = False
