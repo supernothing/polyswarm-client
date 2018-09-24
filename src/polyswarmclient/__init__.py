@@ -245,6 +245,9 @@ class Client(object):
         Returns:
             (bytes): Content of the artifact
         """
+        if not is_valid_ipfs_uri(ipfs_uri):
+            raise ValueError('Invalid IPFS URI')
+
         uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}/{1}'.format(ipfs_uri, index))
         params = dict(self.params)
         async with self.__session.get(uri, params=params) as response:
@@ -304,7 +307,7 @@ class Client(object):
                         to_close.append(f)
 
                     # If filename is None and our file object has a name attribute, use it
-                    if filename is None and hasattr(f, name):
+                    if filename is None and hasattr(f, 'name'):
                         filename = f.name
 
                     if filename:
