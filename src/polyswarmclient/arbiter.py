@@ -1,5 +1,4 @@
 import asyncio
-import functools
 import logging
 
 from polyswarmclient import Client
@@ -11,10 +10,10 @@ class Arbiter(object):
         self.client = client
         self.chains = chains
         self.scanner = scanner
-        self.client.on_run.register(functools.partial(Arbiter.handle_run, self))
-        self.client.on_new_bounty.register(functools.partial(Arbiter.handle_new_bounty, self))
-        self.client.on_vote_on_bounty_due.register(functools.partial(Arbiter.handle_vote_on_bounty, self))
-        self.client.on_settle_bounty_due.register(functools.partial(Arbiter.handle_settle_bounty, self))
+        self.client.on_run.register(self.handle_run)
+        self.client.on_new_bounty.register(self.handle_new_bounty)
+        self.client.on_vote_on_bounty_due.register(self.handle_vote_on_bounty)
+        self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
 
         self.testing = testing
         self.bounties_seen = 0

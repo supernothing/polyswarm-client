@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import functools
 
 from polyswarmclient import Client
 from polyswarmclient.events import RevealAssertion, SettleBounty
@@ -11,9 +10,9 @@ class Microengine(object):
         self.client = client
         self.chains = chains
         self.scanner = scanner
-        self.client.on_new_bounty.register(functools.partial(Microengine.handle_new_bounty, self))
-        self.client.on_reveal_assertion_due.register(functools.partial(Microengine.handle_reveal_assertion, self))
-        self.client.on_settle_bounty_due.register(functools.partial(Microengine.handle_settle_bounty, self))
+        self.client.on_new_bounty.register(self.handle_new_bounty)
+        self.client.on_reveal_assertion_due.register(self.handle_reveal_assertion)
+        self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
 
         self.testing = testing
         self.bounties_seen = 0

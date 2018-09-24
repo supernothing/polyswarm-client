@@ -1,5 +1,4 @@
 import asyncio
-import functools
 import logging
 import sys
 
@@ -11,8 +10,8 @@ class Ambassador(object):
     def __init__(self, client, testing=0, chains={'home'}):
         self.client = client
         self.chains = chains
-        self.client.on_run.register(functools.partial(Ambassador.handle_run, self))
-        self.client.on_settle_bounty_due.register(functools.partial(Ambassador.handle_settle_bounty, self))
+        self.client.on_run.register(self.handle_run)
+        self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
 
         self.testing = testing
         self.bounties_posted = 0
