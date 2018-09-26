@@ -36,6 +36,18 @@ class Ambassador(object):
         """
         return None
 
+    def on_bounty_posted(self, guid, amount, ipfs_uri, expiration, chain):
+        """Override this to implement additional steps after bounty submission
+
+        Args:
+            guid (str): GUID of the posted bounty
+            amount (int): Amount of the posted bounty
+            ipfs_uri (str): URI of the artifact submitted
+            expiration (int): Block number of bounty expiration
+            chain (str): Chain we are operating on
+        """
+        pass
+
     def run(self):
         self.client.run(self.chains)
 
@@ -70,6 +82,9 @@ class Ambassador(object):
             for b in bounties:
                 guid = b['guid']
                 expiration = int(b['expiration'])
+
+                # Handle any additional steps in derived implementations
+                self.on_bounty_posted(guid, amount, ipfs_uri, expiration, chain)
 
                 sb = SettleBounty(guid)
                 self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
