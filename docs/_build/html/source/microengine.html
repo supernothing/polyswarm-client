@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Microengine Package &mdash; polyswarm-client 0.0.0 documentation</title>
+  <title>Microengine Package &mdash; Polyswarm Client 0.0.0 documentation</title>
   
 
   
@@ -48,7 +48,7 @@
           
 
           
-            <a href="../index.html" class="icon icon-home"> polyswarm-client
+            <a href="../index.html" class="icon icon-home"> Polyswarm Client
           
 
           
@@ -78,17 +78,17 @@
               
             
             
-              <p class="caption"><span class="caption-text">Contents:</span></p>
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home</a></li>
+</ul>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="about.html">About</a></li>
-<li class="toctree-l1"><a class="reference internal" href="polyswarmclient.html">Polyswarm Client Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="polyswarmclient.html">PolySwarm Client Module</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Microengine Module</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#module-microengine.clamav">microengine.clamav module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-microengine.eicar">microengine.eicar module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-microengine.multi">microengine.multi module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-microengine.scratch">microengine.scratch module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-microengine.yara">microengine.yara module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-microengine">Module contents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-microengine.clamav">Clamav Microengine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-microengine.eicar">Eicar Microengine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-microengine.multi">Multi Microengine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-microengine.scratch">Scratch Microengine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-microengine.yara">Yara Microengine</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="arbiter.html">Arbiter Module</a></li>
@@ -107,7 +107,7 @@
       <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../index.html">polyswarm-client</a>
+          <a href="../index.html">Polyswarm Client</a>
         
       </nav>
 
@@ -160,7 +160,7 @@
   <div class="section" id="microengine-package">
 <h1>Microengine Package<a class="headerlink" href="#microengine-package" title="Permalink to this headline">¶</a></h1>
 <h2>Submodules</h2><div class="section" id="module-microengine.clamav">
-<span id="microengine-clamav-module"></span><h2>microengine.clamav module<a class="headerlink" href="#module-microengine.clamav" title="Permalink to this headline">¶</a></h2>
+<span id="clamav-microengine"></span><h2>Clamav Microengine<a class="headerlink" href="#module-microengine.clamav" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="microengine.clamav.ClamavMicroengine">
 <em class="property">class </em><code class="descclassname">microengine.clamav.</code><code class="descname">ClamavMicroengine</code><span class="sig-paren">(</span><em>client</em>, <em>testing=0</em>, <em>scanner=None</em>, <em>chains={'home'}</em><span class="sig-paren">)</span><a class="headerlink" href="#microengine.clamav.ClamavMicroengine" title="Permalink to this definition">¶</a></dt>
@@ -205,7 +205,7 @@ metadata (str): Optional metadata about this artifact</p>
 
 </div>
 <div class="section" id="module-microengine.eicar">
-<span id="microengine-eicar-module"></span><h2>microengine.eicar module<a class="headerlink" href="#module-microengine.eicar" title="Permalink to this headline">¶</a></h2>
+<span id="eicar-microengine"></span><h2>Eicar Microengine<a class="headerlink" href="#module-microengine.eicar" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="microengine.eicar.EicarMicroengine">
 <em class="property">class </em><code class="descclassname">microengine.eicar.</code><code class="descname">EicarMicroengine</code><span class="sig-paren">(</span><em>client</em>, <em>testing=0</em>, <em>scanner=None</em>, <em>chains={'home'}</em><span class="sig-paren">)</span><a class="headerlink" href="#microengine.eicar.EicarMicroengine" title="Permalink to this definition">¶</a></dt>
@@ -244,7 +244,7 @@ metadata (str): Optional metadata about this artifact</p>
 
 </div>
 <div class="section" id="module-microengine.multi">
-<span id="microengine-multi-module"></span><h2>microengine.multi module<a class="headerlink" href="#module-microengine.multi" title="Permalink to this headline">¶</a></h2>
+<span id="multi-microengine"></span><h2>Multi Microengine<a class="headerlink" href="#module-microengine.multi" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="microengine.multi.MultiMicroengine">
 <em class="property">class </em><code class="descclassname">microengine.multi.</code><code class="descname">MultiMicroengine</code><span class="sig-paren">(</span><em>client</em>, <em>testing=0</em>, <em>scanner=None</em>, <em>chains={'home'}</em><span class="sig-paren">)</span><a class="headerlink" href="#microengine.multi.MultiMicroengine" title="Permalink to this definition">¶</a></dt>
@@ -283,7 +283,7 @@ metadata (str): Optional metadata about this artifact</p>
 
 </div>
 <div class="section" id="module-microengine.scratch">
-<span id="microengine-scratch-module"></span><h2>microengine.scratch module<a class="headerlink" href="#module-microengine.scratch" title="Permalink to this headline">¶</a></h2>
+<span id="scratch-microengine"></span><h2>Scratch Microengine<a class="headerlink" href="#module-microengine.scratch" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="microengine.scratch.ScratchMicroengine">
 <em class="property">class </em><code class="descclassname">microengine.scratch.</code><code class="descname">ScratchMicroengine</code><span class="sig-paren">(</span><em>client</em>, <em>testing=0</em>, <em>scanner=None</em>, <em>chains={'home'}</em><span class="sig-paren">)</span><a class="headerlink" href="#microengine.scratch.ScratchMicroengine" title="Permalink to this definition">¶</a></dt>
@@ -293,7 +293,7 @@ metadata (str): Optional metadata about this artifact</p>
 
 </div>
 <div class="section" id="module-microengine.yara">
-<span id="microengine-yara-module"></span><h2>microengine.yara module<a class="headerlink" href="#module-microengine.yara" title="Permalink to this headline">¶</a></h2>
+<span id="yara-microengine"></span><h2>Yara Microengine<a class="headerlink" href="#module-microengine.yara" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="microengine.yara.YaraMicroengine">
 <em class="property">class </em><code class="descclassname">microengine.yara.</code><code class="descname">YaraMicroengine</code><span class="sig-paren">(</span><em>client</em>, <em>testing=0</em>, <em>scanner=None</em>, <em>chains={'home'}</em><span class="sig-paren">)</span><a class="headerlink" href="#microengine.yara.YaraMicroengine" title="Permalink to this definition">¶</a></dt>
@@ -337,9 +337,6 @@ metadata (str): Optional metadata about this artifact</p>
 </dd></dl>
 
 </div>
-<div class="section" id="module-microengine">
-<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-microengine" title="Permalink to this headline">¶</a></h2>
-</div>
 </div>
 
 
@@ -362,7 +359,7 @@ metadata (str): Optional metadata about this artifact</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2018, PolySwarm.
+        &copy; Copyright 2018, PolySwarm Pte. Ltd..
 
     </p>
   </div>

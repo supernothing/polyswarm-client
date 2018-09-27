@@ -6,8 +6,7 @@ Ambassador Package
     <h2>Submodules</h2>
 
 
-
-ambassador.eicar module
+Eicar Ambassador
 -----------------------
 
 .. automodule:: ambassador.eicar
@@ -15,7 +14,7 @@ ambassador.eicar module
     :undoc-members:
     :show-inheritance:
 
-ambassador.filesystem module
+Filesystem Ambassador
 ----------------------------
 
 .. automodule:: ambassador.filesystem
@@ -24,10 +23,10 @@ ambassador.filesystem module
     :show-inheritance:
 
 
-Module contents
----------------
+.. Module contents
+.. ---------------
 
-.. automodule:: ambassador
-    :members:
-    :undoc-members:
-    :show-inheritance:
+.. .. automodule:: ambassador
+..     :members:
+..     :undoc-members:
+..     :show-inheritance:

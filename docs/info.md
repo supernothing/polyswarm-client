@@ -20,3 +20,4 @@ I needed a way to actually inject raw HTML into the RST so it didn't appear in t
 ### Resources
 
 [Good blog post on Sphinx](https://samnicholls.net/2016/06/15/how-to-sphinx-readthedocs/)
+[reStructuredText_ Cheat Sheet](http://docutils.sourceforge.net/docs/user/rst/cheatsheet.txt)

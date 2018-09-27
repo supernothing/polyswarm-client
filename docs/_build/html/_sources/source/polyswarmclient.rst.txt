@@ -30,7 +30,7 @@ Bloom
     :undoc-members:
     :show-inheritance:
 
-Bountiesclient
+BountiesClient
 -------------------------------------
 
 .. automodule:: polyswarmclient.bountiesclient
@@ -54,7 +54,7 @@ Microengine
     :undoc-members:
     :show-inheritance:
 
-Offersclient
+OffersClient
 -----------------------------------
 
 .. automodule:: polyswarmclient.offersclient
@@ -78,7 +78,7 @@ Scanner
     :undoc-members:
     :show-inheritance:
 
-Stakingclient
+StakingClient
 ------------------------------------
 
 .. automodule:: polyswarmclient.stakingclient
@@ -87,7 +87,7 @@ Stakingclient
     :show-inheritance:
 
 
-Module contents
+Module Content
 ---------------
 
 .. automodule:: polyswarmclient

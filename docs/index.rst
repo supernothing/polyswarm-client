@@ -3,31 +3,35 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to polyswarm-client's documentation!
-============================================
+Welcome to the PolySwarm Client Documentation!
+==============================================
+
+.. toctree::
+    :hidden:
+
+    Home <self>
 
 .. toctree::
    :maxdepth: 1
-   :caption: Contents:
 
-   About <source/about>
-   Polyswarm Client Module <source/polyswarmclient>
+   PolySwarm Client Module <source/polyswarmclient>
    Microengine Module <source/microengine>
    Arbiter Module <source/arbiter>
    Ambassador Module <source/ambassador>
 
-What is Polyswarm Client?
+What is PolySwarm Client?
 =========================
 
-This is a WIP client library to simplify interacting with a polyswarmd instance from Python.
+This is a WIP client library to simplify interacting with a `polyswarmd <https://github.com/polyswarm/polyswarmd>`_ instance from Python.
 
-See the Polyswarm Client Module for documentation on its various modules..
+This documentation consists of the base `polyswarm-client` which can be found in the *PolySwarm Client Module* section, and the example
+drivers. These consist of *Ambassador*, *Arbiter*, and *Microengine*. 
+
+Check out the `PolySwarm Docs <https://docs.polyswarm.io>`_ for more information on how to get started.
 
 
-Indices and tables
+Module Index
 ==================
 
-* :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`
 

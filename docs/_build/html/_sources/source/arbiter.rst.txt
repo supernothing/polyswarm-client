@@ -6,15 +6,7 @@ Arbiter Package
     <h2>Submodules</h2>
 
 
-
-.. toctree::
-
-    arbiter.verbatimdb
-
-Submodules
-----------
-
-arbiter.verbatim module
+Verbatim Arbiter
 -----------------------
 
 .. automodule:: arbiter.verbatim
@@ -23,10 +15,10 @@ arbiter.verbatim module
     :show-inheritance:
 
 
-Module contents
----------------
+.. Module contents
+.. ---------------
 
-.. automodule:: arbiter
-    :members:
-    :undoc-members:
-    :show-inheritance:
+.. .. automodule:: arbiter
+..     :members:
+..     :undoc-members:
+..     :show-inheritance:

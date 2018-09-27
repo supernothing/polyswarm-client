@@ -20,9 +20,9 @@ sys.path.insert(0, os.path.abspath('../src'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'polyswarm-client'
-copyright = '2018, PolySwarm'
-author = 'PolySwarm'
+project = 'Polyswarm Client'
+copyright = '2018, PolySwarm Pte. Ltd.'
+author = 'PolySwarm Pte. Ltd.'
 
 # The short X.Y version
 version = ''

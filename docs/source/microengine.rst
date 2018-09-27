@@ -6,8 +6,7 @@ Microengine Package
     <h2>Submodules</h2>
 
 
-
-microengine.clamav module
+Clamav Microengine
 -------------------------
 
 .. automodule:: microengine.clamav
@@ -15,7 +14,7 @@ microengine.clamav module
     :undoc-members:
     :show-inheritance:
 
-microengine.eicar module
+Eicar Microengine
 ------------------------
 
 .. automodule:: microengine.eicar
@@ -23,7 +22,7 @@ microengine.eicar module
     :undoc-members:
     :show-inheritance:
 
-microengine.multi module
+Multi Microengine
 ------------------------
 
 .. automodule:: microengine.multi
@@ -31,7 +30,7 @@ microengine.multi module
     :undoc-members:
     :show-inheritance:
 
-microengine.scratch module
+Scratch Microengine
 --------------------------
 
 .. automodule:: microengine.scratch
@@ -39,7 +38,7 @@ microengine.scratch module
     :undoc-members:
     :show-inheritance:
 
-microengine.yara module
+Yara Microengine
 -----------------------
 
 .. automodule:: microengine.yara
@@ -48,10 +47,10 @@ microengine.yara module
     :show-inheritance:
 
 
-Module contents
----------------
+.. Module contents
+.. ---------------
 
-.. automodule:: microengine
-    :members:
-    :undoc-members:
-    :show-inheritance:
+.. .. automodule:: microengine
+..     :members:
+..     :undoc-members:
+..     :show-inheritance:
