@@ -21,3 +21,9 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+Ambassador
+===========
+
+.. autoclass:: polyswarmclient.ambassador
+    :Ambassador:
