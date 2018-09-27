@@ -1,0 +1,1548 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Polywarm Client Package &mdash; polyswarm-client 0.0.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Microengine Package" href="microengine.html" />
+    <link rel="prev" title="Here’s a Thing!" href="about.html" /> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> polyswarm-client
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="about.html">About</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Polyswarm Client Module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-polyswarmclient.ambassador">Ambassador</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-polyswarmclient.arbiter">Arbiter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-polyswarmclient.bloom">Bloom</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-polyswarmclient.bountiesclient">Bountiesclient</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-polyswarmclient.events">Events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-polyswarmclient.microengine">Microengine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-polyswarmclient.offersclient">Offersclient</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-polyswarmclient.reporter">Reporter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-polyswarmclient.scanner">Scanner</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-polyswarmclient.stakingclient">Stakingclient</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-polyswarmclient">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="microengine.html">Microengine Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="arbiter.html">Arbiter Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ambassador.html">Ambassador Module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">polyswarm-client</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>Polywarm Client Package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/source/polyswarmclient.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="polywarm-client-package">
+<h1>Polywarm Client Package<a class="headerlink" href="#polywarm-client-package" title="Permalink to this headline">¶</a></h1>
+<h2>Submodules</h2><div class="section" id="module-polyswarmclient.ambassador">
+<span id="ambassador"></span><h2>Ambassador<a class="headerlink" href="#module-polyswarmclient.ambassador" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="polyswarmclient.ambassador.Ambassador">
+<em class="property">class </em><code class="descclassname">polyswarmclient.ambassador.</code><code class="descname">Ambassador</code><span class="sig-paren">(</span><em>client</em>, <em>testing=0</em>, <em>chains={'home'}</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.ambassador.Ambassador" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="classmethod">
+<dt id="polyswarmclient.ambassador.Ambassador.connect">
+<em class="property">classmethod </em><code class="descname">connect</code><span class="sig-paren">(</span><em>polyswarmd_addr</em>, <em>keyfile</em>, <em>password</em>, <em>api_key=None</em>, <em>testing=0</em>, <em>insecure_transport=False</em>, <em>chains={'home'}</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.ambassador.Ambassador.connect" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.ambassador.Ambassador.handle_run">
+<code class="descname">handle_run</code><span class="sig-paren">(</span><em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.ambassador.Ambassador.handle_run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.ambassador.Ambassador.handle_settle_bounty">
+<code class="descname">handle_settle_bounty</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.ambassador.Ambassador.handle_settle_bounty" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.ambassador.Ambassador.next_bounty">
+<code class="descname">next_bounty</code><span class="sig-paren">(</span><em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.ambassador.Ambassador.next_bounty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Override this to implement different bounty submission queues</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>chain</strong> (<em>str</em>) – Chain we are operating on</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Tuple of amount, ipfs_uri, duration, None to terminate submission<p>amount (int): Amount to place this bounty for
+ipfs_uri (str): IPFS URI of the artifact to post
+duration (int): Duration of the bounty in blocks</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">(int, str, int)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.ambassador.Ambassador.on_bounty_posted">
+<code class="descname">on_bounty_posted</code><span class="sig-paren">(</span><em>guid</em>, <em>amount</em>, <em>ipfs_uri</em>, <em>expiration</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.ambassador.Ambassador.on_bounty_posted" title="Permalink to this definition">¶</a></dt>
+<dd><p>Override this to implement additional steps after bounty submission</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>guid</strong> (<em>str</em>) – GUID of the posted bounty</li>
+<li><strong>amount</strong> (<em>int</em>) – Amount of the posted bounty</li>
+<li><strong>ipfs_uri</strong> (<em>str</em>) – URI of the artifact submitted</li>
+<li><strong>expiration</strong> (<em>int</em>) – Block number of bounty expiration</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain we are operating on</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.ambassador.Ambassador.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.ambassador.Ambassador.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.ambassador.Ambassador.run_task">
+<code class="descname">run_task</code><span class="sig-paren">(</span><em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.ambassador.Ambassador.run_task" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-polyswarmclient.arbiter">
+<span id="arbiter"></span><h2>Arbiter<a class="headerlink" href="#module-polyswarmclient.arbiter" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="polyswarmclient.arbiter.Arbiter">
+<em class="property">class </em><code class="descclassname">polyswarmclient.arbiter.</code><code class="descname">Arbiter</code><span class="sig-paren">(</span><em>client</em>, <em>testing=0</em>, <em>scanner=None</em>, <em>chains={'home'}</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.arbiter.Arbiter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="classmethod">
+<dt id="polyswarmclient.arbiter.Arbiter.connect">
+<em class="property">classmethod </em><code class="descname">connect</code><span class="sig-paren">(</span><em>polyswarmd_addr</em>, <em>keyfile</em>, <em>password</em>, <em>api_key=None</em>, <em>testing=0</em>, <em>insecure_transport=False</em>, <em>scanner=None</em>, <em>chains={'home'}</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.arbiter.Arbiter.connect" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.arbiter.Arbiter.handle_new_bounty">
+<code class="descname">handle_new_bounty</code><span class="sig-paren">(</span><em>guid</em>, <em>author</em>, <em>amount</em>, <em>uri</em>, <em>expiration</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.arbiter.Arbiter.handle_new_bounty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scan and assert on a posted bounty</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>guid</strong> (<em>str</em>) – The bounty to assert on</li>
+<li><strong>author</strong> (<em>str</em>) – The bounty author</li>
+<li><strong>amount</strong> (<em>str</em>) – Amount of the bounty in base NCT units (10 ^ -18)</li>
+<li><strong>uri</strong> (<em>str</em>) – IPFS hash of the root artifact</li>
+<li><strong>expiration</strong> (<em>str</em>) – Block number of the bounty’s expiration</li>
+<li><strong>chain</strong> (<em>str</em>) – Is this on the home or side chain?</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Response JSON parsed from polyswarmd containing placed assertions</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.arbiter.Arbiter.handle_run">
+<code class="descname">handle_run</code><span class="sig-paren">(</span><em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.arbiter.Arbiter.handle_run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.arbiter.Arbiter.handle_settle_bounty">
+<code class="descname">handle_settle_bounty</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.arbiter.Arbiter.handle_settle_bounty" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.arbiter.Arbiter.handle_vote_on_bounty">
+<code class="descname">handle_vote_on_bounty</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>verdicts</em>, <em>valid_bloom</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.arbiter.Arbiter.handle_vote_on_bounty" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.arbiter.Arbiter.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.arbiter.Arbiter.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.arbiter.Arbiter.scan">
+<code class="descname">scan</code><span class="sig-paren">(</span><em>guid</em>, <em>content</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.arbiter.Arbiter.scan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Override this to implement custom scanning logic</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>guid</strong> (<em>str</em>) – GUID of the bounty under analysis, use to track artifacts in the same bounty</li>
+<li><strong>content</strong> (<em>bytes</em>) – Content of the artifact to be scan</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain we are operating on</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><p>Tuple of bit, verdict, metadata</p>
+<p>bit (bool): Whether to include this artifact in the assertion or not
+verdict (bool): Whether this artifact is malicious or not
+metadata (str): Optional metadata about this artifact</p>
+</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(bool, bool, str)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-polyswarmclient.bloom">
+<span id="bloom"></span><h2>Bloom<a class="headerlink" href="#module-polyswarmclient.bloom" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="polyswarmclient.bloom.BloomFilter">
+<em class="property">class </em><code class="descclassname">polyswarmclient.bloom.</code><code class="descname">BloomFilter</code><span class="sig-paren">(</span><em>value=0</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bloom.BloomFilter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">numbers.Number</span></code></p>
+<dl class="method">
+<dt id="polyswarmclient.bloom.BloomFilter.add">
+<code class="descname">add</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bloom.BloomFilter.add" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.bloom.BloomFilter.extend">
+<code class="descname">extend</code><span class="sig-paren">(</span><em>iterable</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bloom.BloomFilter.extend" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="polyswarmclient.bloom.BloomFilter.from_iterable">
+<em class="property">classmethod </em><code class="descname">from_iterable</code><span class="sig-paren">(</span><em>iterable</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bloom.BloomFilter.from_iterable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="polyswarmclient.bloom.BloomFilter.value">
+<code class="descname">value</code><em class="property"> = None</em><a class="headerlink" href="#polyswarmclient.bloom.BloomFilter.value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="polyswarmclient.bloom.chunk_to_bloom_bits">
+<code class="descclassname">polyswarmclient.bloom.</code><code class="descname">chunk_to_bloom_bits</code><span class="sig-paren">(</span><em>chunk</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bloom.chunk_to_bloom_bits" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="polyswarmclient.bloom.get_bloom_bits">
+<code class="descclassname">polyswarmclient.bloom.</code><code class="descname">get_bloom_bits</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bloom.get_bloom_bits" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="polyswarmclient.bloom.get_chunks_for_bloom">
+<code class="descclassname">polyswarmclient.bloom.</code><code class="descname">get_chunks_for_bloom</code><span class="sig-paren">(</span><em>value_hash</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bloom.get_chunks_for_bloom" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-polyswarmclient.bountiesclient">
+<span id="bountiesclient"></span><h2>Bountiesclient<a class="headerlink" href="#module-polyswarmclient.bountiesclient" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="polyswarmclient.bountiesclient.BountiesClient">
+<em class="property">class </em><code class="descclassname">polyswarmclient.bountiesclient.</code><code class="descname">BountiesClient</code><span class="sig-paren">(</span><em>client</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bountiesclient.BountiesClient" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="polyswarmclient.bountiesclient.BountiesClient.calculate_bloom">
+<code class="descname">calculate_bloom</code><span class="sig-paren">(</span><em>ipfs_uri</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bountiesclient.BountiesClient.calculate_bloom" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate bloom filter for a set of artifacts</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>ipfs_uri</strong> (<em>str</em>) – IPFS URI for the artifact set</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Bloom filter value for the artifact set</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.bountiesclient.BountiesClient.get_assertion">
+<code class="descname">get_assertion</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>index</em>, <em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bountiesclient.BountiesClient.get_assertion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get an assertion from polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>bounty_guid</strong> (<em>str</em>) – GUID of the bounty to retrieve the assertion from</li>
+<li><strong>index</strong> (<em>int</em>) – Index of the assertion</li>
+<li><strong>chain</strong> (<em>str</em>) – Which chain to operate on</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Response JSON parsed from polyswarmd containing assertion details</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.bountiesclient.BountiesClient.get_bounty">
+<code class="descname">get_bounty</code><span class="sig-paren">(</span><em>guid</em>, <em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bountiesclient.BountiesClient.get_bounty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a bounty from polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>guid</strong> (<em>str</em>) – GUID of the bounty to retrieve</li>
+<li><strong>chain</strong> (<em>str</em>) – Which chain to operate on</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Response JSON parsed from polyswarmd containing bounty details</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.bountiesclient.BountiesClient.get_parameters">
+<code class="descname">get_parameters</code><span class="sig-paren">(</span><em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bountiesclient.BountiesClient.get_parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get bounty parameters from polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>chain</strong> (<em>str</em>) – Which chain to operate on</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Response JSON parsed from polyswarmd containing bounty parameters</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.bountiesclient.BountiesClient.post_assertion">
+<code class="descname">post_assertion</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>bid</em>, <em>mask</em>, <em>verdicts</em>, <em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bountiesclient.BountiesClient.post_assertion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Post an assertion to polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>bounty_guid</strong> (<em>str</em>) – The bounty to assert on</li>
+<li><strong>bid</strong> (<em>int</em>) – The amount to bid</li>
+<li><strong>mask</strong> (<em>List</em><em>[</em><em>bool</em><em>]</em>) – Which artifacts in the bounty to assert on</li>
+<li><strong>verdicts</strong> (<em>List</em><em>[</em><em>bool</em><em>]</em>) – Verdict (malicious/benign) for each of the artifacts in the bounty</li>
+<li><strong>chain</strong> (<em>str</em>) – Which chain to operate on</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Response JSON parsed from polyswarmd containing emitted events</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.bountiesclient.BountiesClient.post_bounty">
+<code class="descname">post_bounty</code><span class="sig-paren">(</span><em>amount</em>, <em>artifact_uri</em>, <em>duration</em>, <em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bountiesclient.BountiesClient.post_bounty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Post a bounty to polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>amount</strong> (<em>int</em>) – The amount to put up as a bounty</li>
+<li><strong>artifact_uri</strong> (<em>str</em>) – URI of artifacts</li>
+<li><strong>duration</strong> (<em>int</em>) – Number of blocks to accept new assertions</li>
+<li><strong>chain</strong> (<em>str</em>) – Which chain to operate on</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Response JSON parsed from polyswarmd containing emitted events</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.bountiesclient.BountiesClient.post_reveal">
+<code class="descname">post_reveal</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>index</em>, <em>nonce</em>, <em>verdicts</em>, <em>metadata</em>, <em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bountiesclient.BountiesClient.post_reveal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Post an assertion reveal to polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>bounty_guid</strong> (<em>str</em>) – The bounty which we have asserted on</li>
+<li><strong>index</strong> (<em>int</em>) – The index of the assertion to reveal</li>
+<li><strong>nonce</strong> (<em>str</em>) – Secret nonce used to reveal assertion</li>
+<li><strong>verdicts</strong> (<em>List</em><em>[</em><em>bool</em><em>]</em>) – Verdict (malicious/benign) for each of the artifacts in the bounty</li>
+<li><strong>metadata</strong> (<em>str</em>) – Optional metadata</li>
+<li><strong>chain</strong> (<em>str</em>) – Which chain to operate on</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Response JSON parsed from polyswarmd containing emitted events</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.bountiesclient.BountiesClient.post_vote">
+<code class="descname">post_vote</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>verdicts</em>, <em>valid_bloom</em>, <em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bountiesclient.BountiesClient.post_vote" title="Permalink to this definition">¶</a></dt>
+<dd><p>Post a bounty to polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>bounty_guid</strong> (<em>str</em>) – The bounty which we are voting on</li>
+<li><strong>verdicts</strong> (<em>List</em><em>[</em><em>bool</em><em>]</em>) – Verdict (malicious/benign) for each of the artifacts in the bounty</li>
+<li><strong>valid_bloom</strong> (<em>bool</em>) – Is the bloom filter reported by the bounty poster valid</li>
+<li><strong>chain</strong> (<em>str</em>) – Which chain to operate on</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Response JSON parsed from polyswarmd containing emitted events</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.bountiesclient.BountiesClient.settle_bounty">
+<code class="descname">settle_bounty</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.bountiesclient.BountiesClient.settle_bounty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Settle a bounty via polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>bounty_guid</strong> (<em>str</em>) – The bounty which we are settling</li>
+<li><strong>chain</strong> (<em>str</em>) – Which chain to operate on</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Response JSON parsed from polyswarmd containing emitted events</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-polyswarmclient.events">
+<span id="events"></span><h2>Events<a class="headerlink" href="#module-polyswarmclient.events" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="polyswarmclient.events.Callback">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">Callback</code><a class="headerlink" href="#polyswarmclient.events.Callback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="polyswarmclient.events.Callback.register">
+<code class="descname">register</code><span class="sig-paren">(</span><em>f</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.Callback.register" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.events.Callback.remove">
+<code class="descname">remove</code><span class="sig-paren">(</span><em>f</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.Callback.remove" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.events.Callback.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.Callback.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.Event">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">Event</code><span class="sig-paren">(</span><em>guid</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.Event" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.OnInitializedChannelCallback">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">OnInitializedChannelCallback</code><a class="headerlink" href="#polyswarmclient.events.OnInitializedChannelCallback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Callback" title="polyswarmclient.events.Callback"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Callback</span></code></a></p>
+<p>Called upon a channel being initialized</p>
+<dl class="method">
+<dt id="polyswarmclient.events.OnInitializedChannelCallback.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>guid</em>, <em>ambassador</em>, <em>expert</em>, <em>multi_signature</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.OnInitializedChannelCallback.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the registered callbacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>guid</strong> (<em>str</em>) – GUID of the channel</li>
+<li><strong>ambassador</strong> (<em>str</em>) – Address of the ambassador</li>
+<li><strong>expert</strong> (<em>str</em>) – Address of the expert</li>
+<li><strong>msig</strong> (<em>str</em>) – Address of the multi sig contract</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain event received on</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.OnNewAssertionCallback">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">OnNewAssertionCallback</code><a class="headerlink" href="#polyswarmclient.events.OnNewAssertionCallback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Callback" title="polyswarmclient.events.Callback"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Callback</span></code></a></p>
+<p>Called upon receiving a new assertion</p>
+<dl class="method">
+<dt id="polyswarmclient.events.OnNewAssertionCallback.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>author</em>, <em>index</em>, <em>bid</em>, <em>mask</em>, <em>commitment</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.OnNewAssertionCallback.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the registered callbacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>bounty_guid</strong> (<em>str</em>) – Bounty GUID</li>
+<li><strong>author</strong> (<em>str</em>) – Author of the assertion</li>
+<li><strong>index</strong> (<em>int</em>) – Index of the assertion within the bounty</li>
+<li><strong>mask</strong> (<em>List</em><em>[</em><em>bool</em><em>]</em>) – Bitmask indicating which artifacts are being asserted on</li>
+<li><strong>commitment</strong> (<em>int</em>) – Commitment hash representing the assertion’s confidential verdicts</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain event received on</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.OnNewBlockCallback">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">OnNewBlockCallback</code><a class="headerlink" href="#polyswarmclient.events.OnNewBlockCallback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Callback" title="polyswarmclient.events.Callback"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Callback</span></code></a></p>
+<p>Called upon receiving a new block, scheduled events triggered separately</p>
+<dl class="method">
+<dt id="polyswarmclient.events.OnNewBlockCallback.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>number</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.OnNewBlockCallback.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the registered callbacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>number</strong> (<em>int</em>) – Block number received</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain event received on</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.OnNewBountyCallback">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">OnNewBountyCallback</code><a class="headerlink" href="#polyswarmclient.events.OnNewBountyCallback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Callback" title="polyswarmclient.events.Callback"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Callback</span></code></a></p>
+<p>Called upon receiving a new bounty</p>
+<dl class="method">
+<dt id="polyswarmclient.events.OnNewBountyCallback.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>guid</em>, <em>author</em>, <em>amount</em>, <em>uri</em>, <em>expiration</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.OnNewBountyCallback.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the registered callbacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>guid</strong> (<em>str</em>) – Bounty GUID</li>
+<li><strong>author</strong> (<em>str</em>) – Author of the bounty</li>
+<li><strong>uri</strong> (<em>str</em>) – URI of the artifacts in the bounty</li>
+<li><strong>expiration</strong> (<em>int</em>) – Block number the bounty expires on</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain event received on</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.OnNewVerdictCallback">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">OnNewVerdictCallback</code><a class="headerlink" href="#polyswarmclient.events.OnNewVerdictCallback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Callback" title="polyswarmclient.events.Callback"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Callback</span></code></a></p>
+<p>Called upon receiving a new arbiter vote</p>
+<dl class="method">
+<dt id="polyswarmclient.events.OnNewVerdictCallback.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>verdicts</em>, <em>voter</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.OnNewVerdictCallback.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the registered callbacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>bounty_guid</strong> (<em>str</em>) – Bounty GUID</li>
+<li><strong>verdicts</strong> (<em>List</em><em>[</em><em>bool</em><em>]</em>) – Bitmask indicating malicious or benign verdicts for each artifact</li>
+<li><strong>voter</strong> (<em>str</em>) – Which arbiter is voting</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain event received on</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.OnQuorumReachedCallback">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">OnQuorumReachedCallback</code><a class="headerlink" href="#polyswarmclient.events.OnQuorumReachedCallback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Callback" title="polyswarmclient.events.Callback"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Callback</span></code></a></p>
+<p>Called upon a bounty reaching quorum</p>
+<dl class="method">
+<dt id="polyswarmclient.events.OnQuorumReachedCallback.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>quorum_block</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.OnQuorumReachedCallback.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the registered callbacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>bounty_guid</strong> (<em>str</em>) – Bounty GUID</li>
+<li><strong>quorum_block</strong> (<em>int</em>) – Block the bounty reached quorum on</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain event received on</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.OnRevealAssertionCallback">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">OnRevealAssertionCallback</code><a class="headerlink" href="#polyswarmclient.events.OnRevealAssertionCallback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Callback" title="polyswarmclient.events.Callback"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Callback</span></code></a></p>
+<p>Called upon receiving a new assertion reveal</p>
+<dl class="method">
+<dt id="polyswarmclient.events.OnRevealAssertionCallback.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>author</em>, <em>index</em>, <em>nonce</em>, <em>verdicts</em>, <em>metadata</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.OnRevealAssertionCallback.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the registered callbacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>bounty_guid</strong> (<em>str</em>) – Bounty GUID</li>
+<li><strong>author</strong> (<em>str</em>) – Author of the assertion</li>
+<li><strong>index</strong> (<em>int</em>) – Index of the assertion within the bounty</li>
+<li><strong>nonce</strong> (<em>int</em>) – Nonce used to calculate the commitment hash for this assertion</li>
+<li><strong>verdicts</strong> (<em>List</em><em>[</em><em>bool</em><em>]</em>) – Bitmask indicating malicious or benign verdicts for each artifact</li>
+<li><strong>metadata</strong> (<em>str</em>) – Optional metadata for this assertion</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain event received on</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.OnRevealAssertionDueCallback">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">OnRevealAssertionDueCallback</code><a class="headerlink" href="#polyswarmclient.events.OnRevealAssertionDueCallback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Callback" title="polyswarmclient.events.Callback"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Callback</span></code></a></p>
+<p>Called when an assertion is needing to be revealed</p>
+<dl class="method">
+<dt id="polyswarmclient.events.OnRevealAssertionDueCallback.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>index</em>, <em>nonce</em>, <em>verdicts</em>, <em>metadata</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.OnRevealAssertionDueCallback.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the registered callbacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>bounty_guid</strong> (<em>str</em>) – GUID of the bounty being asserted on</li>
+<li><strong>index</strong> (<em>int</em>) – Index of the assertion to reveal</li>
+<li><strong>nonce</strong> (<em>str</em>) – Secret nonce used to reveal assertion</li>
+<li><strong>verdicts</strong> (<em>List</em><em>[</em><em>bool</em><em>]</em>) – List of verdicts for each artifact in the bounty</li>
+<li><strong>metadata</strong> (<em>str</em>) – Optional metadata</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain event received on</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.OnRunCallback">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">OnRunCallback</code><a class="headerlink" href="#polyswarmclient.events.OnRunCallback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Callback" title="polyswarmclient.events.Callback"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Callback</span></code></a></p>
+<p>Called upon entering the event loop for the first time, use for initialization</p>
+<dl class="method">
+<dt id="polyswarmclient.events.OnRunCallback.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.OnRunCallback.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the registered callbacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>chain</strong> (<em>str</em>) – Chain event received on</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.OnSettleBountyDueCallback">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">OnSettleBountyDueCallback</code><a class="headerlink" href="#polyswarmclient.events.OnSettleBountyDueCallback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Callback" title="polyswarmclient.events.Callback"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Callback</span></code></a></p>
+<p>Called when a bounty is needing to be settled</p>
+<dl class="method">
+<dt id="polyswarmclient.events.OnSettleBountyDueCallback.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.OnSettleBountyDueCallback.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the registered callbacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>bounty_guid</strong> (<em>str</em>) – GUID of the bounty being voted on</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain event received on</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.OnSettledBountyCallback">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">OnSettledBountyCallback</code><a class="headerlink" href="#polyswarmclient.events.OnSettledBountyCallback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Callback" title="polyswarmclient.events.Callback"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Callback</span></code></a></p>
+<p>Called upon a bounty being settled</p>
+<dl class="method">
+<dt id="polyswarmclient.events.OnSettledBountyCallback.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>settled_block</em>, <em>settler</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.OnSettledBountyCallback.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the registered callbacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>settled_block</strong> (<em>int</em>) – Block the bounty was settled on</li>
+<li><strong>settler</strong> (<em>str</em>) – Address settling the bounty</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain event received on</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.OnVoteOnBountyDueCallback">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">OnVoteOnBountyDueCallback</code><a class="headerlink" href="#polyswarmclient.events.OnVoteOnBountyDueCallback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Callback" title="polyswarmclient.events.Callback"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Callback</span></code></a></p>
+<p>Called when a bounty is needing to be voted on</p>
+<dl class="method">
+<dt id="polyswarmclient.events.OnVoteOnBountyDueCallback.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>verdicts</em>, <em>valid_bloom</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.OnVoteOnBountyDueCallback.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the registered callbacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>bounty_guid</strong> (<em>str</em>) – GUID of the bounty being voted on</li>
+<li><strong>verdicts</strong> (<em>List</em><em>[</em><em>bool</em><em>]</em>) – List of verdicts for each artifact in the bounty</li>
+<li><strong>valid_bloom</strong> (<em>bool</em>) – Is the bloom filter submitted with the bounty valid</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain event received on</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.RevealAssertion">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">RevealAssertion</code><span class="sig-paren">(</span><em>guid</em>, <em>index</em>, <em>nonce</em>, <em>verdicts</em>, <em>metadata</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.RevealAssertion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Event" title="polyswarmclient.events.Event"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Event</span></code></a></p>
+<p>An assertion scheduled to be publically revealed</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.Schedule">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">Schedule</code><a class="headerlink" href="#polyswarmclient.events.Schedule" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="polyswarmclient.events.Schedule.empty">
+<code class="descname">empty</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.Schedule.empty" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.events.Schedule.get">
+<code class="descname">get</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.Schedule.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.events.Schedule.peek">
+<code class="descname">peek</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.Schedule.peek" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.events.Schedule.put">
+<code class="descname">put</code><span class="sig-paren">(</span><em>block</em>, <em>event</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.Schedule.put" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.SettleBounty">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">SettleBounty</code><span class="sig-paren">(</span><em>guid</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.SettleBounty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Event" title="polyswarmclient.events.Event"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Event</span></code></a></p>
+<p>A bounty scheduled to be settled</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.events.VoteOnBounty">
+<em class="property">class </em><code class="descclassname">polyswarmclient.events.</code><code class="descname">VoteOnBounty</code><span class="sig-paren">(</span><em>guid</em>, <em>verdicts</em>, <em>valid_bloom</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.events.VoteOnBounty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#polyswarmclient.events.Event" title="polyswarmclient.events.Event"><code class="xref py py-class docutils literal notranslate"><span class="pre">polyswarmclient.events.Event</span></code></a></p>
+<p>A scheduled vote from an arbiter</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-polyswarmclient.microengine">
+<span id="microengine"></span><h2>Microengine<a class="headerlink" href="#module-polyswarmclient.microengine" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="polyswarmclient.microengine.Microengine">
+<em class="property">class </em><code class="descclassname">polyswarmclient.microengine.</code><code class="descname">Microengine</code><span class="sig-paren">(</span><em>client</em>, <em>testing=0</em>, <em>scanner=None</em>, <em>chains={'home'}</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.microengine.Microengine" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="polyswarmclient.microengine.Microengine.bid">
+<code class="descname">bid</code><span class="sig-paren">(</span><em>guid</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.microengine.Microengine.bid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Override this to implement custom bid calculation logic</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>guid</strong> (<em>str</em>) – GUID of the bounty under analysis, use to correlate with artifacts in the same bounty</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain we are operating on</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Amount of NCT to bid in base NCT units (10 ^ -18)</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(int)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="polyswarmclient.microengine.Microengine.connect">
+<em class="property">classmethod </em><code class="descname">connect</code><span class="sig-paren">(</span><em>polyswarmd_addr</em>, <em>keyfile</em>, <em>password</em>, <em>api_key=None</em>, <em>testing=0</em>, <em>insecure_transport=False</em>, <em>scanner=None</em>, <em>chains={'home'}</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.microengine.Microengine.connect" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.microengine.Microengine.handle_new_bounty">
+<code class="descname">handle_new_bounty</code><span class="sig-paren">(</span><em>guid</em>, <em>author</em>, <em>amount</em>, <em>uri</em>, <em>expiration</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.microengine.Microengine.handle_new_bounty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scan and assert on a posted bounty</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>guid</strong> (<em>str</em>) – The bounty to assert on</li>
+<li><strong>author</strong> (<em>str</em>) – The bounty author</li>
+<li><strong>amount</strong> (<em>str</em>) – Amount of the bounty in base NCT units (10 ^ -18)</li>
+<li><strong>uri</strong> (<em>str</em>) – IPFS hash of the root artifact</li>
+<li><strong>expiration</strong> (<em>str</em>) – Block number of the bounty’s expiration</li>
+<li><strong>chain</strong> (<em>str</em>) – Is this on the home or side chain?</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Response JSON parsed from polyswarmd containing placed assertions</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.microengine.Microengine.handle_reveal_assertion">
+<code class="descname">handle_reveal_assertion</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>index</em>, <em>nonce</em>, <em>verdicts</em>, <em>metadata</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.microengine.Microengine.handle_reveal_assertion" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.microengine.Microengine.handle_settle_bounty">
+<code class="descname">handle_settle_bounty</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.microengine.Microengine.handle_settle_bounty" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.microengine.Microengine.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.microengine.Microengine.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.microengine.Microengine.scan">
+<code class="descname">scan</code><span class="sig-paren">(</span><em>guid</em>, <em>content</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.microengine.Microengine.scan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Override this to implement custom scanning logic</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>guid</strong> (<em>str</em>) – GUID of the bounty under analysis, use to track artifacts in the same bounty</li>
+<li><strong>content</strong> (<em>bytes</em>) – Content of the artifact to be scan</li>
+<li><strong>chain</strong> (<em>str</em>) – Chain we are operating on</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><p>Tuple of bit, verdict, metadata</p>
+<p>bit (bool): Whether to include this artifact in the assertion or not
+verdict (bool): Whether this artifact is malicious or not
+metadata (str): Optional metadata about this artifact</p>
+</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(bool, bool, str)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-polyswarmclient.offersclient">
+<span id="offersclient"></span><h2>Offersclient<a class="headerlink" href="#module-polyswarmclient.offersclient" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="polyswarmclient.offersclient.OffersClient">
+<em class="property">class </em><code class="descclassname">polyswarmclient.offersclient.</code><code class="descname">OffersClient</code><span class="sig-paren">(</span><em>client</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.offersclient.OffersClient" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-polyswarmclient.reporter">
+<span id="reporter"></span><h2>Reporter<a class="headerlink" href="#module-polyswarmclient.reporter" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="polyswarmclient.reporter.BountyProgress">
+<em class="property">class </em><code class="descclassname">polyswarmclient.reporter.</code><code class="descname">BountyProgress</code><span class="sig-paren">(</span><em>guid</em>, <em>expiration</em>, <em>assertion_reveal_window</em>, <em>arbiter_vote_window</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.reporter.BountyProgress" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="polyswarmclient.reporter.BountyProgress.all_complete">
+<code class="descname">all_complete</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.reporter.BountyProgress.all_complete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.reporter.BountyProgress.check_block">
+<code class="descname">check_block</code><span class="sig-paren">(</span><em>number</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.reporter.BountyProgress.check_block" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.reporter.BountyProgress.mark_stage_complete">
+<code class="descname">mark_stage_complete</code><span class="sig-paren">(</span><em>s</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.reporter.BountyProgress.mark_stage_complete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="polyswarmclient.reporter.Reporter">
+<em class="property">class </em><code class="descclassname">polyswarmclient.reporter.</code><code class="descname">Reporter</code><span class="sig-paren">(</span><em>polyswarmd_uri</em>, <em>keyfile</em>, <em>password</em>, <em>api_key=None</em>, <em>testing=-1</em>, <em>insecure_transport=False</em>, <em>chains={'home'}</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.reporter.Reporter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="polyswarmclient.reporter.Reporter.block_checker">
+<code class="descname">block_checker</code><span class="sig-paren">(</span><em>number</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.reporter.Reporter.block_checker" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.reporter.Reporter.handle_assertion">
+<code class="descname">handle_assertion</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>author</em>, <em>index</em>, <em>bid</em>, <em>mask</em>, <em>commitment</em>, <em>chain=None</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.reporter.Reporter.handle_assertion" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.reporter.Reporter.handle_run">
+<code class="descname">handle_run</code><span class="sig-paren">(</span><em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.reporter.Reporter.handle_run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.reporter.Reporter.handle_settle_bounty">
+<code class="descname">handle_settle_bounty</code><span class="sig-paren">(</span><em>bounty_guid</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.reporter.Reporter.handle_settle_bounty" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.reporter.Reporter.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.reporter.Reporter.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.reporter.Reporter.run_task">
+<code class="descname">run_task</code><span class="sig-paren">(</span><em>number</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.reporter.Reporter.run_task" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="polyswarmclient.reporter.main">
+<code class="descclassname">polyswarmclient.reporter.</code><code class="descname">main</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.reporter.main" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-polyswarmclient.scanner">
+<span id="scanner"></span><h2>Scanner<a class="headerlink" href="#module-polyswarmclient.scanner" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="polyswarmclient.scanner.Scanner">
+<em class="property">class </em><code class="descclassname">polyswarmclient.scanner.</code><code class="descname">Scanner</code><a class="headerlink" href="#polyswarmclient.scanner.Scanner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="polyswarmclient.scanner.Scanner.scan">
+<code class="descname">scan</code><span class="sig-paren">(</span><em>guid</em>, <em>content</em>, <em>chain</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.scanner.Scanner.scan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Override this to implement custom scanning logic</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>guid</strong> (<em>str</em>) – GUID of the bounty under analysis, use to track artifacts in the same bounty</li>
+<li><strong>content</strong> (<em>bytes</em>) – Content of the artifact to be scan</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><p>Tuple of bit, verdict, metadata</p>
+<p>bit (bool): Whether to include this artifact in the assertion or not
+verdict (bool): Whether this artifact is malicious or not
+metadata (str): Optional metadata about this artifact</p>
+</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(bool, bool, str)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-polyswarmclient.stakingclient">
+<span id="stakingclient"></span><h2>Stakingclient<a class="headerlink" href="#module-polyswarmclient.stakingclient" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="polyswarmclient.stakingclient.StakingClient">
+<em class="property">class </em><code class="descclassname">polyswarmclient.stakingclient.</code><code class="descname">StakingClient</code><span class="sig-paren">(</span><em>client</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.stakingclient.StakingClient" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="polyswarmclient.stakingclient.StakingClient.get_parameters">
+<code class="descname">get_parameters</code><span class="sig-paren">(</span><em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.stakingclient.StakingClient.get_parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get staking parameters from polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>chain</strong> (<em>str</em>) – Which chain to operate on</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Response JSON parsed from polyswarmd containing staking parameters</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.stakingclient.StakingClient.get_total_balance">
+<code class="descname">get_total_balance</code><span class="sig-paren">(</span><em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.stakingclient.StakingClient.get_total_balance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get total staking balance from polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>chain</strong> (<em>str</em>) – Which chain to operate on</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Response JSON parsed from polyswarmd containing staking balance</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.stakingclient.StakingClient.get_withdrawable_balance">
+<code class="descname">get_withdrawable_balance</code><span class="sig-paren">(</span><em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.stakingclient.StakingClient.get_withdrawable_balance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get withdrawable staking balance from polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>chain</strong> (<em>str</em>) – Which chain to operate on</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Response JSON parsed from polyswarmd containing staking balance</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.stakingclient.StakingClient.post_deposit">
+<code class="descname">post_deposit</code><span class="sig-paren">(</span><em>amount</em>, <em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.stakingclient.StakingClient.post_deposit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Post a deposit to the staking contract</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>amount</strong> (<em>int</em>) – The amount to stake</li>
+<li><strong>chain</strong> (<em>str</em>) – Which chain to operate on</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Response JSON parsed from polyswarmd containing emitted events</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.stakingclient.StakingClient.post_withdraw">
+<code class="descname">post_withdraw</code><span class="sig-paren">(</span><em>amount</em>, <em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.stakingclient.StakingClient.post_withdraw" title="Permalink to this definition">¶</a></dt>
+<dd><p>Post a withdrawal to the staking contract</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>amount</strong> (<em>int</em>) – The amount to withdraw</li>
+<li><strong>chain</strong> (<em>str</em>) – Which chain to operate on</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Response JSON parsed from polyswarmd containing emitted events</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-polyswarmclient">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-polyswarmclient" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="polyswarmclient.Client">
+<em class="property">class </em><code class="descclassname">polyswarmclient.</code><code class="descname">Client</code><span class="sig-paren">(</span><em>polyswarmd_addr</em>, <em>keyfile</em>, <em>password</em>, <em>api_key=None</em>, <em>tx_error_fatal=False</em>, <em>insecure_transport=False</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.Client" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="polyswarmclient.Client.get_artifact">
+<code class="descname">get_artifact</code><span class="sig-paren">(</span><em>ipfs_uri</em>, <em>index</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.Client.get_artifact" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve an artifact from IPFS via polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>ipfs_uri</strong> (<em>str</em>) – IPFS hash of the artifact to retrieve</li>
+<li><strong>index</strong> (<em>int</em>) – Index of the sub artifact to retrieve</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Content of the artifact</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(bytes)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.Client.get_artifacts">
+<code class="descname">get_artifacts</code><span class="sig-paren">(</span><em>ipfs_uri</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.Client.get_artifacts" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.Client.list_artifacts">
+<code class="descname">list_artifacts</code><span class="sig-paren">(</span><em>ipfs_uri</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.Client.list_artifacts" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.Client.listen_for_events">
+<code class="descname">listen_for_events</code><span class="sig-paren">(</span><em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.Client.listen_for_events" title="Permalink to this definition">¶</a></dt>
+<dd><p>Listen for events via websocket connection to polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>chain</strong> (<em>str</em>) – Which chain to operate on</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.Client.make_request">
+<code class="descname">make_request</code><span class="sig-paren">(</span><em>method</em>, <em>path</em>, <em>chain</em>, <em>json=None</em>, <em>track_nonce=False</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.Client.make_request" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a request to polyswarmd, expecting a json response</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>method</strong> (<em>str</em>) – HTTP method to use</li>
+<li><strong>path</strong> (<em>str</em>) – Path portion of URI to send request to</li>
+<li><strong>chain</strong> (<em>str</em>) – Which chain to operate on</li>
+<li><strong>json</strong> (<em>obj</em>) – JSON payload to send with request</li>
+<li><strong>track_nonce</strong> (<em>bool</em>) – Whether to track generated transaction and update nonce</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Response JSON parsed from polyswarmd</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.Client.post_artifacts">
+<code class="descname">post_artifacts</code><span class="sig-paren">(</span><em>files</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.Client.post_artifacts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Post artifacts to polyswarmd, flexible files parameter to support different use-cases</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>files</strong> (<em>list</em><em>[</em><em>(</em><em>filename</em><em>, </em><em>contents</em><em>)</em><em>]</em>) – The artifacts to upload, accepts one of:
+(filename, bytes): File name and contents to upload
+(filename, file_obj): (Optional) file name and file object to upload
+(filename, None): File name to open and upload</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">IPFS URI of the uploaded artifact</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">(str)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.Client.post_transactions">
+<code class="descname">post_transactions</code><span class="sig-paren">(</span><em>transactions</em>, <em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.Client.post_transactions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Post a set of (signed) transactions to Ethereum via polyswarmd, parsing the emitted events</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>transactions</strong> (<em>List</em><em>[</em><em>Transaction</em><em>]</em>) – The transactions to sign and post</li>
+<li><strong>chain</strong> (<em>str</em>) – Which chain to operate on</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Response JSON parsed from polyswarmd containing emitted events</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.Client.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>chains={'home'</em>, <em>'side'}</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.Client.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the main event loop</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.Client.run_task">
+<code class="descname">run_task</code><span class="sig-paren">(</span><em>chains={'home'</em>, <em>'side'}</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.Client.run_task" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.Client.schedule">
+<code class="descname">schedule</code><span class="sig-paren">(</span><em>expiration</em>, <em>event</em>, <em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.Client.schedule" title="Permalink to this definition">¶</a></dt>
+<dd><p>Schedule an event to execute on a particular block</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>expiration</strong> (<em>int</em>) – Which block to execute on</li>
+<li><strong>event</strong> (<a class="reference internal" href="#polyswarmclient.events.Event" title="polyswarmclient.events.Event"><em>Event</em></a>) – Event to trigger on expiration block</li>
+<li><strong>chain</strong> (<em>str</em>) – Which chain to operate on</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.Client.stop">
+<code class="descname">stop</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.Client.stop" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="polyswarmclient.Client.update_base_nonce">
+<code class="descname">update_base_nonce</code><span class="sig-paren">(</span><em>chain='home'</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.Client.update_base_nonce" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update account’s nonce from polyswarmd
+:param chain: Which chain to operate on
+:type chain: str
+:param Integer value of nonce:</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="polyswarmclient.check_response">
+<code class="descclassname">polyswarmclient.</code><code class="descname">check_response</code><span class="sig-paren">(</span><em>response</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.check_response" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check the status of responses from polyswarmd</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>response</strong> – Response dict parsed from JSON from polyswarmd</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">True if successful else False</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">(bool)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="polyswarmclient.is_valid_ipfs_uri">
+<code class="descclassname">polyswarmclient.</code><code class="descname">is_valid_ipfs_uri</code><span class="sig-paren">(</span><em>ipfs_uri</em><span class="sig-paren">)</span><a class="headerlink" href="#polyswarmclient.is_valid_ipfs_uri" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="microengine.html" class="btn btn-neutral float-right" title="Microengine Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="about.html" class="btn btn-neutral" title="Here’s a Thing!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, PolySwarm.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'0.0.0',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

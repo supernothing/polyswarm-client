@@ -41,6 +41,7 @@ release = '0.0.0'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -176,3 +177,7 @@ epub_exclude_files = ['search.html']
 
 
 # -- Extension configuration -------------------------------------------------
+# Add custom css stylesheet
+
+# def setup(app):
+#     app.add_stylesheet('css/custom.css')
