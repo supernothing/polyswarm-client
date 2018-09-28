@@ -40,7 +40,7 @@ class Ambassador(object):
         """Override this to implement different bounty submission queues
 
         Args:
-            chain (str): Chain we are operating on
+            chain (str): Chain we are operating on.
         Returns:
             (int, str, int): Tuple of amount, ipfs_uri, duration, None to terminate submission
 

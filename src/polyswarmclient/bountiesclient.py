@@ -88,7 +88,7 @@ class BountiesClient(object):
         return await self.__client.make_request('GET', path, chain)
 
     async def post_assertion(self, bounty_guid, bid, mask, verdicts, chain='home'):
-        """Post an assertion to polyswarmd
+        """Post an assertion to polyswarmd.
 
         Args:
             bounty_guid (str): The bounty to assert on
