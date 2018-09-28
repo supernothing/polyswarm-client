@@ -169,8 +169,8 @@ class Client(object):
 
         response = {}
         try:
-            async with self.__session.request(method, uri, params=params, json=json) as response:
-                response = await response.json()
+            async with self.__session.request(method, uri, params=params, json=json) as raw_response:
+                response = await raw_response.json()
             logging.debug('%s %s?%s: %s', method, path, '&'.join([a + '=' + str(b) for (a, b) in params.items()]), response)
         finally:
             result = response.get('result', {})
@@ -237,8 +237,8 @@ class Client(object):
 
         uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}'.format(ipfs_uri))
         params = dict(self.params)
-        async with self.__session.get(uri, params=self.params) as response:
-            response = await response.json()
+        async with self.__session.get(uri, params=self.params) as raw_response:
+            response = await raw_response.json()
 
         logging.debug('GET /artifacts/%s: %s', ipfs_uri, response)
 
@@ -261,9 +261,9 @@ class Client(object):
 
         uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}/{1}'.format(ipfs_uri, index))
         params = dict(self.params)
-        async with self.__session.get(uri, params=params) as response:
-            if response.status == 200:
-                return await response.read()
+        async with self.__session.get(uri, params=params) as raw_response:
+            if raw_response.status == 200:
+                return await raw_response.read()
 
             return None
 
