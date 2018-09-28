@@ -81,7 +81,7 @@ class Arbiter(object):
 
         bounty = await self.client.bounties.get_bounty(guid, chain)
         bloom = await self.client.bounties.calculate_bloom(uri)
-        valid_bloom = int(bounty.get('bloom', 0)) == bloom
+        valid_bloom = bounty and int(bounty.get('bloom', 0)) == bloom
 
         expiration = int(expiration)
         assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
