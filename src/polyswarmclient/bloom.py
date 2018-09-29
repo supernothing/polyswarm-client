@@ -17,7 +17,6 @@ def get_chunks_for_bloom(value_hash):
 
     Args:
         value (str): Value to be encoded into the Bloom filter.
-
     Yields:
         chunk (bytes): Chunks of the value hash.
     """
@@ -57,6 +56,7 @@ def get_bloom_bits(value):
 
 
 class BloomFilter(numbers.Number):
+    # TODO: Unit tests for BloomFilter?
     value = None
 
     def __init__(self, value=0):
@@ -94,7 +94,6 @@ class BloomFilter(numbers.Number):
 
         Args:
             iterable (Iterable[bytes]): Iterable of byte values.
-
         Returns: 
             BloomFilter: Instantiated BloomFilter.
         """
