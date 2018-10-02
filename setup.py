@@ -16,12 +16,13 @@ setup(
     license='MIT',
     install_requires=parse_requirements(),
     include_package_data=True,
-    packages=['polyswarmclient', 'ambassador', 'arbiter', 'microengine', 'arbiter.verbatimdb'],
+    packages=['polyswarmclient', 'ambassador', 'arbiter', 'microengine', 'arbiter.verbatimdb', 'corpus'],
     package_dir={
         'polyswarmclient': 'src/polyswarmclient',
         'ambassador': 'src/ambassador',
         'arbiter': 'src/arbiter',
         'microengine': 'src/microengine',
+        'corpus': 'src/corpus',
         'arbiter.verbatimdb': 'src/arbiter/verbatimdb',
     },
     entry_points={

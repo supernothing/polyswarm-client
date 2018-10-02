@@ -3,7 +3,7 @@ import hashlib
 import os
 
 from polyswarmclient.arbiter import Arbiter
-
+from corpus import DownloadToFileSystemCorpus
 ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
 
 
@@ -19,7 +19,15 @@ class VerbatimArbiter(Arbiter):
             chains (set[str]): Chain(s) to operate on
         """
         super().__init__(client, testing, None, chains)
-        self.conn = sqlite3.connect(os.path.join(ARTIFACT_DIRECTORY, 'truth.db'))
+        db_pth = os.path.join(ARTIFACT_DIRECTORY, 'truth.db')
+
+        if not os.path.exists(db_pth) and os.getenv("MALICIOUS_BOOTSTRAP_URL"):
+
+            d = DownloadToFileSystemCorpus(base_dir=ARTIFACT_DIRECTORY)
+            d.download_truth()
+            self.conn = sqlite3.connect(d.truth_db_pth)
+        else:
+            self.conn = sqlite3.connect(db_pth)
 
     async def scan(self, guid, content, chain):
         """Match hash of an artifact with our database
