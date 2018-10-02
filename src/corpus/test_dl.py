@@ -2,7 +2,6 @@ import os
 import unittest
 from corpus import DownloadToFileSystemCorpus
 
-
 class DownloaderUnitTest(unittest.TestCase):
 
     def test_download_truth_artifact(self):
