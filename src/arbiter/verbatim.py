@@ -21,7 +21,7 @@ class VerbatimArbiter(Arbiter):
         super().__init__(client, testing, None, chains)
         db_pth = os.path.join(ARTIFACT_DIRECTORY, 'truth.db')
 
-        if not os.path.exists(db_pth) and os.getenv("MALICIOUS_BOOTSTRAP_URL"):
+        if os.getenv("MALICIOUS_BOOTSTRAP_URL"):
 
             d = DownloadToFileSystemCorpus(base_dir=ARTIFACT_DIRECTORY)
             d.download_truth()
