@@ -57,8 +57,9 @@ class DownloadToFileSystemCorpus(object):
         return self._get_pth_listing(self.benign_pth)
 
     def download_truth(self):
-        r = urllib.request.urlretrieve("{0}/{1}".format(self.url, self.truth_fname), self.truth_db_pth)
-        pass
+        u = "{0}/{1}".format(self.url, self.truth_fname)
+        logging.info("Fetching truth database {0}".format(u))
+        r = urllib.request.urlretrieve(u, self.truth_db_pth)
 
     def generate_truth(self):
         d = generate_db(self.truth_db_pth, self.mal_path, self.benign_pth)
