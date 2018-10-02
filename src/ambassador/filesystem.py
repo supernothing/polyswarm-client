@@ -3,9 +3,11 @@ import random
 import os
 
 from polyswarmclient.ambassador import Ambassador
+from corpus import DownloadToFileSystemCorpus
 
 ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
 ARTIFACT_BLACKLIST = os.getenv('ARTIFACT_BLACKLIST', 'truth.db').split(',')
+
 
 class FilesystemAmbassador(Ambassador):
     """Ambassador which submits artifacts from a directory"""
@@ -20,10 +22,21 @@ class FilesystemAmbassador(Ambassador):
         """
         super().__init__(client, testing, chains)
 
+
         self.artifacts = []
-        for root, dirs, files in os.walk(ARTIFACT_DIRECTORY):
-            for f in files:
-                self.artifacts.append(os.path.join(root, f))
+        u = os.getenv("MALICIOUS_BOOTSTRAP_URL")
+        if u:
+            logging.info("Unpacking malware corpus at {0}".format(u))
+            d = DownloadToFileSystemCorpus()
+            d.download_and_unpack()
+            bfl = d.get_benign_file_list()
+            mfl = d.get_malicious_file_list()
+            logging.info("Unpacking complete, {0} malicious and {1} benign files".format(len(mfl), len(bfl)))
+            self.artifacts = bfl + mfl
+        else:
+            for root, dirs, files in os.walk(ARTIFACT_DIRECTORY):
+                for f in files:
+                    self.artifacts.append(os.path.join(root, f))
 
     async def next_bounty(self, chain):
         """Submit either the EICAR test string or a benign sample
