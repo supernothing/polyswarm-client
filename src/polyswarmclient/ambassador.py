@@ -44,9 +44,11 @@ class Ambassador(object):
         Returns:
             (int, str, int): Tuple of amount, ipfs_uri, duration, None to terminate submission
 
-            amount (int): Amount to place this bounty for
-            ipfs_uri (str): IPFS URI of the artifact to post
-            duration (int): Duration of the bounty in blocks
+        Note:
+            | The meaning of the return types are as follows:
+            |   - **amount** (*int*): Amount to place this bounty for
+            |   - **ipfs_uri** (*str*): IPFS URI of the artifact to post
+            |   - **duration** (*int*): Duration of the bounty in blocks
         """
         return None
 
@@ -76,7 +78,8 @@ class Ambassador(object):
         asyncio.get_event_loop().create_task(self.run_task(chain))
 
     async def run_task(self, chain):
-        """ Iterate through the bounties an Ambassador wants to post on a given chain.
+        """
+            Iterate through the bounties an Ambassador wants to post on a given chain.
             Post each bounty to polyswarmd and schedule the bounty to be settled.
 
         Args:
