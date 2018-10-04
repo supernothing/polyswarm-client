@@ -33,6 +33,15 @@ def check_response(response):
 
 
 def is_valid_ipfs_uri(ipfs_uri):
+    """
+    Ensure that a given ipfs_uri is valid by checking length and base58 encoding.
+
+    Args:
+        ipfs_uri (str): ipfs_uri to validate
+
+    Returns:
+        bool: is this valid?
+    """
     # TODO: Further multihash validation
     try:
         return len(ipfs_uri) < 100 and base58.b58decode(ipfs_uri)
@@ -44,6 +53,17 @@ def is_valid_ipfs_uri(ipfs_uri):
 
 
 class Client(object):
+    """
+    Client to connected to a ethereum wallet as well as a pollyswarm_d instance.
+
+    Args:
+        polyswarmd_addr (str): URI of polyswarmd you are referring to.
+        keyfile (str): Keyfile filename.
+        password (str): Password associated with Keyfile.
+        api_key (str): Your PolySwarm API key.
+        tx_error_fatal (bool): Transaction errors are fatal and exit the program
+        insecure_transport (bool): Allow insecure transport such as HTTP?
+    """
     def __init__(self, polyswarmd_addr, keyfile, password, api_key=None, tx_error_fatal=False, insecure_transport=False):
         if api_key and insecure_transport:
             raise ValueError('Refusing to send API key over insecure transport')
@@ -101,12 +121,20 @@ class Client(object):
         self.on_settle_bounty_due = events.OnSettleBountyDueCallback()
 
     def __exception_handler(self, loop, context):
+        """
+        See _Python docs: https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.call_exception_handler for more information.
+        """
         self.exit_code = -1
         self.stop()
         loop.default_exception_handler(context)
 
     def run(self, chains={'home', 'side'}):
-        """Run the main event loop"""
+        """
+        Run the main event loop
+
+        Args:
+            chains (set(str)): Set of chains to operate on. Defaults to {'home', 'side'}
+        """
         asyncio.get_event_loop().set_exception_handler(self.__exception_handler)
         asyncio.get_event_loop().create_task(self.run_task(chains))
         asyncio.get_event_loop().run_forever()
@@ -115,9 +143,18 @@ class Client(object):
             sys.exit(self.exit_code)
 
     def stop(self):
+        """
+        Stop the main event loop.
+        """
         asyncio.get_event_loop().stop()
 
     async def run_task(self, chains={'home', 'side'}):
+        """
+        How the event loop handles running a task.
+
+        Args:
+            chains (set(str)): Set of chains to operate on. Defaults to {'home', 'side'} 
+        """
         if self.api_key and not self.polyswarmd_uri.startswith('https://'):
             raise Exception('Refusing to send API key over insecure transport')
 
@@ -190,6 +227,7 @@ class Client(object):
         Args:
             transactions (List[Transaction]): The transactions to sign and post
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -221,14 +259,24 @@ class Client(object):
 
     async def update_base_nonce(self, chain='home'):
         """Update account's nonce from polyswarmd
+
         Args:
             chain (str): Which chain to operate on
-            Integer value of nonce
         """
         async with self.base_nonce_lock[chain]:
             self.base_nonce[chain] = await self.make_request('GET', '/nonce', chain)
 
     async def list_artifacts(self, ipfs_uri):
+        """
+        Return a list of artificats from a given ipfs_uri.
+
+        Args:
+            ipfs_uri (str): IPFS URI to get artifiacts from.
+
+        Returns:
+            List[(str, str)]: A list of tuples. First tuple element is the artifact name, second tuple element
+            is the artifact hash.
+        """
         if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
@@ -292,6 +340,15 @@ class Client(object):
             raise StopAsyncIteration
 
     def get_artifacts(self, ipfs_uri):
+        """
+        Get an iterator to return artifacts.
+
+        Args:
+            ipfs_uri (str): URI where artificats are located
+
+        Returns:
+            `__GetArtifacts` iterator
+        """
         if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 

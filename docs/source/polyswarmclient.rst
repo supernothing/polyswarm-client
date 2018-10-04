@@ -72,6 +72,7 @@ Reporter
     :members:
     :undoc-members:
     :show-inheritance:
+    :exclude-members: main
 
 Scanner
 ------------------------------

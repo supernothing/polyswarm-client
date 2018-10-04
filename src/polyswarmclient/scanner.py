@@ -11,10 +11,11 @@ class Scanner(object):
             content (bytes): Content of the artifact to be scan
         Returns:
             Tuple(bool, bool, str): Tuple of bit, verdict, metadata
+            
         Note:
             | The meaning of the return types are as follows:
-            | **bit** (*bool*): Whether to include this artifact in the assertion or not
-            | **verdict** (*bool*): Whether this artifact is malicious or not
-            | **metadata** (*str*): Optional metadata about this artifact
+            |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
+            |   - **verdict** (*bool*): Whether this artifact is malicious or not
+            |   - **metadata** (*str*): Optional metadata about this artifact
         """
         return False, False, ''

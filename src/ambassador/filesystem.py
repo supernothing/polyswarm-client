@@ -14,7 +14,7 @@ class FilesystemAmbassador(Ambassador):
         """Initialize a filesystem ambassador
 
         Args:
-            client (polyswwarmclient.Client): Client to use
+            client (`Client`): Client to use
             testing (int): How many test bounties to respond to
             chains (set[str]): Chain(s) to operate on
         """
@@ -33,9 +33,11 @@ class FilesystemAmbassador(Ambassador):
         Returns:
             (int, str, int): Tuple of amount, ipfs_uri, duration, None to terminate submission
 
-            amount (int): Amount to place this bounty for
-            ipfs_uri (str): IPFS URI of the artifact to post
-            duration (int): Duration of the bounty in blocks
+        Note:
+            | The meaning of the return types are as follows:
+            |   - **amount** (*int*): Amount to place this bounty for
+            |   - **ipfs_uri** (*str*): IPFS URI of the artifact to post
+            |   - **duration** (*int*): Duration of the bounty in blocks
         """
         amount = self.client.bounties.parameters[chain]['bounty_amount_minimum']
         filename = random.choice(self.artifacts)
