@@ -7,18 +7,24 @@ from polyswarmclient.events import SettleBounty
 
 
 class Ambassador(object):
-    def __init__(self, client, testing=0, chains={'home'}):
+    def __init__(self, client, testing=0, chains={'home'}, watchdog=0):
         self.client = client
         self.chains = chains
         self.client.on_run.register(self.handle_run)
         self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
+
+        self.watchdog = watchdog
+        self.first_block = 0 
+        self.last_bounty_count = 0
+        if self.watchdog:
+            self.client.on_new_block.register(self.handle_new_block)
 
         self.testing = testing
         self.bounties_posted = 0
         self.settles_posted = 0
 
     @classmethod
-    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains={'home'}):
+    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains={'home'}, watchdog=0):
         """Connect the Ambassador to a Client.
 
         Args:
@@ -34,7 +40,7 @@ class Ambassador(object):
             Ambassador: Ambassador instantiated with a Client.
         """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
-        return cls(client, testing, chains)
+        return cls(client, testing, chains, watchdog)
 
     async def next_bounty(self, chain):
         """Override this to implement different bounty submission queues
@@ -121,6 +127,20 @@ class Ambassador(object):
                 self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
 
             bounty = await self.next_bounty(chain)
+
+    async def handle_new_block(self, number, chain):
+        if not self.watchdog:
+            return
+
+        if not self.first_block:
+            self.first_block = number
+            return
+
+        blocks = number - self.first_block
+        if blocks % self.watchdog == 0 and self.bounties_posted == self.last_bounty_count:
+            raise Exception('Bounties not processing, exiting with failure')
+
+        self.last_bounty_count = self.bounties_posted
 
     async def handle_settle_bounty(self, bounty_guid, chain):
         """

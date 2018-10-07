@@ -161,6 +161,8 @@ class Client(object):
         self.params = {'account': self.account} if not self.api_key else {}
         headers = {'Authorization': self.api_key} if self.api_key else {}
         try:
+            # XXX: Set the timeouts here to reasonable values, probably should
+            # be configurable
             async with aiohttp.ClientSession(headers=headers, conn_timeout=30.0, read_timeout=30.0) as self.__session:
                 self.bounties = BountiesClient(self)
                 self.staking = StakingClient(self)
