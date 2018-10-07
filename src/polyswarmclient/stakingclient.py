@@ -55,7 +55,7 @@ class StakingClient(object):
         results = await self.__client.make_request('POST', '/staking/deposit', chain, json=deposit, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
@@ -78,7 +78,7 @@ class StakingClient(object):
         results = await self.__client.make_request('POST', '/staking/withdraw', chain, json=withdrawal, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)

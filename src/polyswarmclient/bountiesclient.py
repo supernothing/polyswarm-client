@@ -68,7 +68,7 @@ class BountiesClient(object):
         results = await self.__client.make_request('POST', '/bounties', chain, json=bounty, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
@@ -110,7 +110,7 @@ class BountiesClient(object):
         results = await self.__client.make_request('POST', path, chain, json=assertion, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         nonce = results.get('nonce', -1)
         transactions = results.get('transactions', [])
@@ -141,7 +141,7 @@ class BountiesClient(object):
         results = await self.__client.make_request('POST', path, chain, json=reveal, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
@@ -168,7 +168,7 @@ class BountiesClient(object):
         results = await self.__client.make_request('POST', path, chain, json=vote, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
@@ -189,7 +189,7 @@ class BountiesClient(object):
         results = await self.__client.make_request('POST', path, chain, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)

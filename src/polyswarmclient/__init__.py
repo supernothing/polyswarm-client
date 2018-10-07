@@ -161,7 +161,7 @@ class Client(object):
         self.params = {'account': self.account} if not self.api_key else {}
         headers = {'Authorization': self.api_key} if self.api_key else {}
         try:
-            async with aiohttp.ClientSession(headers=headers) as self.__session:
+            async with aiohttp.ClientSession(headers=headers, conn_timeout=30.0, read_timeout=30.0) as self.__session:
                 self.bounties = BountiesClient(self)
                 self.staking = StakingClient(self)
                 self.offers = OffersClient(self)
@@ -212,8 +212,9 @@ class Client(object):
         finally:
             result = response.get('result', {})
             transactions = result.get('transactions', []) if isinstance(result, dict) else []
-            if track_nonce and transactions:
-                self.base_nonce[chain] += len(transactions)
+            if track_nonce:
+                if transactions:
+                    self.base_nonce[chain] += len(transactions)
                 self.base_nonce_lock[chain].release()
 
         if not check_response(response):
