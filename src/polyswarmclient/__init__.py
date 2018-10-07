@@ -161,7 +161,9 @@ class Client(object):
         self.params = {'account': self.account} if not self.api_key else {}
         headers = {'Authorization': self.api_key} if self.api_key else {}
         try:
-            async with aiohttp.ClientSession(headers=headers) as self.__session:
+            # XXX: Set the timeouts here to reasonable values, probably should
+            # be configurable
+            async with aiohttp.ClientSession(headers=headers, conn_timeout=30.0, read_timeout=30.0) as self.__session:
                 self.bounties = BountiesClient(self)
                 self.staking = StakingClient(self)
                 self.offers = OffersClient(self)
@@ -179,7 +181,7 @@ class Client(object):
             self.staking = None
             self.offers = None
 
-    async def make_request(self, method, path, chain, json=None, track_nonce=False):
+    async def make_request(self, method, path, chain, json=None, track_nonce=False, tries=5):
         """Make a request to polyswarmd, expecting a json response
 
         Args:
@@ -204,19 +206,30 @@ class Client(object):
             await self.base_nonce_lock[chain].acquire()
             params['base_nonce'] = self.base_nonce[chain]
 
+        qs = '&'.join([a + '=' + str(b) for (a, b) in params.items()])
         response = {}
         try:
-            async with self.__session.request(method, uri, params=params, json=json) as raw_response:
-                response = await raw_response.json()
-            logging.debug('%s %s?%s: %s', method, path, '&'.join([a + '=' + str(b) for (a, b) in params.items()]), response)
+            while tries > 0:
+                async with self.__session.request(method, uri, params=params, json=json) as raw_response:
+                    response = await raw_response.json()
+                logging.debug('%s %s?%s: %s', method, path, qs, response)
+
+                if not check_response(response):
+                    tries -= 1
+                    logging.warning('Request %s %s?%s failed, retrying...', method, path, qs)
+                    continue
+                else:
+                    break
         finally:
-            result = response.get('result', {})
-            transactions = result.get('transactions', []) if isinstance(result, dict) else []
-            if track_nonce and transactions:
-                self.base_nonce[chain] += len(transactions)
+            if track_nonce:
+                result = response.get('result', {})
+                transactions = result.get('transactions', []) if isinstance(result, dict) else []
+                if transactions:
+                    self.base_nonce[chain] += len(transactions)
                 self.base_nonce_lock[chain].release()
 
         if not check_response(response):
+            logging.warning('Request %s %s?%s failed, giving up', method, path, qs)
             return None
 
         return response.get('result')

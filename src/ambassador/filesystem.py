@@ -12,7 +12,7 @@ ARTIFACT_BLACKLIST = os.getenv('ARTIFACT_BLACKLIST', 'truth.db').split(',')
 class FilesystemAmbassador(Ambassador):
     """Ambassador which submits artifacts from a directory"""
 
-    def __init__(self, client, testing=0, chains={'home'}):
+    def __init__(self, client, testing=0, chains={'home'}, watchdog=0):
         """Initialize a filesystem ambassador
 
         Args:
@@ -20,7 +20,7 @@ class FilesystemAmbassador(Ambassador):
             testing (int): How many test bounties to respond to
             chains (set[str]): Chain(s) to operate on
         """
-        super().__init__(client, testing, chains)
+        super().__init__(client, testing, chains, watchdog)
 
 
         self.artifacts = []
