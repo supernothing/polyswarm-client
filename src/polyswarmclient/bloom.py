@@ -1,11 +1,12 @@
 # Based on eth-bloom (https://github.com/ethereum/eth-bloom, used under MIT
 # license) with modifications
-
+import logging
 import numbers
 import operator
 
 from ethereum.utils import sha3
 
+logger = logging.getLogger(__name__)  # Initialize logger
 FILTER_BITS = 8 * 256
 HASH_FUNCS = 8
 
@@ -94,7 +95,7 @@ class BloomFilter(numbers.Number):
 
         Args:
             iterable (Iterable[bytes]): Iterable of byte values.
-        Returns: 
+        Returns:
             BloomFilter: Instantiated BloomFilter.
         """
         bloom = cls()

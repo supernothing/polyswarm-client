@@ -3,6 +3,8 @@ import logging
 from functools import total_ordering
 from queue import PriorityQueue
 
+logger = logging.getLogger(__name__)  # Initialize logger
+
 
 class Callback(object):
     """
@@ -13,6 +15,7 @@ class Callback(object):
         Classes which extend `Callback` are expected to impliment the
         `run` method.
     """
+
     def __init__(self):
         self.cbs = []
 
@@ -48,7 +51,7 @@ class Callback(object):
                 results.append(local_ret)
 
         if results:
-            logging.info('%s callback results: %s', type(self).__name__, results)
+            logger.info('%s callback results: %s', type(self).__name__, results)
 
         return results
 
@@ -59,7 +62,7 @@ class OnRunCallback(Callback):
 
     async def run(self, chain):
         """Run the registered callbacks
-        
+
         Args:
             chain (str): Chain event received on
         """
@@ -176,7 +179,7 @@ class OnSettledBountyCallback(Callback):
 class OnInitializedChannelCallback(Callback):
     """Called upon a channel being initialized"""
 
-    async def run(self, guid, ambassador, expert, multi_signature):
+    async def run(self, guid, ambassador, expert, multi_signature, chain):
         """Run the registered callbacks
 
         Args:
@@ -186,13 +189,15 @@ class OnInitializedChannelCallback(Callback):
             msig (str): Address of the multi sig contract
             chain (str): Chain event received on
         """
-        return await super().run(guid, ambassador, expert, msig, chain)
+
+        return await super().run(guid, ambassador, expert, multi_signature, chain)
 
 
 class Schedule(object):
     """
     Generic Schedule class. Uses a PriorityQueue data structure to store Events.
     """
+
     def __init__(self):
         self.queue = PriorityQueue()
 
@@ -238,6 +243,7 @@ class Event(object):
     Args:
         guid (str): GUID of the event.
     """
+
     def __init__(self, guid):
         self.guid = guid
 
@@ -250,7 +256,7 @@ class Event(object):
 
 class RevealAssertion(Event):
     """An assertion scheduled to be publically revealed
-        
+
     Args:
         guid (str): GUID of the bounty being asserted on
         index (int): Index of the assertion to reveal
@@ -318,7 +324,7 @@ class OnVoteOnBountyDueCallback(Callback):
 class SettleBounty(Event):
     """A bounty scheduled to be settled
      Args:
-        guid (str): GUID of the bounty being asserted on    
+        guid (str): GUID of the bounty being asserted on
     """
 
     def __init__(self, guid):
