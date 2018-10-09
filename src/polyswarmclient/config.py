@@ -15,7 +15,7 @@ def init_logging(log_format, loglevel=logging.INFO):
         formatter = JSONFormatter('(level) (name) (timestamp) (message)')
         logHandler.setFormatter(formatter)
         logger.addHandler(logHandler)
-        logger.setLevel(logging.INFO)
+        logger.setLevel(loglevel)
         logger.info("Logging in JSON format.")
     else:
         logging.basicConfig(level=loglevel, format='%(levelname)s:%(name)s:%(asctime)s %(message)s')
