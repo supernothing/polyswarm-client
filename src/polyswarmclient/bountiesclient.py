@@ -2,6 +2,8 @@ import logging
 
 from polyswarmclient import bloom
 
+logger = logging.getLogger(__name__)  # Initialize logger
+
 
 class BountiesClient(object):
     def __init__(self, client):
@@ -14,7 +16,7 @@ class BountiesClient(object):
         Args:
             chain (str): Which chain to operate on.
         Note:
-            This function doesn't return anything. It instead stores the bounty parameters 
+            This function doesn't return anything. It instead stores the bounty parameters
             as parsed JSON in self.parameters[chain].
         """
 
@@ -67,13 +69,13 @@ class BountiesClient(object):
         }
         results = await self.__client.make_request('POST', '/bounties', chain, json=bounty, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
         if 'bounties' not in results:
-            logging.error('Expected bounty, received: %s', results)
+            logger.error('Expected bounty, received: %s', results)
         return results.get('bounties', [])
 
     async def get_assertion(self, bounty_guid, index, chain='home'):
@@ -109,14 +111,14 @@ class BountiesClient(object):
         }
         results = await self.__client.make_request('POST', path, chain, json=assertion, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         nonce = results.get('nonce', -1)
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
         if 'assertions' not in results:
-            logging.error('Expected assertion, received: %s', results)
+            logger.error('Expected assertion, received: %s', results)
         return nonce, results.get('assertions', [])
 
     async def post_reveal(self, bounty_guid, index, nonce, verdicts, metadata, chain='home'):
@@ -140,13 +142,13 @@ class BountiesClient(object):
         }
         results = await self.__client.make_request('POST', path, chain, json=reveal, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
         if 'reveals' not in results:
-            logging.error('Expected reveal, received: %s', results)
+            logger.error('Expected reveal, received: %s', results)
         return results.get('reveals', [])
 
     async def post_vote(self, bounty_guid, verdicts, valid_bloom, chain='home'):
@@ -167,13 +169,13 @@ class BountiesClient(object):
         }
         results = await self.__client.make_request('POST', path, chain, json=vote, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
         if 'verdicts' not in results:
-            logging.error('Expected verdict, received: %s', results)
+            logger.error('Expected verdict, received: %s', results)
         return results.get('verdicts', [])
 
     async def settle_bounty(self, bounty_guid, chain='home'):
@@ -188,11 +190,11 @@ class BountiesClient(object):
         path = '/bounties/{0}/settle'.format(bounty_guid)
         results = await self.__client.make_request('POST', path, chain, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
         if 'transfers' not in results:
-            logging.warning('No transfer event, received: %s (maybe expected)', results)
+            logger.warning('No transfer event, received: %s (maybe expected)', results)
         return results.get('transfers', [])
