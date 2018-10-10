@@ -7,32 +7,54 @@ from polyswarmclient.events import SettleBounty
 
 
 class Ambassador(object):
-    def __init__(self, client, testing=0, chains={'home'}):
+    def __init__(self, client, testing=0, chains={'home'}, watchdog=0):
         self.client = client
         self.chains = chains
         self.client.on_run.register(self.handle_run)
         self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
+
+        self.watchdog = watchdog
+        self.first_block = 0 
+        self.last_bounty_count = 0
+        if self.watchdog:
+            self.client.on_new_block.register(self.handle_new_block)
 
         self.testing = testing
         self.bounties_posted = 0
         self.settles_posted = 0
 
     @classmethod
-    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains={'home'}):
+    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains={'home'}, watchdog=0):
+        """Connect the Ambassador to a Client.
+
+        Args:
+            polyswarmd_addr (str): URL of polyswarmd you are referring to.
+            keyfile (str): Keyfile filename.
+            password (str): Password associated with Keyfile.
+            api_key (str): Your PolySwarm API key.
+            testing (int): Number of testing bounties to use.
+            insecure_transport (bool): Allow insecure transport such as HTTP?
+            chains (set(str)):  Set of chains you are acting on.
+        
+        Returns:
+            Ambassador: Ambassador instantiated with a Client.
+        """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
-        return cls(client, testing, chains)
+        return cls(client, testing, chains, watchdog)
 
     async def next_bounty(self, chain):
         """Override this to implement different bounty submission queues
 
         Args:
-            chain (str): Chain we are operating on
+            chain (str): Chain we are operating on.
         Returns:
             (int, str, int): Tuple of amount, ipfs_uri, duration, None to terminate submission
 
-            amount (int): Amount to place this bounty for
-            ipfs_uri (str): IPFS URI of the artifact to post
-            duration (int): Duration of the bounty in blocks
+        Note:
+            | The meaning of the return types are as follows:
+            |   - **amount** (*int*): Amount to place this bounty for
+            |   - **ipfs_uri** (*str*): IPFS URI of the artifact to post
+            |   - **duration** (*int*): Duration of the bounty in blocks
         """
         return None
 
@@ -49,12 +71,27 @@ class Ambassador(object):
         pass
 
     def run(self):
+        """Run the Client on all of our chains."""
         self.client.run(self.chains)
 
-    async def handle_run(self, chain):
+    async def handle_run(self, chain: str) -> None:
+        """
+        Asynchronously run a task on a given chain.
+
+        Args:
+            chain (str): Name of the chain to run.
+        """
         asyncio.get_event_loop().create_task(self.run_task(chain))
 
     async def run_task(self, chain):
+        """
+            Iterate through the bounties an Ambassador wants to post on a given chain.
+            Post each bounty to polyswarmd and schedule the bounty to be settled.
+
+        Args:
+            chain (str): Name of the chain to post bounties to.
+
+        """
         assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
         arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
 
@@ -91,7 +128,30 @@ class Ambassador(object):
 
             bounty = await self.next_bounty(chain)
 
+    async def handle_new_block(self, number, chain):
+        if not self.watchdog:
+            return
+
+        if not self.first_block:
+            self.first_block = number
+            return
+
+        blocks = number - self.first_block
+        if blocks % self.watchdog == 0 and self.bounties_posted == self.last_bounty_count:
+            raise Exception('Bounties not processing, exiting with failure')
+
+        self.last_bounty_count = self.bounties_posted
+
     async def handle_settle_bounty(self, bounty_guid, chain):
+        """
+        When a bounty is scheduled to be settled, actually settle the bounty to the given chain.
+
+        Args:
+            bounty_guid (str): GUID of the bounty to be submitted.
+            chain (str): Name of the chain where the bounty is to be posted.
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events.
+        """
         self.settles_posted += 1
         if self.testing > 0:
             if self.settles_posted > self.testing:
