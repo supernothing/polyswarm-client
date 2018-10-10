@@ -16,6 +16,8 @@ from urllib.parse import urljoin
 from web3 import Web3
 w3 = Web3()
 
+logger = logging.getLogger(__name__)  # Initialize logger
+
 
 def check_response(response):
     """Check the status of responses from polyswarmd
@@ -28,7 +30,7 @@ def check_response(response):
     status = response.get('status')
     ret = status and status == 'OK'
     if not ret:
-        logging.error('Received unexpected failure response from polyswarmd: %s', response)
+        logger.error('Received unexpected failure response from polyswarmd: %s', response)
     return ret
 
 
@@ -48,7 +50,7 @@ def is_valid_ipfs_uri(ipfs_uri):
     except Exception:
         pass
 
-    logging.error('Invalid IPFS URI: %s', ipfs_uri)
+    logger.error('Invalid IPFS URI: %s', ipfs_uri)
     return False
 
 
@@ -64,6 +66,7 @@ class Client(object):
         tx_error_fatal (bool): Transaction errors are fatal and exit the program
         insecure_transport (bool): Allow insecure transport such as HTTP?
     """
+
     def __init__(self, polyswarmd_addr, keyfile, password, api_key=None, tx_error_fatal=False, insecure_transport=False):
         if api_key and insecure_transport:
             raise ValueError('Refusing to send API key over insecure transport')
@@ -80,7 +83,7 @@ class Client(object):
 
         self.account = w3.eth.account.privateKeyToAccount(
             self.priv_key).address
-        logging.info('Using account: %s', self.account)
+        logger.info('Using account: %s', self.account)
 
         self.__session = None
         self.base_nonce = {
@@ -139,7 +142,7 @@ class Client(object):
         asyncio.get_event_loop().create_task(self.run_task(chains))
         asyncio.get_event_loop().run_forever()
         if self.exit_code:
-            logging.error('Detected unhandled exception, exiting with failure')
+            logger.error('Detected unhandled exception, exiting with failure')
             sys.exit(self.exit_code)
 
     def stop(self):
@@ -153,7 +156,7 @@ class Client(object):
         How the event loop handles running a task.
 
         Args:
-            chains (set(str)): Set of chains to operate on. Defaults to {'home', 'side'} 
+            chains (set(str)): Set of chains to operate on. Defaults to {'home', 'side'}
         """
         if self.api_key and not self.polyswarmd_uri.startswith('https://'):
             raise Exception('Refusing to send API key over insecure transport')
@@ -212,11 +215,11 @@ class Client(object):
             while tries > 0:
                 async with self.__session.request(method, uri, params=params, json=json) as raw_response:
                     response = await raw_response.json()
-                logging.debug('%s %s?%s: %s', method, path, qs, response)
+                logger.debug('%s %s?%s: %s', method, path, qs, response)
 
                 if not check_response(response):
                     tries -= 1
-                    logging.warning('Request %s %s?%s failed, retrying...', method, path, qs)
+                    logger.warning('Request %s %s?%s failed, retrying...', method, path, qs)
                     continue
                 else:
                     break
@@ -229,7 +232,7 @@ class Client(object):
                 self.base_nonce_lock[chain].release()
 
         if not check_response(response):
-            logging.warning('Request %s %s?%s failed, giving up', method, path, qs)
+            logger.warning('Request %s %s?%s failed, giving up', method, path, qs)
             return None
 
         return response.get('result')
@@ -260,13 +263,13 @@ class Client(object):
             response = {}
 
         if not response:
-            logging.warning('Received no events for transaction')
+            logger.warning('Received no events for transaction')
         elif 'errors' in response.get('result', {}):
             if self.tx_error_fatal:
-                logging.error('Received fatal transaction error: %s', response)
+                logger.error('Received fatal transaction error: %s', response)
                 sys.exit(1)
             else:
-                logging.error('Received transaction error: %s', response)
+                logger.error('Received transaction error: %s', response)
 
         return response
 
@@ -301,7 +304,7 @@ class Client(object):
         async with self.__session.get(uri, params=self.params) as raw_response:
             response = await raw_response.json()
 
-        logging.debug('GET /artifacts/%s: %s', ipfs_uri, response)
+        logger.debug('GET /artifacts/%s: %s', ipfs_uri, response)
 
         if not check_response(response):
             return []
@@ -403,7 +406,7 @@ class Client(object):
                 async with self.__session.post(uri, params=params, data=mpwriter) as response:
                     response = await response.json()
 
-                logging.debug('POST/artifacts: %s', response)
+                logger.debug('POST/artifacts: %s', response)
 
                 if not check_response(response):
                     return None
@@ -466,34 +469,34 @@ class Client(object):
                     if number <= last_block:
                         continue
                     if number % 100 == 0:
-                        logging.debug('Block %s on chain %s', number, chain)
+                        logger.debug('Block %s on chain %s', number, chain)
                     asyncio.get_event_loop().create_task(self.on_new_block.run(number=number, chain=chain))
                     asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number))
                 elif event['event'] == 'bounty':
                     data = event['data']
-                    logging.info('Received bounty on chain %s: %s', chain, data)
+                    logger.info('Received bounty on chain %s: %s', chain, data)
                     asyncio.get_event_loop().create_task(self.on_new_bounty.run(**data, chain=chain))
                 elif event['event'] == 'assertion':
                     data = event['data']
-                    logging.info('Received assertion on chain %s: %s', chain, data)
+                    logger.info('Received assertion on chain %s: %s', chain, data)
                     asyncio.get_event_loop().create_task(self.on_new_assertion.run(**data, chain=chain))
                 elif event['event'] == 'reveal':
                     data = event['data']
-                    logging.info('Received reveal on chain %s: %s', chain, data)
+                    logger.info('Received reveal on chain %s: %s', chain, data)
                     asyncio.get_event_loop().create_task(self.on_reveal_assertion.run(**data, chain=chain))
                 elif event['event'] == 'verdict':
                     data = event['data']
-                    logging.info('Received verdict on chain %s: %s', chain, data)
+                    logger.info('Received verdict on chain %s: %s', chain, data)
                     asyncio.get_event_loop().create_task(self.on_new_verdict.run(**data, chain=chain))
                 elif event['event'] == 'quorum':
                     data = event['data']
-                    logging.info('Received quorum on chain %s: %s', chain, data)
+                    logger.info('Received quorum on chain %s: %s', chain, data)
                     asyncio.get_event_loop().create_task(self.on_quorum_reached.run(**data, chain=chain))
                 elif event['event'] == 'settled_bounty':
                     data = event['data']
-                    logging.info('Received settled bounty on chain %s: %s', chain, data)
+                    logger.info('Received settled bounty on chain %s: %s', chain, data)
                     asyncio.get_event_loop().create_task(self.on_settled_bounty.run(**data, chain=chain))
                 elif event['event'] == 'initialized_channel':
                     data = event['data']
-                    logging.info('Received initialized_channel: %s', data)
+                    logger.info('Received initialized_channel: %s', data)
                     asyncio.get_event_loop().create_task(self.on_initialized_channel.run(**data, chain=chain))
