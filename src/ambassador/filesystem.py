@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)  # Initialize logger
 
 ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
 ARTIFACT_BLACKLIST = os.getenv('ARTIFACT_BLACKLIST', 'truth.db').split(',')
-
+BOUNTY_TEST_DURATION_BLOCKS = int(os.getenv('BOUNTY_TEST_DURATION_BLOCKS', 5))
 
 class FilesystemAmbassador(Ambassador):
     """Ambassador which submits artifacts from a directory"""
@@ -55,7 +55,7 @@ class FilesystemAmbassador(Ambassador):
         """
         amount = self.client.bounties.parameters[chain]['bounty_amount_minimum']
         filename = random.choice(self.artifacts)
-        duration = 20
+        duration = BOUNTY_TEST_DURATION_BLOCKS
 
         logger.info('Submitting file %s', filename)
         ipfs_uri = await self.client.post_artifacts([(filename, None)])
