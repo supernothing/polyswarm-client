@@ -165,15 +165,16 @@ class OnQuorumReachedCallback(Callback):
 class OnSettledBountyCallback(Callback):
     """Called upon a bounty being settled"""
 
-    async def run(self, settled_block, settler, chain):
+    async def run(self, bounty_guid, settled_block, settler, chain):
         """Run the registered callbacks
 
         Args:
+            bounty_guid (str): Bounty GUID
             settled_block (int): Block the bounty was settled on
             settler (str): Address settling the bounty
             chain (str): Chain event received on
         """
-        return await super().run(settled_block, settler, chain)
+        return await super().run(bounty_guid, settled_block, settler, chain)
 
 
 class OnInitializedChannelCallback(Callback):
