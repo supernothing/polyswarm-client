@@ -8,7 +8,7 @@ def parse_requirements():
 
 setup(
     name='polyswarm-client',
-    version='0.1',
+    version='0.2',
     description='Client library to simplify interacting with a polyswarmd instance',
     author='PolySwarm Developers',
     author_email='info@polyswarm.io',
