@@ -193,8 +193,9 @@ class Client(object):
             chain (str): Which chain to operate on
             json (obj): JSON payload to send with request
             track_nonce (bool): Whether to track generated transaction and update nonce
+            tries (int): Number of times to retry before giving up
         Returns:
-            Response JSON parsed from polyswarmd
+            (bool, obj): Tuple of boolean representing success, and response JSON parsed from polyswarmd
         """
         if chain != 'home' and chain != 'side':
             raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
@@ -213,12 +214,13 @@ class Client(object):
         response = {}
         try:
             while tries > 0:
+                tries -= 1
+
                 async with self.__session.request(method, uri, params=params, json=json) as raw_response:
                     response = await raw_response.json()
                 logger.debug('%s %s?%s: %s', method, path, qs, response)
 
                 if not check_response(response):
-                    tries -= 1
                     logger.warning('Request %s %s?%s failed, retrying...', method, path, qs)
                     continue
                 else:
@@ -233,9 +235,9 @@ class Client(object):
 
         if not check_response(response):
             logger.warning('Request %s %s?%s failed, giving up', method, path, qs)
-            return None
+            return False, response.get('errors')
 
-        return response.get('result')
+        return True, response.get('result')
 
     async def post_transactions(self, transactions, chain='home'):
         """Post a set of (signed) transactions to Ethereum via polyswarmd, parsing the emitted events
@@ -258,20 +260,58 @@ class Client(object):
             raw = bytes(s['rawTransaction']).hex()
             signed.append(raw)
 
-        response = await self.make_request('POST', '/transactions', chain, json={'transactions': signed})
-        if response is None:
-            response = {}
-
-        if not response:
-            logger.warning('Received no events for transaction')
-        elif 'errors' in response.get('result', {}):
+        success, result = await self.make_request('POST', '/transactions', chain, json={'transactions': signed}, tries=1)
+        if not success:
             if self.tx_error_fatal:
-                logger.error('Received fatal transaction error: %s', response)
-                sys.exit(1)
+                logger.error('Received fatal transaction error: %s', result)
+                #sys.exit(1)
             else:
-                logger.error('Received transaction error: %s', response)
+                logger.error('Received transaction error: %s', result)
 
-        return response
+        if not result:
+            logger.warning('Received no events for transaction')
+
+        return result
+
+
+    async def make_request_with_transactions(self, method, path, chain, json=None, tries=5):
+        """Make a transaction generating request to polyswarmd, then sign and post the transactions
+
+        Args:
+            method (str): HTTP method to use
+            path (str): Path portion of URI to send request to
+            chain (str): Which chain to operate on
+            json (obj): JSON payload to send with request
+            tries (int): Number of times to retry before giving up
+        Returns:
+            (bool, obj): Tuple of boolean representing success, and response JSON parsed from polyswarmd
+        """
+        while tries > 0:
+            tries -= 1
+
+            success, result = await self.make_request(method, path, chain, json=json, track_nonce=True, tries=1)
+            if not success or not 'transactions' in result:
+                logger.error('Expected transactions, received: %s', result)
+                continue
+
+            # Keep around any extra data from the first request, such as nonce for assertion
+            transactions = result.get('transactions', [])
+            if 'transactions' in result:
+                del result['transactions']
+            tx_result = await self.post_transactions(transactions, chain)
+
+            errors = tx_result.get('errors', [])
+            for e in errors:
+                logger.info('%s %s', e, 'Invalid transaction error' in e)
+                if 'Invalid transaction error' in e:
+                    logger.error('Nonce desync detected, resyncing nonce and retrying')
+                    self.update_base_nonce()
+                    continue
+
+            return True, {**result, **tx_result}
+
+        return False, {}
+
 
     async def update_base_nonce(self, chain='home'):
         """Update account's nonce from polyswarmd
@@ -280,7 +320,7 @@ class Client(object):
             chain (str): Which chain to operate on
         """
         async with self.base_nonce_lock[chain]:
-            self.base_nonce[chain] = await self.make_request('GET', '/nonce', chain)
+            success, self.base_nonce[chain] = await self.make_request('GET', '/nonce', chain)
 
     async def list_artifacts(self, ipfs_uri):
         """
