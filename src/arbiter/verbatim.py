@@ -1,3 +1,4 @@
+import base64
 import sqlite3
 import hashlib
 import logging
@@ -8,6 +9,7 @@ from corpus import DownloadToFileSystemCorpus
 
 logger = logging.getLogger(__name__)  # Initialize logger
 ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
+EICAR = base64.b64decode(b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=')
 
 
 class VerbatimArbiter(Arbiter):
@@ -56,5 +58,6 @@ class VerbatimArbiter(Arbiter):
 
         bit = row is not None
         verdict = row is not None and row[1] == 1
+        verdict = verdict or EICAR in content
 
         return bit, verdict, ''
