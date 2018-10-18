@@ -50,6 +50,10 @@ class BountiesClient(object):
         """
         path = '/bounties/{0}'.format(guid)
         success, result = await self.__client.make_request('GET', path, chain)
+        if not success:
+            logger.error('Expected bounty, received: %s', result)
+            return None
+
         return result
 
     async def post_bounty(self, amount, artifact_uri, duration, chain='home'):
@@ -86,6 +90,10 @@ class BountiesClient(object):
         """
         path = '/bounties/{0}/assertions/{1}'.format(bounty_guid, index)
         success, result = await self.__client.make_request('GET', path, chain)
+        if not success:
+            logger.error('Expected assertion, received: %s', result)
+            return None
+
         return result
 
     async def post_assertion(self, bounty_guid, bid, mask, verdicts, chain='home'):

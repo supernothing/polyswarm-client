@@ -108,6 +108,10 @@ class Arbiter(object):
             verdicts.append(verdict)
 
         bounty = await self.client.bounties.get_bounty(guid, chain)
+        if bounty is None:
+            logging.error('Unable to get retrieve new bounty')
+            return []
+
         bloom = await self.client.bounties.calculate_bloom(uri)
         valid_bloom = bounty and int(bounty.get('bloom', 0)) == bloom
 
