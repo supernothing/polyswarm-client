@@ -264,7 +264,7 @@ class Client(object):
         if not success:
             if self.tx_error_fatal:
                 logger.error('Received fatal transaction error: %s', result)
-                #sys.exit(1)
+                sys.exit(1)
             else:
                 logger.error('Received transaction error: %s', result)
 
