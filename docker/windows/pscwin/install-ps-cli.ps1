@@ -1,7 +1,7 @@
 write-output "Starting PolySwarm Client Install"
 
-pip install pip --upgrade
-
+#pip install pip --upgrade
+python.exe -m pip install -U pip
 
 
 
