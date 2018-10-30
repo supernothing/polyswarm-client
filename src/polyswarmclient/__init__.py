@@ -47,10 +47,10 @@ def is_valid_ipfs_uri(ipfs_uri):
     # TODO: Further multihash validation
     try:
         return len(ipfs_uri) < 100 and base58.b58decode(ipfs_uri)
-    except Exception:
-        pass
-
-    logger.error('Invalid IPFS URI: %s', ipfs_uri)
+    except TypeError:
+        logger.error('Invalid IPFS URI: %s', ipfs_uri)
+    except Exception as err:
+        logger.exception('Unexpected error: %s', err)
     return False
 
 
@@ -452,6 +452,8 @@ class Client(object):
                     return None
 
                 return response.get('result')
+            except OSError:
+                logger.error("Files could not be opened %s", files)
             finally:
                 for f in to_close:
                     f.close()
