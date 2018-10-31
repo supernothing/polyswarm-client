@@ -19,7 +19,7 @@ engines:
   sonar-python:  # security issues
     enabled: true
     checks:
-      python:S107:  # main has too many parameters
+      python:S107:  # function has too many parameters
         enabled: false
 #  radon:   # cyclomatic complexity
 #    enabled: true
