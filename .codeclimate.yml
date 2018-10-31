@@ -21,6 +21,8 @@ engines:
     checks:
       python:S107:  # function has too many parameters
         enabled: false
+      python:S3776:  # cognitive complexity
+        enabled: false
 #  radon:   # cyclomatic complexity
 #    enabled: true
 #  fixme:  # highlight FIXME, TODO, HACK, etc omments
