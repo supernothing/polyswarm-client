@@ -5,6 +5,8 @@ venv/
 __pycache__/
 .pytest_cache
 .tox
+*.egg-info/
+tests/.hypothesis/
 
 # Ignored Read the Docs assets
 _build

@@ -3,7 +3,7 @@ import random
 import os
 
 from polyswarmclient.ambassador import Ambassador
-from corpus import DownloadToFileSystemCorpus
+from polyswarmclient.corpus import DownloadToFileSystemCorpus
 
 logger = logging.getLogger(__name__)  # Initialize logger
 

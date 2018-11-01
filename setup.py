@@ -8,21 +8,21 @@ def parse_requirements():
 
 setup(
     name='polyswarm-client',
-    version='0.1.1',
+    version='0.1.2',
     description='Client library to simplify interacting with a polyswarmd instance',
     author='PolySwarm Developers',
     author_email='info@polyswarm.io',
     url='https://github.com/polyswarm/polyswarm-client',
     license='MIT',
+    python_requires='>=3.5,!=3.5.2,<4',
     install_requires=parse_requirements(),
     include_package_data=True,
-    packages=['polyswarmclient', 'ambassador', 'arbiter', 'microengine', 'arbiter.verbatimdb', 'corpus'],
+    packages=['polyswarmclient', 'ambassador', 'arbiter', 'microengine', 'arbiter.verbatimdb'],
     package_dir={
         'polyswarmclient': 'src/polyswarmclient',
         'ambassador': 'src/ambassador',
         'arbiter': 'src/arbiter',
         'microengine': 'src/microengine',
-        'corpus': 'src/corpus',
         'arbiter.verbatimdb': 'src/arbiter/verbatimdb',
     },
     entry_points={

@@ -180,7 +180,7 @@ class OnSettledBountyCallback(Callback):
 class OnInitializedChannelCallback(Callback):
     """Called upon a channel being initialized"""
 
-    async def run(self, guid, ambassador, expert, multi_signature, chain):
+    async def run(self, guid, ambassador, expert, multi_signature):
         """Run the registered callbacks
 
         Args:
@@ -188,10 +188,9 @@ class OnInitializedChannelCallback(Callback):
             ambassador (str): Address of the ambassador
             expert (str): Address of the expert
             msig (str): Address of the multi sig contract
-            chain (str): Chain event received on
         """
 
-        return await super().run(guid, ambassador, expert, multi_signature, chain)
+        return await super().run(guid, ambassador, expert, multi_signature)
 
 
 class Schedule(object):

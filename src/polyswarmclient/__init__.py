@@ -14,6 +14,7 @@ from polyswarmclient.offersclient import OffersClient
 from urllib.parse import urljoin
 
 from web3 import Web3
+
 w3 = Web3()
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -67,7 +68,8 @@ class Client(object):
         insecure_transport (bool): Allow insecure transport such as HTTP?
     """
 
-    def __init__(self, polyswarmd_addr, keyfile, password, api_key=None, tx_error_fatal=False, insecure_transport=False):
+    def __init__(self, polyswarmd_addr, keyfile, password, api_key=None, tx_error_fatal=False,
+                 insecure_transport=False):
         if api_key and insecure_transport:
             raise ValueError('Refusing to send API key over insecure transport')
 
@@ -177,7 +179,7 @@ class Client(object):
                     await self.staking.get_parameters(chain)
                     await self.on_run.run(chain)
 
-                await asyncio.gather(*[self.listen_for_events(chain) for chain in chains])
+                await asyncio.wait([self.listen_for_events(chain) for chain in chains])
         finally:
             self.__session = None
             self.bounties = None
@@ -260,7 +262,8 @@ class Client(object):
             raw = bytes(s['rawTransaction']).hex()
             signed.append(raw)
 
-        success, result = await self.make_request('POST', '/transactions', chain, json={'transactions': signed}, tries=1)
+        success, result = await self.make_request('POST', '/transactions', chain, json={'transactions': signed},
+                                                  tries=1)
         if not success:
             if self.tx_error_fatal:
                 logger.error('Received fatal transaction error: %s', result)
@@ -272,7 +275,6 @@ class Client(object):
             logger.warning('Received no events for transaction')
 
         return result
-
 
     async def make_request_with_transactions(self, method, path, chain, json=None, tries=5):
         """Make a transaction generating request to polyswarmd, then sign and post the transactions
@@ -311,7 +313,6 @@ class Client(object):
             return True, {**result, **tx_result}
 
         return False, {}
-
 
     async def update_base_nonce(self, chain='home'):
         """Update account's nonce from polyswarmd
@@ -482,63 +483,68 @@ class Client(object):
         while self.__schedule[chain].peek() and self.__schedule[chain].peek()[0] < number:
             exp, task = self.__schedule[chain].get()
             if isinstance(task, events.RevealAssertion):
-                asyncio.get_event_loop().create_task(self.on_reveal_assertion_due.run(bounty_guid=task.guid, index=task.index, nonce=task.nonce,
-                        verdicts=task.verdicts, metadata=task.metadata, chain=chain))
+                asyncio.get_event_loop().create_task(
+                    self.on_reveal_assertion_due.run(bounty_guid=task.guid, index=task.index, nonce=task.nonce,
+                                                     verdicts=task.verdicts, metadata=task.metadata, chain=chain))
             elif isinstance(task, events.SettleBounty):
                 asyncio.get_event_loop().create_task(self.on_settle_bounty_due.run(bounty_guid=task.guid, chain=chain))
             elif isinstance(task, events.VoteOnBounty):
-                asyncio.get_event_loop().create_task(self.on_vote_on_bounty_due.run(bounty_guid=task.guid, verdicts=task.verdicts,
-                        valid_bloom=task.valid_bloom, chain=chain))
+                asyncio.get_event_loop().create_task(
+                    self.on_vote_on_bounty_due.run(bounty_guid=task.guid, verdicts=task.verdicts,
+                                                   valid_bloom=task.valid_bloom, chain=chain))
 
     async def listen_for_events(self, chain='home'):
         """Listen for events via websocket connection to polyswarmd
-
         Args:
             chain (str): Which chain to operate on
         """
         if chain != 'home' and chain != 'side':
             raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
-        assert(self.polyswarmd_uri.startswith('http'))
+        if not self.polyswarmd_uri.startswith('http'):
+            raise ValueError('polyswarmd_uri protocol is not http or https, got {0}'.format(self.polyswarmd_uri))
 
         # http:// -> ws://, https:// -> wss://
         wsuri = '{0}/events?chain={1}'.format(self.polyswarmd_uri.replace('http', 'ws', 1), chain)
         last_block = 0
         async with websockets.connect(wsuri) as ws:
             while not ws.closed:
-                event = json.loads(await ws.recv())
-                if event['event'] == 'block':
-                    number = event['data']['number']
+                try:
+                    resp = await ws.recv()
+                    resp = json.loads(resp)
+                    event = resp.get('event')
+                    data = resp.get('data')
+                except json.JSONDecodeError:
+                    logging.error('Invalid event response from polyswarmd: %s', resp)
+                    continue
+
+                logger.info('Received %s on chain %s: %s', event, chain, data)
+
+                if event == 'connected':
+                    logging.info('Connected to event socket at: %s', data.get('start_time'))
+                elif event == 'block':
+                    number = data.get('number', 0)
+
                     if number <= last_block:
                         continue
+
                     if number % 100 == 0:
                         logger.debug('Block %s on chain %s', number, chain)
+
                     asyncio.get_event_loop().create_task(self.on_new_block.run(number=number, chain=chain))
                     asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number))
-                elif event['event'] == 'bounty':
-                    data = event['data']
-                    logger.info('Received bounty on chain %s: %s', chain, data)
+                elif event == 'bounty':
                     asyncio.get_event_loop().create_task(self.on_new_bounty.run(**data, chain=chain))
-                elif event['event'] == 'assertion':
-                    data = event['data']
-                    logger.info('Received assertion on chain %s: %s', chain, data)
+                elif event == 'assertion':
                     asyncio.get_event_loop().create_task(self.on_new_assertion.run(**data, chain=chain))
-                elif event['event'] == 'reveal':
-                    data = event['data']
-                    logger.info('Received reveal on chain %s: %s', chain, data)
+                elif event == 'reveal':
                     asyncio.get_event_loop().create_task(self.on_reveal_assertion.run(**data, chain=chain))
-                elif event['event'] == 'verdict':
-                    data = event['data']
-                    logger.info('Received verdict on chain %s: %s', chain, data)
+                elif event == 'verdict':
                     asyncio.get_event_loop().create_task(self.on_new_verdict.run(**data, chain=chain))
-                elif event['event'] == 'quorum':
-                    data = event['data']
-                    logger.info('Received quorum on chain %s: %s', chain, data)
+                elif event == 'quorum':
                     asyncio.get_event_loop().create_task(self.on_quorum_reached.run(**data, chain=chain))
-                elif event['event'] == 'settled_bounty':
-                    data = event['data']
-                    logger.info('Received settled bounty on chain %s: %s', chain, data)
+                elif event == 'settled_bounty':
                     asyncio.get_event_loop().create_task(self.on_settled_bounty.run(**data, chain=chain))
-                elif event['event'] == 'initialized_channel':
-                    data = event['data']
-                    logger.info('Received initialized_channel: %s', data)
-                    asyncio.get_event_loop().create_task(self.on_initialized_channel.run(**data, chain=chain))
+                elif event == 'initialized_channel':
+                    asyncio.get_event_loop().create_task(self.on_initialized_channel.run(**data))
+                else:
+                    logger.error('Invalid event type from polyswarmd: %s', resp)
