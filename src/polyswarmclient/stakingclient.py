@@ -59,7 +59,7 @@ class StakingClient(object):
         }
         success, results = await self.__client.make_request_with_transactions('POST', '/staking/deposit', chain, json=deposit)
         if not success or 'deposits' not in results:
-            logger.error('Expected deposit, received: %s', results)
+            logger.error('Expected deposit, received', extra={'extra': results})
 
         return results.get('deposits', [])
 
@@ -77,6 +77,6 @@ class StakingClient(object):
         }
         success, results = await self.__client.make_request_with_transactions('POST', '/staking/withdraw', chain, json=withdrawal)
         if not success or 'withdrawals' not in results:
-            logger.error('Expected withdrawal, received: %s', results)
+            logger.error('Expected withdrawal, received', extra={'extra': results})
 
         return results.get('withdrawals', [])

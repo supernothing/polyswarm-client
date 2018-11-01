@@ -51,7 +51,7 @@ class Callback(object):
                 results.append(local_ret)
 
         if results:
-            logger.info('%s callback results: %s', type(self).__name__, results)
+            logger.info('%s callback results', type(self).__name__, extra={'extra': results})
 
         return results
 

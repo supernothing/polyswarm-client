@@ -51,7 +51,7 @@ class BountiesClient(object):
         path = '/bounties/{0}'.format(guid)
         success, result = await self.__client.make_request('GET', path, chain)
         if not success:
-            logger.error('Expected bounty, received: %s', result)
+            logger.error('Expected bounty, received', extra={'response': result})
             return None
 
         return result
@@ -74,7 +74,7 @@ class BountiesClient(object):
         }
         success, result = await self.__client.make_request_with_transactions('POST', '/bounties', chain, json=bounty)
         if not success or 'bounties' not in result:
-            logger.error('Expected bounty, received: %s', result)
+            logger.error('Expected bounty, received', extra={'response': result})
 
         return result.get('bounties', [])
 
@@ -91,7 +91,7 @@ class BountiesClient(object):
         path = '/bounties/{0}/assertions/{1}'.format(bounty_guid, index)
         success, result = await self.__client.make_request('GET', path, chain)
         if not success:
-            logger.error('Expected assertion, received: %s', result)
+            logger.error('Expected assertion, received', extra={'response': result})
             return None
 
         return result
@@ -116,7 +116,7 @@ class BountiesClient(object):
         }
         success, result = await self.__client.make_request_with_transactions('POST', path, chain, json=assertion)
         if not success or 'nonce' not in result or 'assertions' not in result:
-            logger.error('Expected nonce and assertions, received: %s', result)
+            logger.error('Expected nonce and assertions, received', extra={'response': result})
 
         return result.get('nonce', -1), result.get('assertions', [])
 
@@ -141,7 +141,7 @@ class BountiesClient(object):
         }
         success, result = await self.__client.make_request_with_transactions('POST', path, chain, json=reveal)
         if not success or 'reveals' not in result:
-            logger.error('Expected reveal, received: %s', result)
+            logger.error('Expected reveal, received', extra={'response': result})
 
         return result.get('reveals', [])
 
@@ -163,7 +163,7 @@ class BountiesClient(object):
         }
         success, result = await self.__client.make_request_with_transactions('POST', path, chain, json=vote)
         if not success or 'verdicts' not in result:
-            logger.error('Expected verdict, received: %s', result)
+            logger.error('Expected verdict, received', extra={'response': result})
 
         return result.get('verdicts', [])
 
@@ -179,6 +179,6 @@ class BountiesClient(object):
         path = '/bounties/{0}/settle'.format(bounty_guid)
         success, result = await self.__client.make_request_with_transactions('POST', path, chain)
         if not success or 'transfers' not in result:
-            logger.warning('No transfer event, received: %s (maybe expected)', result)
+            logger.warning('No transfer event, received (maybe expected)', extra={'response': result})
 
         return result.get('transfers', [])

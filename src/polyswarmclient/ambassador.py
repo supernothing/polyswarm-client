@@ -114,7 +114,7 @@ class Ambassador(object):
                 break
             self.bounties_posted += 1
 
-            logger.info('Submitting bounty %s: %s', self.bounties_posted, bounty)
+            logger.info('Submitting bounty %s', self.bounties_posted, extra={'extra': bounty})
             amount, ipfs_uri, duration = bounty
             bounties = await self.client.bounties.post_bounty(amount, ipfs_uri, duration, chain)
 

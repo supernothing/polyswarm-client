@@ -56,12 +56,12 @@ def choose_backend(backend):
 @click.option('--testing', default=0,
               help='Activate testing mode for integration testing, respond to N bounties and N offers then exit')
 @click.option('--insecure-transport', is_flag=True,
-              help='Connect to polyswarmd via http:// and ws://, mutially exclusive with --api-key')
+              help='Connect to polyswarmd via http:// and ws://, mutually exclusive with --api-key')
 @click.option('--chains', multiple=True, default=['home'],
               help='Chain(s) to operate on')
 @click.option('--watchdog', default=0,
               help='Number of blocks to check if bounties are being processed')
-@click.option('--log_format', default='text',
+@click.option('--log-format', default='text',
               help='Log format. Can be `json` or `text` (default)')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')

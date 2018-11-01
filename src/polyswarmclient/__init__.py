@@ -31,7 +31,7 @@ def check_response(response):
     status = response.get('status')
     ret = status and status == 'OK'
     if not ret:
-        logger.error('Received unexpected failure response from polyswarmd: %s', response)
+        logger.error('Received unexpected failure response from polyswarmd', extra={'extra': response})
     return ret
 
 
@@ -220,7 +220,7 @@ class Client(object):
 
                 async with self.__session.request(method, uri, params=params, json=json) as raw_response:
                     response = await raw_response.json()
-                logger.debug('%s %s?%s: %s', method, path, qs, response)
+                logger.debug('%s %s?%s', method, path, qs, extra={'extra': response})
 
                 if not check_response(response):
                     logger.warning('Request %s %s?%s failed, retrying...', method, path, qs)
@@ -266,10 +266,10 @@ class Client(object):
                                                   tries=1)
         if not success:
             if self.tx_error_fatal:
-                logger.error('Received fatal transaction error: %s', result)
+                logger.error('Received fatal transaction error', extra={'extra': result})
                 sys.exit(1)
             else:
-                logger.error('Received transaction error: %s', result)
+                logger.error('Received transaction error', extra={'extra': result})
 
         if not result:
             logger.warning('Received no events for transaction')
@@ -293,7 +293,7 @@ class Client(object):
 
             success, result = await self.make_request(method, path, chain, json=json, track_nonce=True, tries=1)
             if not success or not 'transactions' in result:
-                logger.error('Expected transactions, received: %s', result)
+                logger.error('Expected transactions, received', extra={'extra': result})
                 continue
 
             # Keep around any extra data from the first request, such as nonce for assertion
@@ -345,7 +345,7 @@ class Client(object):
         async with self.__session.get(uri, params=self.params) as raw_response:
             response = await raw_response.json()
 
-        logger.debug('GET /artifacts/%s: %s', ipfs_uri, response)
+        logger.debug('GET /artifacts/%s', ipfs_uri, extra={'extra': response})
 
         if not check_response(response):
             return []
@@ -447,7 +447,7 @@ class Client(object):
                 async with self.__session.post(uri, params=params, data=mpwriter) as response:
                     response = await response.json()
 
-                logger.debug('POST/artifacts: %s', response)
+                logger.debug('POST/artifacts', extra={'extra': response})
 
                 if not check_response(response):
                     return None
@@ -517,7 +517,7 @@ class Client(object):
                     logging.error('Invalid event response from polyswarmd: %s', resp)
                     continue
 
-                logger.info('Received %s on chain %s: %s', event, chain, data)
+                logger.info('Received %s on chain %s', event, chain, extra={'extra': data})
 
                 if event == 'connected':
                     logging.info('Connected to event socket at: %s', data.get('start_time'))
