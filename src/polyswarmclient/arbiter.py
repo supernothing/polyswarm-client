@@ -58,7 +58,7 @@ class Arbiter(object):
             |   - **metadata** (*str*): Optional metadata about this artifact
         """
         if self.scanner:
-            return await self.scacnner.scan(guid, content, chain)
+            return await self.scanner.scan(guid, content, chain)
 
         return False, False, ''
 
