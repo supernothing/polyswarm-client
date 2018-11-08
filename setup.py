@@ -17,13 +17,14 @@ setup(
     python_requires='>=3.5,!=3.5.2,<4',
     install_requires=parse_requirements(),
     include_package_data=True,
-    packages=['polyswarmclient', 'ambassador', 'arbiter', 'microengine', 'arbiter.verbatimdb'],
+    packages=['polyswarmclient', 'ambassador', 'arbiter', 'microengine', 'arbiter.verbatimdb', 'balancemanager'],
     package_dir={
         'polyswarmclient': 'src/polyswarmclient',
         'ambassador': 'src/ambassador',
         'arbiter': 'src/arbiter',
         'microengine': 'src/microengine',
         'arbiter.verbatimdb': 'src/arbiter/verbatimdb',
+        'balancemanager': 'src/balancemanager'
     },
     entry_points={
         'console_scripts': [
@@ -31,6 +32,7 @@ setup(
             'arbiter=arbiter.__main__:main',
             'microengine=microengine.__main__:main',
             'verbatimdbgen=arbiter.verbatimdb.__main__:main',
+            'balancemanager=balancemanager.__main__:cli',
             'reporter=polyswarmclient.reporter:main',
         ],
     },

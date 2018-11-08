@@ -11,6 +11,8 @@ from polyswarmclient import events
 from polyswarmclient.bountiesclient import BountiesClient
 from polyswarmclient.stakingclient import StakingClient
 from polyswarmclient.offersclient import OffersClient
+from polyswarmclient.relayclient import RelayClient
+from polyswarmclient.balanceclient import BalanceClient
 from urllib.parse import urljoin
 
 from web3 import Web3
@@ -53,7 +55,6 @@ def is_valid_ipfs_uri(ipfs_uri):
     except Exception as err:
         logger.exception('Unexpected error: %s', err)
     return False
-
 
 class Client(object):
     """
@@ -172,6 +173,8 @@ class Client(object):
                 self.bounties = BountiesClient(self)
                 self.staking = StakingClient(self)
                 self.offers = OffersClient(self)
+                self.relay = RelayClient(self)
+                self.balances = BalanceClient(self)
 
                 for chain in chains:
                     await self.update_base_nonce(chain)
@@ -307,7 +310,7 @@ class Client(object):
                 logger.info('%s %s', e, 'Invalid transaction error' in e)
                 if 'Invalid transaction error' in e:
                     logger.error('Nonce desync detected, resyncing nonce and retrying')
-                    self.update_base_nonce()
+                    await self.update_base_nonce()
                     continue
 
             return True, {**result, **tx_result}
@@ -371,6 +374,12 @@ class Client(object):
                 return await raw_response.read()
 
             return None
+
+    def toWei(self, amount, unit='ether'):
+        return w3.toWei(amount, unit)
+
+    def fromWei(self, amount, unit='ether'):
+        return w3.fromWei(amount, unit)
 
     # Async iterator helper class
     class __GetArtifacts(object):
