@@ -11,6 +11,11 @@ dir
 
 &"pip" install @(Get-ChildItem -Recurse -Filter *.whl)
 
+Invoke-WebRequest -Uri https://letsencrypt.org/certs/isrgrootx1.pem.txt -Outfile c:\ca.txt
+
+# add lets encrypt CA in case traefik doesn't chain.
+certutil -addstore Root "c:\ca.txt"
+
 
 write-output "Finished Polyswarm Client Install"
 
