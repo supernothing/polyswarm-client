@@ -540,7 +540,7 @@ class Client(object):
                         logger.debug('Block %s on chain %s', number, chain)
 
                     asyncio.get_event_loop().create_task(self.on_new_block.run(number=number, chain=chain))
-                    asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number))
+                    asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number, chain=chain))
                 elif event == 'bounty':
                     asyncio.get_event_loop().create_task(self.on_new_bounty.run(**data, chain=chain))
                 elif event == 'assertion':
