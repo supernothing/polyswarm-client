@@ -8,4 +8,5 @@ choco install git -y
 choco install 7zip -y
 choco install nssm -y
 
-
+# Uninstall windows defender
+Uninstall-WindowsFeature -Name Windows-Defender
