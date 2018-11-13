@@ -34,7 +34,6 @@
       "type": "powershell",
       "script":"./docker/windows/pscwin/install-ps-cli.ps1"
     },
-    /* needed in case we uninstall windows defender */
     {
       "type": "windows-restart"
     },
