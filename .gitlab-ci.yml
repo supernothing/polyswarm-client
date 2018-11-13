@@ -73,6 +73,9 @@ kickafterpacker:
   before_script:
     - apk --no-cache add py3-requests
   stage: notifydependents
+  only:
+    - feature/windows-builds
+    - master
   script:
     - python3 kick_downstream.py
 
