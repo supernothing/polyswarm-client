@@ -68,7 +68,7 @@ def deposit(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure_
     Args:
         amount (float): Amount of Nectar (NCT) to transfer
     """
-    client = Client(polyswarmd_addr, keyfile, password, api_key=api_key, insecure_transport=insecure_transport)
+    client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
     d = Deposit(client, amount, testing=testing)
     d.run()
     sys.exit(d.exit_code)
@@ -84,7 +84,7 @@ def withdraw(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure
     Args:
         amount (float): Amount of Nectar (NCT) to transfer
     """
-    client = Client(polyswarmd_addr, keyfile, password, api_key=api_key, insecure_transport=insecure_transport)
+    client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
     w = Withdraw(client, amount, testing=testing)
     w.run()
     sys.exit(w.exit_code)
@@ -124,7 +124,7 @@ def maintain(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure
     if maximum > 0 and withdraw_target > 0:
         logger.info('Maintaining the maximum balance by withdrawing to %s when it exceeds the %s', withdraw_target, maximum)
 
-    client = Client(polyswarmd_addr, keyfile, password, api_key=api_key, insecure_transport=insecure_transport)
+    client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
     Maintainer(client, confirmations, minimum, refill_amount, maximum, withdraw_target, testing).run()
 
 

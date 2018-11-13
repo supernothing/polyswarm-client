@@ -6,6 +6,7 @@ from polyswarmclient import Client
 from polyswarmclient.events import SettleBounty
 
 logger = logging.getLogger(__name__)  # Initialize logger
+MAX_TRIES = 10
 
 
 class Ambassador(object):
@@ -96,6 +97,7 @@ class Ambassador(object):
         """
         assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
         arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
+        bounty_fee = self.client.bounties.parameters[chain]['bounty_fee']
 
         # HACK: In testing mode we start up ambassador/arbiter/microengine
         # immediately and start submitting bounties, however arbiter has to wait
@@ -107,15 +109,36 @@ class Ambassador(object):
             await asyncio.sleep(5)
 
         bounty = await self.next_bounty(chain)
+        tries = 0
         while bounty is not None:
             # Exit if we are in testing mode
             if self.testing > 0 and self.bounties_posted >= self.testing:
                 logger.info('All testing bounties submitted')
                 break
-            self.bounties_posted += 1
 
-            logger.info('Submitting bounty %s', self.bounties_posted, extra={'extra': bounty})
             amount, ipfs_uri, duration = bounty
+            balance = await self.client.balances.get_nct_balance(chain)
+            # If we don't have the balance, don't submit. Wait and try a few times, then skip
+            if balance < amount + bounty_fee and tries >= MAX_TRIES:
+                    # Skip to next bounty, so one ultra high value bounty doesn't DOS ambassador
+                    if self.testing:
+                        logger.error('Failed %d attempts to post bounty to low balance. Exiting', tries)
+                        self.client.exit_code = 1
+                        self.client.stop()
+                        return
+                    else:
+                        logger.warning('Failed %d attempts to post bounty due to low balance. Skipping', tries, extra={'extra': bounty})
+                        tries = 0
+                        bounty = await self.next_bounty(chain)
+                        continue
+            elif balance < amount + bounty_fee:
+                tries += 1
+                logger.warning('Insufficient balance to post bounty on %s. Have %s, need %s.', chain, balance, amount+bounty_fee, extra={'extra': bounty})
+                await asyncio.sleep(tries * tries)
+                continue
+
+            self.bounties_posted += 1
+            logger.info('Submitting bounty %s', self.bounties_posted, extra={'extra': bounty})
             bounties = await self.client.bounties.post_bounty(amount, ipfs_uri, duration, chain)
 
             for b in bounties:
@@ -128,6 +151,7 @@ class Ambassador(object):
                 sb = SettleBounty(guid)
                 self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
 
+            tries = 0
             bounty = await self.next_bounty(chain)
 
     async def handle_new_block(self, number, chain):
