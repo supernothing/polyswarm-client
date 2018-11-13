@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 $PSDefaultParameterValues['*:ErrorAction']='Stop'
 
-pip wheel -r /usr/src/app/requirements.txt
+
 pip wheel /usr/src/app/
 
 7z a polyswarm-client.7z *.whl
