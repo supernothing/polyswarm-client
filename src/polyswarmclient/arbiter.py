@@ -5,7 +5,7 @@ from polyswarmclient import Client
 from polyswarmclient.events import VoteOnBounty, SettleBounty
 
 logger = logging.getLogger(__name__)  # Initialize logger
-
+MAX_STAKE_RETRIES = 10
 
 class Arbiter(object):
     def __init__(self, client, testing=0, scanner=None, chains={'home'}):
@@ -77,10 +77,24 @@ class Arbiter(object):
             chain (str): Chain we are operating on.
         """
         min_stake = self.client.staking.parameters[chain]['minimum_stake']
-        balance = await self.client.staking.get_total_balance(chain)
-        if balance < min_stake:
-            deposits = await self.client.staking.post_deposit(min_stake - balance, chain)
-            logger.info('Depositing stake: %s', deposits)
+        staking_balance = await self.client.staking.get_total_balance(chain)
+        tries = 0
+        if staking_balance < min_stake:
+            while True:
+                nct_balance = await self.client.balances.get_nct_balance(chain)
+                if self.testing > 0 and nct_balance < min_stake - staking_balance and tries >= MAX_STAKE_RETRIES:
+                    logger.error('Failed %d attempts to deposit due to low balance. Exiting', tries)
+                    self.client.exit_code = 1
+                    self.client.stop()
+                elif nct_balance < min_stake - staking_balance:
+                    logger.warning('Insufficient balance to deposit stake on %s. Have %s need %s', chain, nct_balance, min_stake - staking_balance)
+                    tries += 1
+                    await asyncio.sleep(tries * tries)
+                    continue
+
+                deposits = await self.client.staking.post_deposit(min_stake - staking_balance, chain)
+                logger.info('Depositing stake: %s', deposits)
+                break
 
     async def handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
         """Scan and assert on a posted bounty

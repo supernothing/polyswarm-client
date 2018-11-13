@@ -112,11 +112,22 @@ class Microengine(object):
             return []
 
         expiration = int(expiration)
+        assertion_fee = self.client.bounties.parameters[chain]['assertion_fee']
         assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
         arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
 
+        # Check that microengine has sufficient balance to handle the assertion
+        bid = self.bid(guid, chain)
+        balance = await self.client.balances.get_nct_balance(chain)
+        if balance < assertion_fee + bid:
+            logger.warning('Insufficient balance to post assertion for bounty on %s. Have %s need %s', chain, balance, assertion_fee + bid, extra={'extra': guid})
+            if self.testing > 0:
+                self.client.exit_code = 1
+                self.client.stop()
+            return []
+
         logger.info('Responding to bounty: %s', guid)
-        nonce, assertions = await self.client.bounties.post_assertion(guid, self.bid(guid, chain), mask, verdicts, chain)
+        nonce, assertions = await self.client.bounties.post_assertion(guid, bid, mask, verdicts, chain)
         for a in assertions:
             ra = RevealAssertion(guid, a['index'], nonce, verdicts, ';'.join(metadatas))
             self.client.schedule(expiration, ra, chain)
