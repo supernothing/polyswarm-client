@@ -169,7 +169,7 @@ class Client(object):
         try:
             # XXX: Set the timeouts here to reasonable values, probably should
             # be configurable
-            async with aiohttp.ClientSession(headers=headers, conn_timeout=30.0, read_timeout=30.0) as self.__session:
+            async with aiohttp.ClientSession(headers=headers, conn_timeout=300.0, read_timeout=300.0) as self.__session:
                 self.bounties = BountiesClient(self)
                 self.staking = StakingClient(self)
                 self.offers = OffersClient(self)
