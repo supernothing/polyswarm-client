@@ -151,11 +151,11 @@ class Maintainer():
         Stores the latest block and then kicks off some balance checks.
         If the balance is outside the given range, it deposits, or withdraws as needed.
         """
-        if chain == 'home':
+        if chain == 'side':
             return
 
         # Keep block up to date, so we can use that value when figuring out what block the transaction may have gone in
-        if chain == 'side':
+        if chain == 'home':
             async with self.block_lock:
                 if block > self.latest_block:
                     self.latest_block = block
