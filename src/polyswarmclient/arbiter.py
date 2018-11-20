@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from polyswarmclient import Client
+from polyswarmclient.bloom import BloomFilter
 from polyswarmclient.events import VoteOnBounty, SettleBounty
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -126,8 +127,13 @@ class Arbiter(object):
             logging.error('Unable to get retrieve new bounty')
             return []
 
-        bloom = await self.client.bounties.calculate_bloom(uri)
-        valid_bloom = bounty and int(bounty.get('bloom', 0)) == bloom
+        bloom_parts = await self.client.bounties.get_bloom(guid, chain)
+        bounty_bloom = 0
+        for b in bloom_parts:
+            bounty_bloom = bounty_bloom << 256 | int(b)
+
+        calculated_bloom = await self.client.bounties.calculate_bloom(uri)
+        valid_bloom = bounty and bounty_bloom == calculated_bloom
 
         expiration = int(expiration)
         assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']

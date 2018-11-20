@@ -12,3 +12,4 @@ tests/.hypothesis/
 _build
 _static
 _templates
+.vscode
