@@ -15,7 +15,7 @@ EICAR = base64.b64decode(b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQ
 class VerbatimArbiter(Arbiter):
     """Arbiter which matches hashes to a database of known samples"""
 
-    def __init__(self, client, testing=0, scanner=None, chains={'home'}):
+    def __init__(self, client, testing=0, scanner=None, chains=None):
         """Initialize a verbatim arbiter
 
         Args:

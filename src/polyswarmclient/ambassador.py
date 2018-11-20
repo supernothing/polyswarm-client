@@ -10,7 +10,7 @@ MAX_TRIES = 10
 
 
 class Ambassador(object):
-    def __init__(self, client, testing=0, chains={'home'}, watchdog=0):
+    def __init__(self, client, testing=0, chains=None, watchdog=0):
         self.client = client
         self.chains = chains
         self.client.on_run.register(self.handle_run)
@@ -27,7 +27,7 @@ class Ambassador(object):
         self.settles_posted = 0
 
     @classmethod
-    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains={'home'}, watchdog=0):
+    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains=None, watchdog=0):
         """Connect the Ambassador to a Client.
 
         Args:

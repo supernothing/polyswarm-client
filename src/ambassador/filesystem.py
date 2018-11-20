@@ -14,7 +14,7 @@ BOUNTY_TEST_DURATION_BLOCKS = int(os.getenv('BOUNTY_TEST_DURATION_BLOCKS', 5))
 class FilesystemAmbassador(Ambassador):
     """Ambassador which submits artifacts from a directory"""
 
-    def __init__(self, client, testing=0, chains={'home'}, watchdog=0):
+    def __init__(self, client, testing=0, chains=None, watchdog=0):
         """Initialize a filesystem ambassador
 
         Args:

@@ -86,7 +86,7 @@ class Reporter(object):
         insecure_transport (bool): Allow insecure transport such as HTTP?
         chains (set(str)):  Set of chains you are acting on.
     """
-    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False, chains={'home'}):
+    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False, chains=None):
         self.chains = chains
         self.testing = testing
         self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)

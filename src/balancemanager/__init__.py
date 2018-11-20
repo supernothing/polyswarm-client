@@ -51,7 +51,7 @@ class BalanceManager():
 
         It also checks the balances to make sure the source chain wallet can cover the transfer.
         """
-        balance = await self.client.balances.get_nct_balance(chain=chain)
+        balance = await self.client.balances.get_nct_balance(chain)
         amount_wei = self.client.toWei(self.amount)
         if balance >= amount_wei:
             if chain == 'home':
@@ -113,7 +113,7 @@ class Maintainer():
         Starts the client.
         Have to run with both chains, or lots of nonce errors
         """
-        self.client.run({'home', 'side'})
+        self.client.run(chains={'home', 'side'})
 
     async def try_withdrawal(self, side_balance):
         """

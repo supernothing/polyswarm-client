@@ -10,7 +10,7 @@ class BountiesClient(object):
         self.__client = client
         self.parameters = {}
 
-    async def get_parameters(self, chain='home'):
+    async def get_parameters(self, chain):
         """Get bounty parameters from polyswarmd.
 
         Args:
@@ -54,7 +54,7 @@ class BountiesClient(object):
             return None
         return result.get('bloom')
 
-    async def get_bounty(self, guid, chain='home'):
+    async def get_bounty(self, guid, chain):
         """Get a bounty from polyswarmd.
 
         Args:
@@ -71,7 +71,7 @@ class BountiesClient(object):
 
         return result
 
-    async def post_bounty(self, amount, artifact_uri, duration, chain='home'):
+    async def post_bounty(self, amount, artifact_uri, duration, chain):
         """Post a bounty to polyswarmd.
 
         Args:
@@ -93,7 +93,7 @@ class BountiesClient(object):
 
         return result.get('bounties', [])
 
-    async def get_assertion(self, bounty_guid, index, chain='home'):
+    async def get_assertion(self, bounty_guid, index, chain):
         """Get an assertion from polyswarmd.
 
         Args:
@@ -111,7 +111,7 @@ class BountiesClient(object):
 
         return result
 
-    async def post_assertion(self, bounty_guid, bid, mask, verdicts, chain='home'):
+    async def post_assertion(self, bounty_guid, bid, mask, verdicts, chain):
         """Post an assertion to polyswarmd.
 
         Args:
@@ -135,7 +135,7 @@ class BountiesClient(object):
 
         return result.get('nonce', -1), result.get('assertions', [])
 
-    async def post_reveal(self, bounty_guid, index, nonce, verdicts, metadata, chain='home'):
+    async def post_reveal(self, bounty_guid, index, nonce, verdicts, metadata, chain):
         """Post an assertion reveal to polyswarmd.
 
         Args:
@@ -177,7 +177,7 @@ class BountiesClient(object):
 
         return result
 
-    async def post_vote(self, bounty_guid, verdicts, valid_bloom, chain='home'):
+    async def post_vote(self, bounty_guid, verdicts, valid_bloom, chain):
         """Post a vote to polyswarmd.
 
         Args:
@@ -199,7 +199,7 @@ class BountiesClient(object):
 
         return result.get('verdicts', [])
 
-    async def settle_bounty(self, bounty_guid, chain='home'):
+    async def settle_bounty(self, bounty_guid, chain):
         """Settle a bounty via polyswarmd
 
         Args:

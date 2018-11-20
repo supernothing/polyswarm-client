@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)  # Initialize logger
 
 
 class Microengine(object):
-    def __init__(self, client, testing=0, scanner=None, chains={'home'}):
+    def __init__(self, client, testing=0, scanner=None, chains=None):
         self.client = client
         self.chains = chains
         self.scanner = scanner
@@ -22,7 +22,7 @@ class Microengine(object):
         self.settles_posted = 0
 
     @classmethod
-    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, scanner=None, chains={'home'}):
+    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, scanner=None, chains=None):
         """Connect the Microengine to a Client.
 
         Args:

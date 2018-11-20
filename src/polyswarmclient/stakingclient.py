@@ -8,7 +8,7 @@ class StakingClient(object):
         self.__client = client
         self.parameters = {}
 
-    async def get_parameters(self, chain='home'):
+    async def get_parameters(self, chain):
         """Get staking parameters from polyswarmd
 
         Args:
@@ -21,7 +21,7 @@ class StakingClient(object):
             raise Exception('Error retrieving staking parameters')
         self.parameters[chain] = result
 
-    async def get_total_balance(self, chain='home'):
+    async def get_total_balance(self, chain):
         """Get total staking balance from polyswarmd
 
         Args:
@@ -33,7 +33,7 @@ class StakingClient(object):
         success, result = await self.__client.make_request('GET', path, chain)
         return int(result)
 
-    async def get_withdrawable_balance(self, chain='home'):
+    async def get_withdrawable_balance(self, chain):
         """Get withdrawable staking balance from polyswarmd
 
         Args:
@@ -45,7 +45,7 @@ class StakingClient(object):
         success, result = await self.__client.make_request('GET', path, chain)
         return int(result)
 
-    async def post_deposit(self, amount, chain='home'):
+    async def post_deposit(self, amount, chain):
         """Post a deposit to the staking contract
 
         Args:
@@ -63,7 +63,7 @@ class StakingClient(object):
 
         return results.get('deposits', [])
 
-    async def post_withdraw(self, amount, chain='home'):
+    async def post_withdraw(self, amount, chain):
         """Post a withdrawal to the staking contract
 
         Args:

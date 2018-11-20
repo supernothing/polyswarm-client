@@ -244,7 +244,7 @@ class Client(object):
 
         return True, response.get('result')
 
-    async def post_transactions(self, transactions, chain='home'):
+    async def post_transactions(self, transactions, chain):
         """Post a set of (signed) transactions to Ethereum via polyswarmd, parsing the emitted events
 
         Args:
@@ -317,7 +317,7 @@ class Client(object):
 
         return False, {}
 
-    async def update_base_nonce(self, chain='home'):
+    async def update_base_nonce(self, chain):
         """Update account's nonce from polyswarmd
 
         Args:
@@ -468,7 +468,7 @@ class Client(object):
                 for f in to_close:
                     f.close()
 
-    def schedule(self, expiration, event, chain='home'):
+    def schedule(self, expiration, event, chain):
         """Schedule an event to execute on a particular block
 
         Args:
@@ -480,7 +480,7 @@ class Client(object):
             raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
         self.__schedule[chain].put(expiration, event)
 
-    async def __handle_scheduled_events(self, number, chain='home'):
+    async def __handle_scheduled_events(self, number, chain):
         """Perform scheduled events when a new block is reported
 
         Args:
@@ -502,7 +502,7 @@ class Client(object):
                     self.on_vote_on_bounty_due.run(bounty_guid=task.guid, verdicts=task.verdicts,
                                                    valid_bloom=task.valid_bloom, chain=chain))
 
-    async def listen_for_events(self, chain='home'):
+    async def listen_for_events(self, chain):
         """Listen for events via websocket connection to polyswarmd
         Args:
             chain (str): Which chain to operate on
