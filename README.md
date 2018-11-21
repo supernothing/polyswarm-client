@@ -6,41 +6,43 @@
 
 Client library to simplify interacting with a polyswarmd instance from Python
 
-## Running tests
+
+## Running Tests
 
 Use tox, or install dependencies in a virtual environment and run `pytest`
 
 
-## Development
+## Configuring Development Environment
 
-### Setup your Windows Development Environment
+### Windows
 
 In this section we define the minimum set of tools and libraries that is required to have a working Windows development environment.
+
 These instructions assume you are using a Windows 10 host.
 
-#### Prepare your privileged PowerShell
+#### Configure Environment
 
-We will use PowerShell to run most of the commands, so
-select `Windows PowerShell` and `Run as Administrator` to get a privileged PowerShell.
+We'll use an elevated PowerShell terminal to configure our environment.
 
-Run the following commands in the PowerShell to enable some necessary features:
+1. Open an "elevated" PowerShell terminal: search "PowerShell" in the desktop search bar, right click on "Windows PowerShell" and select "Run as administrator". The following commands are to be run in this terminal.
 
+2. Permit script execution:
 ```
-# Allow PowerShell to run scripts
 Set-ExecutionPolicy Bypass -Scope Process -Force
-
-# Make PowerShell use TLSv2 for web requests
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
-# Change your working directory to your home directory
-cd ~/
-
-# Make a directory to store the downloaded install files
-mkdir installers
-cd installers
 ```
 
-#### Chocolatey
+3. Force PowerShell to use TLSv2 (this is actually required for some dependancies):
+```
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+```
+
+4. Create & change to a local directory for housing installation files:
+```
+mkdir ~/installers
+pushd ~/installers
+```
+
+#### Install Chocolatey & Prerequisities
 
 We will use Chocolatey to install several tools, so let's get Chocolatey installed first.
 
@@ -60,33 +62,20 @@ choco install visualcpp-build-tools --version 14.0.25420.1 -y
 choco install vim -y
 ```
 
-#### Remove Windows Defender
+#### Disable Windows Defender
 
-We will uninstall Windows Defender to prevent it from trying to scan and quarantine your EICAR and other scanner testing files.
+We will disable Windows Defender to prevent it from trying to scan and quarantine your EICAR and other scanner testing files.
 
-Run the following command in the privileged PowerShell:
-
+1. Run the following command in the privileged PowerShell:
 ```
-Uninstall-WindowsFeature -Name Windows-Defender
-```
-
-Note: 
-1. If you'd prefer to leave Windows Defender installed, that is your choice.
-In that case, you will need to configure Windows Defender to ignore the EICAR testing files in the polyswarm-client directory.
-2. If you have any other anti-virus software on your host, make sure to either remove it, or configure it to ignore the EICAR test files.
-
-#### Install python pip
-
-We will need pip to install several python libraries, so let's install pip.
-Run the following commands in the privileged PowerShell:
-
-```
-Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile 'get-pip.py'
-python get-pip.py
-pip install --upgrade pip setuptools wheel
+Set-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender' DisableAntiSpyware 1
 ```
 
-#### Clone polyswarm-client repo
+2. Reboot Windows.
+
+*If you'd prefer to keep Windows Defender or a 3rd party AV installed, whitelist the directory containing PolySwarm related code, including this repository and any scan testing files (e.g. EICAR).*
+
+#### Clone polyswarm-client
 
 Now we meet the basic requirements where we can clone the `polyswarm-clients` repo.
 
@@ -98,27 +87,31 @@ Run the following command in the regular PowerShell:
 git clone https://github.com/polyswarm/polyswarm-client.git
 ```
 
-#### Create python virtual environment
+#### Create Python Virtual Environment
 
-We will create a python virtual environment, so we do not mess with the system python packages.
+We will create a Python virtual environment (virtualenv), so we avoid dirtying system-wide Python packages.
 
-Run the following command in the regular PowerShell:
+1. Start a regular (not elevated) PowerShell.
 
+2. Permit script execution:
 ```
-cd ~/
+Set-ExecutionPolicy Bypass -Scope Process -Force
+```
+
+3. Create & use the virtualenv:
+```
+cd ~
 python -m venv polyswarmvenv
 ./polyswarmvenv/Scripts/Activate.ps1
 ```
 
 We will now use this activated PowerShell to run our python commands.
 
-#### Install python packages into venv
+#### Install Python Packages (in the Virtual Environment)
 
-Into our virtual environment, we want to install several python packages.
-Use the activated PowerShell from the previous step to do this.
+1. Ensure you're in your PolySwarm virtualenv (from previous step).
 
-Run the following commands in the activated PowerShell:
-
+2. Install prerequisites:
 ```
 cd polyswarm-client
 pip install --upgrade awscli
@@ -132,6 +125,7 @@ Notice the '.' after the word install.
 #### Development IDE
 
 If you have your own IDE for development, feel free to use it, but if not, we recommend that you install PyCharm Community Edition.
+
 You will need to use your web browser for this step.
 
 Browse to: https://www.jetbrains.com/pycharm/download/#section=windows and click the `Download` button under Community.
