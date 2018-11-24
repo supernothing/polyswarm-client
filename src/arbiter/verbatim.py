@@ -42,12 +42,12 @@ class VerbatimArbiter(Arbiter):
             content (bytes): Content of the artifact to be scan
             chain (str): Chain sample is being sent from
         Returns:
-            (bool, bool, str): Tuple of bit, verdict, metadata
+            (bool, bool, str): Tuple of bit, vote, metadata
 
         Note:
             | The meaning of the return types are as follows:
             |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
-            |   - **verdict** (*bool*): Whether this artifact is malicious or not
+            |   - **vote** (*bool*): Whether this artifact is malicious or not
             |   - **metadata** (*str*): Optional metadata about this artifact
         """
         h = hashlib.sha256(content).hexdigest()
@@ -57,7 +57,7 @@ class VerbatimArbiter(Arbiter):
         row = cursor.fetchone()
 
         bit = row is not None
-        verdict = row is not None and row[1] == 1
-        verdict = verdict or EICAR in content
+        vote = row is not None and row[1] == 1
+        vote = vote or EICAR in content
 
-        return bit, verdict, ''
+        return bit, vote, ''

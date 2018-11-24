@@ -116,7 +116,7 @@ class Client(object):
         self.on_new_bounty = events.OnNewBountyCallback()
         self.on_new_assertion = events.OnNewAssertionCallback()
         self.on_reveal_assertion = events.OnRevealAssertionCallback()
-        self.on_new_verdict = events.OnNewVerdictCallback()
+        self.on_new_vote = events.OnNewVoteCallback()
         self.on_quorum_reached = events.OnQuorumReachedCallback()
         self.on_settled_bounty = events.OnSettledBountyCallback()
         self.on_initialized_channel = events.OnInitializedChannelCallback()
@@ -499,7 +499,7 @@ class Client(object):
                 asyncio.get_event_loop().create_task(self.on_settle_bounty_due.run(bounty_guid=task.guid, chain=chain))
             elif isinstance(task, events.VoteOnBounty):
                 asyncio.get_event_loop().create_task(
-                    self.on_vote_on_bounty_due.run(bounty_guid=task.guid, verdicts=task.verdicts,
+                    self.on_vote_on_bounty_due.run(bounty_guid=task.guid, votes=task.votes,
                                                    valid_bloom=task.valid_bloom, chain=chain))
 
     async def listen_for_events(self, chain):
@@ -547,8 +547,8 @@ class Client(object):
                     asyncio.get_event_loop().create_task(self.on_new_assertion.run(**data, chain=chain))
                 elif event == 'reveal':
                     asyncio.get_event_loop().create_task(self.on_reveal_assertion.run(**data, chain=chain))
-                elif event == 'verdict':
-                    asyncio.get_event_loop().create_task(self.on_new_verdict.run(**data, chain=chain))
+                elif event == 'vote':
+                    asyncio.get_event_loop().create_task(self.on_new_vote.run(**data, chain=chain))
                 elif event == 'quorum':
                     asyncio.get_event_loop().create_task(self.on_quorum_reached.run(**data, chain=chain))
                 elif event == 'settled_bounty':

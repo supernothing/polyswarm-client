@@ -177,12 +177,12 @@ class BountiesClient(object):
 
         return result
 
-    async def post_vote(self, bounty_guid, verdicts, valid_bloom, chain):
+    async def post_vote(self, bounty_guid, votes, valid_bloom, chain):
         """Post a vote to polyswarmd.
 
         Args:
             bounty_guid (str): The bounty which we are voting on
-            verdicts (List[bool]): Verdict (malicious/benign) for each of the artifacts in the bounty
+            votes (List[bool]): Vote (malicious/benign) for each of the artifacts in the bounty
             valid_bloom (bool): Is the bloom filter reported by the bounty poster valid
             chain (str): Which chain to operate on
         Returns:
@@ -190,14 +190,14 @@ class BountiesClient(object):
         """
         path = '/bounties/{0}/vote'.format(bounty_guid)
         vote = {
-            'verdicts': verdicts,
+            'votes': votes,
             'valid_bloom': valid_bloom,
         }
         success, result = await self.__client.make_request_with_transactions('POST', path, chain, json=vote)
-        if not success or 'verdicts' not in result:
-            logger.error('Expected verdict, received', extra={'response': result})
+        if not success or 'votes' not in result:
+            logger.error('Expected vote, received', extra={'response': result})
 
-        return result.get('verdicts', [])
+        return result.get('votes', [])
 
     async def settle_bounty(self, bounty_guid, chain):
         """Settle a bounty via polyswarmd

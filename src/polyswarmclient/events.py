@@ -133,19 +133,19 @@ class OnRevealAssertionCallback(Callback):
         return await super().run(bounty_guid, author, index, nonce, verdicts, metadata, chain)
 
 
-class OnNewVerdictCallback(Callback):
+class OnNewVoteCallback(Callback):
     """Called upon receiving a new arbiter vote"""
 
-    async def run(self, bounty_guid, verdicts, voter, chain):
+    async def run(self, bounty_guid, votes, voter, chain):
         """Run the registered callbacks
 
         Args:
             bounty_guid (str): Bounty GUID
-            verdicts (List[bool]): Bitmask indicating malicious or benign verdicts for each artifact
+            votes (List[bool]): Bitmask indicating malicious or benign votes for each artifact
             voter (str): Which arbiter is voting
             chain (str): Chain event received on
         """
-        return await super().run(bounty_guid, verdicts, voter, chain)
+        return await super().run(bounty_guid, votes, voter, chain)
 
 
 class OnQuorumReachedCallback(Callback):
@@ -295,30 +295,30 @@ class VoteOnBounty(Event):
     """A scheduled vote from an arbiter
      Args:
         guid (str): GUID of the bounty being voted on
-        verdicts (List[bool]): List of verdicts for each artifact in the bounty
+        votes (List[bool]): List of votes for each artifact in the bounty
         valid_bloom (bool): Is the bloom filter submitted with the bounty valid
     """
 
-    def __init__(self, guid, verdicts, valid_bloom):
-        """Initialize a vote on verdict event"""
+    def __init__(self, guid, votes, valid_bloom):
+        """Initialize a vote event"""
         super().__init__(guid)
-        self.verdicts = verdicts
+        self.votes = votes
         self.valid_bloom = valid_bloom
 
 
 class OnVoteOnBountyDueCallback(Callback):
     """Called when a bounty is needing to be voted on"""
 
-    async def run(self, bounty_guid, verdicts, valid_bloom, chain):
+    async def run(self, bounty_guid, votes, valid_bloom, chain):
         """Run the registered callbacks
 
         Args:
             bounty_guid (str): GUID of the bounty being voted on
-            verdicts (List[bool]): List of verdicts for each artifact in the bounty
+            votes (List[bool]): List of votes for each artifact in the bounty
             valid_bloom (bool): Is the bloom filter submitted with the bounty valid
             chain (str): Chain event received on
         """
-        return await super().run(bounty_guid, verdicts, valid_bloom, chain)
+        return await super().run(bounty_guid, votes, valid_bloom, chain)
 
 
 class SettleBounty(Event):

@@ -50,12 +50,12 @@ class Arbiter(object):
             content (bytes): Content of the artifact to be scan
             chain (str): Chain we are operating on
         Returns:
-            (bool, bool, str): Tuple of bit, verdict, metadata
+            (bool, bool, str): Tuple of bit, vote, metadata
 
         Note:
             | The meaning of the return types are as follows:
             |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
-            |   - **verdict** (*bool*): Whether this artifact is malicious or not
+            |   - **vote** (*bool*): Whether this artifact is malicious or not
             |   - **metadata** (*str*): Optional metadata about this artifact
         """
         if self.scanner:
@@ -117,10 +117,10 @@ class Arbiter(object):
                 return []
             logger.info('Testing mode, %s bounties remaining', self.testing - self.bounties_seen)
 
-        verdicts = []
+        votes = []
         async for content in self.client.get_artifacts(uri):
-            bit, verdict, metadata = await self.scan(guid, content, chain)
-            verdicts.append(verdict)
+            bit, vote, metadata = await self.scan(guid, content, chain)
+            votes.append(vote)
 
         bounty = await self.client.bounties.get_bounty(guid, chain)
         if bounty is None:
@@ -139,7 +139,7 @@ class Arbiter(object):
         assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
         arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
 
-        vb = VoteOnBounty(guid, verdicts, valid_bloom)
+        vb = VoteOnBounty(guid, votes, valid_bloom)
         self.client.schedule(expiration + assertion_reveal_window, vb, chain)
 
         sb = SettleBounty(guid)
@@ -147,13 +147,13 @@ class Arbiter(object):
 
         return []
 
-    async def handle_vote_on_bounty(self, bounty_guid, verdicts, valid_bloom, chain):
+    async def handle_vote_on_bounty(self, bounty_guid, votes, valid_bloom, chain):
         """
-        Submit verdicts on a given bounty GUID to a given chain.
+        Submit votes on a given bounty GUID to a given chain.
 
         Args:
             bounty_guid (str): The bounty which we are voting on.
-            verdicts (List[bool]): Verdict (malicious/benign) for each of the artifacts in the bounty.
+            votes (List[bool]): Vote (malicious/benign) for each of the artifacts in the bounty.
             valid_bloom (bool):  Is the bloom filter reported by the bounty poster valid?
             chain (str): Which chain to operate on.
         Returns:
@@ -165,7 +165,7 @@ class Arbiter(object):
                 logger.warning('Scheduled vote, but finished with testing mode')
                 return []
             logger.info('Testing mode, %s votes remaining', self.testing - self.votes_posted)
-        return await self.client.bounties.post_vote(bounty_guid, verdicts, valid_bloom, chain)
+        return await self.client.bounties.post_vote(bounty_guid, votes, valid_bloom, chain)
 
     async def handle_settle_bounty(self, bounty_guid, chain):
         """

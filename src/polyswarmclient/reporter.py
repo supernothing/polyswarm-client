@@ -93,7 +93,7 @@ class Reporter(object):
         self.client.on_new_block.register(self.run_task)
         self.client.on_new_block.register(self.block_checker)
         self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
-        # self.client.on_new_verdict.register(self.handle_verdict)
+        # self.client.on_new_vote.register(self.handle_vote)
         self.client.on_new_assertion.register(self.handle_assertion)
 
         self.bounties = {}
