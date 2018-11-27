@@ -310,7 +310,7 @@ class Client(object):
                 logger.info('%s %s', e, 'Invalid transaction error' in e)
                 if 'Invalid transaction error' in e:
                     logger.error('Nonce desync detected, resyncing nonce and retrying')
-                    await self.update_base_nonce()
+                    await self.update_base_nonce(chain)
                     continue
 
             return True, {**result, **tx_result}
