@@ -116,7 +116,7 @@ class Client(object):
         self.on_new_bounty = events.OnNewBountyCallback()
         self.on_new_assertion = events.OnNewAssertionCallback()
         self.on_reveal_assertion = events.OnRevealAssertionCallback()
-        self.on_new_verdict = events.OnNewVerdictCallback()
+        self.on_new_vote = events.OnNewVoteCallback()
         self.on_quorum_reached = events.OnQuorumReachedCallback()
         self.on_settled_bounty = events.OnSettledBountyCallback()
         self.on_initialized_channel = events.OnInitializedChannelCallback()
@@ -169,7 +169,7 @@ class Client(object):
         try:
             # XXX: Set the timeouts here to reasonable values, probably should
             # be configurable
-            async with aiohttp.ClientSession(headers=headers, conn_timeout=30.0, read_timeout=30.0) as self.__session:
+            async with aiohttp.ClientSession(headers=headers, conn_timeout=300.0, read_timeout=300.0) as self.__session:
                 self.bounties = BountiesClient(self)
                 self.staking = StakingClient(self)
                 self.offers = OffersClient(self)
@@ -244,7 +244,7 @@ class Client(object):
 
         return True, response.get('result')
 
-    async def post_transactions(self, transactions, chain='home'):
+    async def post_transactions(self, transactions, chain):
         """Post a set of (signed) transactions to Ethereum via polyswarmd, parsing the emitted events
 
         Args:
@@ -317,7 +317,7 @@ class Client(object):
 
         return False, {}
 
-    async def update_base_nonce(self, chain='home'):
+    async def update_base_nonce(self, chain):
         """Update account's nonce from polyswarmd
 
         Args:
@@ -468,7 +468,7 @@ class Client(object):
                 for f in to_close:
                     f.close()
 
-    def schedule(self, expiration, event, chain='home'):
+    def schedule(self, expiration, event, chain):
         """Schedule an event to execute on a particular block
 
         Args:
@@ -480,7 +480,7 @@ class Client(object):
             raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
         self.__schedule[chain].put(expiration, event)
 
-    async def __handle_scheduled_events(self, number, chain='home'):
+    async def __handle_scheduled_events(self, number, chain):
         """Perform scheduled events when a new block is reported
 
         Args:
@@ -499,10 +499,10 @@ class Client(object):
                 asyncio.get_event_loop().create_task(self.on_settle_bounty_due.run(bounty_guid=task.guid, chain=chain))
             elif isinstance(task, events.VoteOnBounty):
                 asyncio.get_event_loop().create_task(
-                    self.on_vote_on_bounty_due.run(bounty_guid=task.guid, verdicts=task.verdicts,
+                    self.on_vote_on_bounty_due.run(bounty_guid=task.guid, votes=task.votes,
                                                    valid_bloom=task.valid_bloom, chain=chain))
 
-    async def listen_for_events(self, chain='home'):
+    async def listen_for_events(self, chain):
         """Listen for events via websocket connection to polyswarmd
         Args:
             chain (str): Which chain to operate on
@@ -547,8 +547,8 @@ class Client(object):
                     asyncio.get_event_loop().create_task(self.on_new_assertion.run(**data, chain=chain))
                 elif event == 'reveal':
                     asyncio.get_event_loop().create_task(self.on_reveal_assertion.run(**data, chain=chain))
-                elif event == 'verdict':
-                    asyncio.get_event_loop().create_task(self.on_new_verdict.run(**data, chain=chain))
+                elif event == 'vote':
+                    asyncio.get_event_loop().create_task(self.on_new_vote.run(**data, chain=chain))
                 elif event == 'quorum':
                     asyncio.get_event_loop().create_task(self.on_quorum_reached.run(**data, chain=chain))
                 elif event == 'settled_bounty':

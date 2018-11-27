@@ -53,7 +53,7 @@ def choose_backend(backend):
               help='Activate testing mode for integration testing, respond to N bounties then exit')
 @click.option('--insecure-transport', is_flag=True,
               help='Connect to polyswarmd via http:// and ws://, mutually exclusive with --api-key')
-@click.option('--chains', multiple=True, default=['home'],
+@click.option('--chains', multiple=True, default=['side'],
               help='Chain(s) to operate on')
 @click.option('--log-format', default='text',
               help='Log format. Can be `json` or `text` (default)')

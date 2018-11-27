@@ -10,7 +10,7 @@ class BountiesClient(object):
         self.__client = client
         self.parameters = {}
 
-    async def get_parameters(self, chain='home'):
+    async def get_parameters(self, chain):
         """Get bounty parameters from polyswarmd.
 
         Args:
@@ -39,7 +39,22 @@ class BountiesClient(object):
 
         return int(bf)
 
-    async def get_bounty(self, guid, chain='home'):
+    async def get_bloom(self, bounty_guid, chain):
+        """
+        Get a vote from polyswamrd
+
+        Args:
+            bounty_guid (str): GUID of the bounty to retrieve the vote from
+            chain (str): Which chain to operate on
+        """
+        path = '/bounties/{0}/bloom'.format(bounty_guid)
+        success, result = await self.__client.make_request('GET', path, chain)
+        if not success:
+            logger.error('Expected bloom, received', extra={'response': result})
+            return None
+        return result.get('bloom')
+
+    async def get_bounty(self, guid, chain):
         """Get a bounty from polyswarmd.
 
         Args:
@@ -56,7 +71,7 @@ class BountiesClient(object):
 
         return result
 
-    async def post_bounty(self, amount, artifact_uri, duration, chain='home'):
+    async def post_bounty(self, amount, artifact_uri, duration, chain):
         """Post a bounty to polyswarmd.
 
         Args:
@@ -78,7 +93,7 @@ class BountiesClient(object):
 
         return result.get('bounties', [])
 
-    async def get_assertion(self, bounty_guid, index, chain='home'):
+    async def get_assertion(self, bounty_guid, index, chain):
         """Get an assertion from polyswarmd.
 
         Args:
@@ -96,7 +111,7 @@ class BountiesClient(object):
 
         return result
 
-    async def post_assertion(self, bounty_guid, bid, mask, verdicts, chain='home'):
+    async def post_assertion(self, bounty_guid, bid, mask, verdicts, chain):
         """Post an assertion to polyswarmd.
 
         Args:
@@ -120,7 +135,7 @@ class BountiesClient(object):
 
         return result.get('nonce', -1), result.get('assertions', [])
 
-    async def post_reveal(self, bounty_guid, index, nonce, verdicts, metadata, chain='home'):
+    async def post_reveal(self, bounty_guid, index, nonce, verdicts, metadata, chain):
         """Post an assertion reveal to polyswarmd.
 
         Args:
@@ -145,12 +160,29 @@ class BountiesClient(object):
 
         return result.get('reveals', [])
 
-    async def post_vote(self, bounty_guid, verdicts, valid_bloom, chain='home'):
+    async def get_vote(self, bounty_guid, index, chain):
+        """
+        Get a vote from polyswamrd
+
+        Args:
+            bounty_guid (str): GUID of the bounty to retrieve the vote from
+            index (int): Index of the vote
+            chain (str): Which chain to operate on
+        """
+        path = '/bounties/{0}/votes/{1}'.format(bounty_guid, index)
+        success, result = await self.__client.make_request('GET', path, chain)
+        if not success:
+            logger.error('Expected vote, received', extra={'response': result})
+            return None
+
+        return result
+
+    async def post_vote(self, bounty_guid, votes, valid_bloom, chain):
         """Post a vote to polyswarmd.
 
         Args:
             bounty_guid (str): The bounty which we are voting on
-            verdicts (List[bool]): Verdict (malicious/benign) for each of the artifacts in the bounty
+            votes (List[bool]): Vote (malicious/benign) for each of the artifacts in the bounty
             valid_bloom (bool): Is the bloom filter reported by the bounty poster valid
             chain (str): Which chain to operate on
         Returns:
@@ -158,16 +190,16 @@ class BountiesClient(object):
         """
         path = '/bounties/{0}/vote'.format(bounty_guid)
         vote = {
-            'verdicts': verdicts,
+            'votes': votes,
             'valid_bloom': valid_bloom,
         }
         success, result = await self.__client.make_request_with_transactions('POST', path, chain, json=vote)
-        if not success or 'verdicts' not in result:
-            logger.error('Expected verdict, received', extra={'response': result})
+        if not success or 'votes' not in result:
+            logger.error('Expected vote, received', extra={'response': result})
 
-        return result.get('verdicts', [])
+        return result.get('votes', [])
 
-    async def settle_bounty(self, bounty_guid, chain='home'):
+    async def settle_bounty(self, bounty_guid, chain):
         """Settle a bounty via polyswarmd
 
         Args:

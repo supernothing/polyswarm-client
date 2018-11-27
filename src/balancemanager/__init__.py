@@ -51,7 +51,7 @@ class BalanceManager():
 
         It also checks the balances to make sure the source chain wallet can cover the transfer.
         """
-        balance = await self.client.balances.get_nct_balance(chain=chain)
+        balance = await self.client.balances.get_nct_balance(chain)
         amount_wei = self.client.toWei(self.amount)
         if balance >= amount_wei:
             if chain == 'home':
@@ -99,6 +99,7 @@ class Maintainer():
         self.client.on_new_block.register(self.watch_balance)
         self.last_relay = None
         self.latest_block = 0
+        self.last_balance = 0
         self.confirmations = confirmations
         self.minimum = self.client.toWei(minimum)
         self.refill_amount = self.client.toWei(refill_amount)
@@ -112,7 +113,7 @@ class Maintainer():
         Starts the client.
         Have to run with both chains, or lots of nonce errors
         """
-        self.client.run({'home', 'side'})
+        self.client.run(chains={'home', 'side'})
 
     async def try_withdrawal(self, side_balance):
         """
@@ -134,6 +135,7 @@ class Maintainer():
         Deposits the refill amount to the sidechain, as long as there is a sufficient balance on the homechain.
         """
         home_balance = await self.client.balances.get_nct_balance(chain='home')
+        side_balance = await self.client.balances.get_nct_balance(chain='side')
         if home_balance >= self.refill_amount:
             logger.info('Sidechain balance (%s NCT) is below minimum (%s NCT). Depositing %s NCT', side_balance, self.minimum, self.refill_amount)
             # Tell it to wait for the transaction to complete
@@ -141,6 +143,7 @@ class Maintainer():
                 # Account for blocks that moved while creating the transaction, and the transactions made by the relay
                 async with self.block_lock:
                     self.last_relay = self.latest_block + RELAY_LEEWAY
+                    self.last_balance = side_balance
             self.transfers += 1
             logger.info('Transferred %d times of %s', self.transfers, self.testing)
         else:
@@ -151,11 +154,11 @@ class Maintainer():
         Stores the latest block and then kicks off some balance checks.
         If the balance is outside the given range, it deposits, or withdraws as needed.
         """
-        if chain == 'home':
+        if chain == 'side':
             return
 
         # Keep block up to date, so we can use that value when figuring out what block the transaction may have gone in
-        if chain == 'side':
+        if chain == 'home':
             async with self.block_lock:
                 if block > self.latest_block:
                     self.latest_block = block
@@ -163,6 +166,7 @@ class Maintainer():
                     return
 
         async with self.deposit_lock:
+            side_balance = await self.client.balances.get_nct_balance(chain='side')
             if self.testing > 0 and self.testing <= self.transfers:
                 logger.info('Finished text runs')
                 self.client.stop()
@@ -171,9 +175,17 @@ class Maintainer():
                 more_blocks = self.last_relay + self.confirmations - block
                 logger.info('Waiting for %d more blocks', more_blocks)
                 return
+            elif self.last_relay is not None:
+                logger.info('Finished waiting. Checking balance')
+                if self.last_balance >= side_balance:
+                    logger.error('Balance did not increase. Started at %s and ended at %s after transfer. Possible relay failure. Exiting', self.last_balance, side_balance)
+                    self.client.exit_code = 1
+                    self.client.stop()
+                    return
+                logger.info('Balance increased to %s', side_balance)
+                self.last_relay = None
+                self.last_balance = 0
 
-            self.last_relay = None
-            side_balance = await self.client.balances.get_nct_balance(chain='side')
             if self.maximum is not None and self.withdraw_target is not None and side_balance > self.maximum:
                 await self.try_withdrawal(side_balance)
             elif side_balance < self.minimum:

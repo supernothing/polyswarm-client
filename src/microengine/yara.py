@@ -41,7 +41,7 @@ class YaraScanner(Scanner):
 class YaraMicroengine(Microengine):
     """Microengine which matches samples against yara rules"""
 
-    def __init__(self, client, testing=0, scanner=None, chains={'home'}):
+    def __init__(self, client, testing=0, scanner=None, chains=None):
         """Initialize a Yara microengine
 
         Args:

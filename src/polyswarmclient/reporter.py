@@ -86,14 +86,14 @@ class Reporter(object):
         insecure_transport (bool): Allow insecure transport such as HTTP?
         chains (set(str)):  Set of chains you are acting on.
     """
-    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False, chains={'home'}):
+    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False, chains=None):
         self.chains = chains
         self.testing = testing
         self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
         self.client.on_new_block.register(self.run_task)
         self.client.on_new_block.register(self.block_checker)
         self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
-        # self.client.on_new_verdict.register(self.handle_verdict)
+        # self.client.on_new_vote.register(self.handle_vote)
         self.client.on_new_assertion.register(self.handle_assertion)
 
         self.bounties = {}

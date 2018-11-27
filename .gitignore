@@ -7,8 +7,11 @@ __pycache__/
 .tox
 *.egg-info/
 tests/.hypothesis/
+.vscode
+.coverage
 
 # Ignored Read the Docs assets
 _build
 _static
 _templates
+.vscode

@@ -149,24 +149,24 @@ async def test_on_reveal_assertion_callback():
 
 
 @pytest.mark.asyncio
-async def test_on_new_verdict_callback():
-    cb = events.OnNewVerdictCallback()
+async def test_on_new_vote_callback():
+    cb = events.OnNewVoteCallback()
 
-    async def check_parameters(bounty_guid, verdicts, voter, chain):
-        return bounty_guid == 'guid' and verdicts == [True] and voter == 'voter' and chain == 'home'
+    async def check_parameters(bounty_guid, votes, voter, chain):
+        return bounty_guid == 'guid' and votes == [True] and voter == 'voter' and chain == 'home'
 
     cb.register(check_parameters)
 
-    assert await cb.run(bounty_guid='guid', verdicts=[True], voter='voter', chain='home') == [True]
-    assert await cb.run(bounty_guid='not guid', verdicts=[True], voter='voter', chain='home') == [False]
+    assert await cb.run(bounty_guid='guid', votes=[True], voter='voter', chain='home') == [True]
+    assert await cb.run(bounty_guid='not guid', votes=[True], voter='voter', chain='home') == [False]
 
-    async def invalid_signature(bounty_guid, verdicts, voter, chain, foo):
+    async def invalid_signature(bounty_guid, votes, voter, chain, foo):
         return False
 
     cb.register(invalid_signature)
 
     with pytest.raises(TypeError):
-        await cb.run(bounty_guid='guid', verdicts=[True], voter='voter', chain='home')
+        await cb.run(bounty_guid='guid', votes=[True], voter='voter', chain='home')
 
 
 @pytest.mark.asyncio
@@ -278,21 +278,21 @@ async def test_on_reveal_assertion_due_callback():
 async def test_on_vote_on_bounty_due_callback():
     cb = events.OnVoteOnBountyDueCallback()
 
-    async def check_parameters(bounty_guid, verdicts, valid_bloom, chain):
-        return bounty_guid == 'guid' and verdicts == [True] and valid_bloom and chain == 'home'
+    async def check_parameters(bounty_guid, votes, valid_bloom, chain):
+        return bounty_guid == 'guid' and votes == [True] and valid_bloom and chain == 'home'
 
     cb.register(check_parameters)
 
-    assert await cb.run(bounty_guid='guid', verdicts=[True], valid_bloom=True, chain='home') == [True]
-    assert await cb.run(bounty_guid='not guid', verdicts=[True], valid_bloom=True, chain='home') == [False]
+    assert await cb.run(bounty_guid='guid', votes=[True], valid_bloom=True, chain='home') == [True]
+    assert await cb.run(bounty_guid='not guid', votes=[True], valid_bloom=True, chain='home') == [False]
 
-    async def invalid_signature(bounty_guid, verdicts, valid_bloom, chain, foo):
+    async def invalid_signature(bounty_guid, votes, valid_bloom, chain, foo):
         return False
 
     cb.register(invalid_signature)
 
     with pytest.raises(TypeError):
-        await cb.run(bounty_guid='guid', verdicts=[True], valid_bloom=True, chain='home')
+        await cb.run(bounty_guid='guid', votes=[True], valid_bloom=True, chain='home')
 
 
 @pytest.mark.asyncio

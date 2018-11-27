@@ -14,7 +14,7 @@ BACKENDS = [ClamavScanner, YaraScanner]
 class MultiMicroengine(Microengine):
     """Microengine which aggregates multiple sub-microengines"""
 
-    def __init__(self, client, testing=0, scanner=None, chains={'home'}):
+    def __init__(self, client, testing=0, scanner=None, chains=None):
         """Initialize a multi-backend microengine
 
         Args:

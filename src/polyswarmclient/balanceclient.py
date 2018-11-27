@@ -8,7 +8,7 @@ class BalanceClient(object):
         self.__client = client
         self.parameters = {}
 
-    async def get_nct_balance(self, chain='home'):
+    async def get_nct_balance(self, chain):
         """Get nectar balance from polyswarmd
 
         Args:
@@ -24,7 +24,7 @@ class BalanceClient(object):
 
         return int(balance)
 
-    async def get_eth_balance(self, chain='home'):
+    async def get_eth_balance(self, chain):
         """Get eth balance from polyswarmd
 
         Args:

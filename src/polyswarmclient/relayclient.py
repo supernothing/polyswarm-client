@@ -38,7 +38,7 @@ class RelayClient(object):
         withdrawal = {
             'amount': str(amount),
         }
-        success, results = await self.__client.make_request_with_transactions('POST', '/relay/withdrawal', 'side', json=withdrawal)
+        success, results = await self.__client.make_request_with_transactions('POST', '/relay/withdrawal', chain='side', json=withdrawal)
         if not success or 'transfers' not in results:
             logger.error('Expected withdrawl from relay', extra={'extra': results})
             return {}

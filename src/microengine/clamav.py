@@ -50,7 +50,7 @@ class ClamavMicroengine(Microengine):
         chains (set[str]): Chain(s) to operate on
     """
 
-    def __init__(self, client, testing=0, scanner=None, chains={'home'}):
+    def __init__(self, client, testing=0, scanner=None, chains=None):
         """Initialize a ClamAV microengine"""
         scanner = ClamavScanner()
         super().__init__(client, testing, scanner, chains)

@@ -214,24 +214,24 @@ async def test_on_reveal_assertion(mock_client):
 
 @pytest.mark.asyncio
 @pytest.mark.timeout(5)
-async def test_on_new_verdict(mock_client):
+async def test_on_new_vote(mock_client):
     home_done = asyncio.Event()
     side_done = asyncio.Event()
 
     def make_vote():
         return {
             'bounty_guid': str(uuid.uuid4()),
-            'verdicts': random_bitset(),
+            'votes': random_bitset(),
             'voter': random_address(),
         }
 
     home_vote = make_vote()
     side_vote = make_vote()
 
-    async def handle_new_verdict(bounty_guid, verdicts, voter, chain):
+    async def handle_new_vote(bounty_guid, votes, voter, chain):
         new_vote = {
             'bounty_guid': bounty_guid,
-            'verdicts': verdicts,
+            'votes': votes,
             'voter': voter,
         }
 
@@ -244,9 +244,9 @@ async def test_on_new_verdict(mock_client):
         else:
             raise ValueError('Invalid chain')
 
-    mock_client.on_new_verdict.register(handle_new_verdict)
-    await mock_client.home_ws_mock.send(event('verdict', home_vote))
-    await mock_client.side_ws_mock.send(event('verdict', side_vote))
+    mock_client.on_new_vote.register(handle_new_vote)
+    await mock_client.home_ws_mock.send(event('vote', home_vote))
+    await mock_client.side_ws_mock.send(event('vote', side_vote))
 
     await asyncio.wait([home_done.wait(), side_done.wait()])
 
@@ -266,7 +266,7 @@ async def test_on_quorum_reached(mock_client):
     home_quorum = make_quorum()
     side_quorum = make_quorum()
 
-    async def handle_new_verdict(bounty_guid, quorum_block, chain):
+    async def handle_new_vote(bounty_guid, quorum_block, chain):
         new_quorum = {
             'bounty_guid': bounty_guid,
             'quorum_block': quorum_block,
@@ -281,7 +281,7 @@ async def test_on_quorum_reached(mock_client):
         else:
             raise ValueError('Invalid chain')
 
-    mock_client.on_quorum_reached.register(handle_new_verdict)
+    mock_client.on_quorum_reached.register(handle_new_vote)
     await mock_client.home_ws_mock.send(event('quorum', home_quorum))
     await mock_client.side_ws_mock.send(event('quorum', side_quorum))
 
