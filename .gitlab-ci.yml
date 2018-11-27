@@ -9,7 +9,6 @@ stages:
   - test
   - e2e
   - prebuildwindows
-  - buildwindows
   - notifydependents
 
 test:
@@ -24,9 +23,8 @@ kick-e2e:
   tags:
       - docker
   before_script:
-    - apk --no-cache add curl jq unzip py3-requests
-    - curl https://releases.hashicorp.com/packer/1.3.1/packer_1.3.1_linux_amd64.zip > packer.zip
-    - unzip -d /usr/bin/ packer.zip
+    - apk --no-cache add curl jq
+
   stage: e2e
   script:
     - set -e
@@ -71,29 +69,13 @@ wheels:
     - docker build -t polyswarm/windows-builder -f docker/windows/choco/Dockerfile .
     - docker run --rm -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t polyswarm/windows-builder
 
-# OR - pip wheel -r requirements.txt
-packer:
+kickafterpacker:
   before_script:
-    - apk --no-cache add curl jq unzip py3-requests
-    - curl https://releases.hashicorp.com/packer/1.3.1/packer_1.3.1_linux_amd64.zip > packer.zip
-    - unzip -d /usr/bin/ packer.zip
-  tags:
-    - docker
-  stage: buildwindows
-
+    - apk --no-cache add py3-requests
+  stage: notifydependents
   only:
     - feature/windows-builds
     - master
   script:
-    - set -e
-    - packer build -debug template.json
-
-kickafterpacker:
-  before_script:
-    - apk --no-cache add curl jq unzip py3-requests
-    - curl https://releases.hashicorp.com/packer/1.3.1/packer_1.3.1_linux_amd64.zip > packer.zip
-    - unzip -d /usr/bin/ packer.zip
-  stage: notifydependents
-  script:
     - python3 kick_downstream.py
-    
+

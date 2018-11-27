@@ -42,7 +42,7 @@ RUN powershell Write-Host ('Installing pip=={0} ...' -f $env:PYTHON_PIP_VERSION)
 
 WORKDIR /usr/src/app
 
-COPY requirements.txt .
+COPY . .
 
 
 #RUN powershell Write-Host "$((Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment\' -Name 'PATH').Path); $((Get-ItemProperty -Path 'HKCU:\Environment' -Name 'PATH').Path)"
