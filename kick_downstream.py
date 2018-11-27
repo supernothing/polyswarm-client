@@ -7,7 +7,7 @@ class DownstreamKicker(object):
     def __init__(self):
         self.gitlab_url_base = "https://gitlab.polyswarm.io"
         # everything that relies on polyswarm-client, both public and private
-        self.dependent_projects = os.getenv("CI_POLYSWARM_CLIENT_DOWNSTREAM","").split()
+        self.dependent_projects = os.getenv("CI_POLYSWARM_CLIENT_DOWNSTREAM", "").split()
 
         self.head = {'Private-Token': os.getenv("CI_CUSTOM_CI_PAT")}
 
@@ -46,7 +46,7 @@ class DownstreamKicker(object):
         trigger_token = self.get_or_update_project_token(project_id)
         ref_name = os.getenv("CI_COMMIT_REF_NAME")
         try:
-            r = requests.post("{0}/api/v4/projects/{1}/trigger/pipeline".format(self.gitlab_url_base,project_id),
+            r = requests.post("{0}/api/v4/projects/{1}/trigger/pipeline".format(self.gitlab_url_base, project_id),
                               data={'ref': ref_name, 'token': trigger_token},
 
                               )
@@ -68,7 +68,6 @@ class DownstreamKicker(object):
             if p['path_with_namespace'].startswith("externalci/engine-"):
                 ps.append(p['path'])
         return ps
-
 
     def kick_projects(self):
         for p in self.dependent_projects:
