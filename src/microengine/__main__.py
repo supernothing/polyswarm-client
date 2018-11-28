@@ -3,11 +3,6 @@ import importlib
 import logging
 import sys
 
-from microengine.clamav import Microengine as ClamavMicroengine
-from microengine.eicar import Microengine as EicarMicroengine
-from microengine.multi import Microengine as MultiMicroengine
-from microengine.scratch import Microengine as ScratchMicroengine
-from microengine.yara import Microengine as YaraMicroengine
 from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -27,15 +22,20 @@ def choose_backend(backend):
     """
     micro_engine_class = None
     if backend == 'scratch':
-        micro_engine_class = ScratchMicroengine
+        import microengine.scratch
+        micro_engine_class = microengine.scratch.Microengine
     elif backend == 'eicar':
-        micro_engine_class = EicarMicroengine
+        import microengine.eicar
+        micro_engine_class = microengine.eicar.Microengine
     elif backend == 'clamav':
-        micro_engine_class = ClamavMicroengine
+        import microengine.clamav
+        micro_engine_class = microengine.clamav.Microengine
     elif backend == 'yara':
-        micro_engine_class = YaraMicroengine
+        import microengine.yara
+        micro_engine_class = microengine.yara.Microengine
     elif backend == 'multi':
-        micro_engine_class = MultiMicroengine
+        import microengine.multi
+        micro_engine_class = microengine.multi.Microengine
     else:
         import_l = backend.split(":")
         micro_engine_module_s = import_l[0]

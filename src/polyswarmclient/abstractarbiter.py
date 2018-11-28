@@ -8,6 +8,7 @@ from polyswarmclient.events import VoteOnBounty, SettleBounty
 logger = logging.getLogger(__name__)  # Initialize logger
 MAX_STAKE_RETRIES = 10
 
+
 class AbstractArbiter(object):
     def __init__(self, client, testing=0, scanner=None, chains=None):
         self.client = client

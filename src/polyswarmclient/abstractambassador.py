@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sys
 
+from abc import ABC, abstractmethod
 from polyswarmclient import Client
 from polyswarmclient.events import SettleBounty
 
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)  # Initialize logger
 MAX_TRIES = 10
 
 
-class AbstractAmbassador(object):
+class AbstractAmbassador(ABC):
     def __init__(self, client, testing=0, chains=None, watchdog=0):
         self.client = client
         self.chains = chains
@@ -45,6 +46,7 @@ class AbstractAmbassador(object):
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
         return cls(client, testing, chains, watchdog)
 
+    @abstractmethod
     async def next_bounty(self, chain):
         """Override this to implement different bounty submission queues
 
@@ -59,7 +61,7 @@ class AbstractAmbassador(object):
             |   - **ipfs_uri** (*str*): IPFS URI of the artifact to post
             |   - **duration** (*int*): Duration of the bounty in blocks
         """
-        raise NotImplementedError("You must subclass this class and override this method.")
+        pass
 
     def on_bounty_posted(self, guid, amount, ipfs_uri, expiration, chain):
         """Override this to implement additional steps after bounty submission
