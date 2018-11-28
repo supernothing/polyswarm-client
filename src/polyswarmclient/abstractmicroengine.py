@@ -60,8 +60,7 @@ class AbstractMicroengine(object):
         if self.scanner:
             return await self.scanner.scan(guid, content, chain)
 
-        raise Exception("NOT IMPLEMENTED. "
-                        "You must 1) override this scan method OR 2) provide a scanner to your Microengine constructor")
+        raise NotImplementedError("You must 1) override this scan method OR 2) provide a scanner to your Microengine constructor")
 
     def bid(self, guid, chain):
         """Override this to implement custom bid calculation logic
