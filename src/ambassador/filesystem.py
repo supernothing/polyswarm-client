@@ -61,6 +61,8 @@ class FilesystemAmbassador(Ambassador):
         ipfs_uri = await self.client.post_artifacts([(filename, None)])
         if not ipfs_uri:
             logger.error('Could not submit artifact to IPFS')
+            self.client.exit_code = 1
+            self.client.stop()
             return None
 
         return amount, ipfs_uri, duration
