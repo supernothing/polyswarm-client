@@ -4,8 +4,8 @@ import microengine
 import os
 
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
-from microengine.clamav import ClamavScanner
-from microengine.yara import YaraScanner
+from microengine.clamav import Scanner as ClamavScanner
+from microengine.yara import Scanner as YaraScanner
 
 logger = logging.getLogger(__name__)  # Initialize logger
 BACKENDS = [ClamavScanner, YaraScanner]

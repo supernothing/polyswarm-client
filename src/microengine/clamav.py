@@ -4,7 +4,7 @@ import os
 
 from io import BytesIO
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
-from polyswarmclient.scanner import Scanner
+from polyswarmclient.abstractscanner import AbstractScanner
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -13,7 +13,7 @@ CLAMD_PORT = int(os.getenv('CLAMD_PORT', '3310'))
 CLAMD_TIMEOUT = 30.0
 
 
-class ClamavScanner(Scanner):
+class Scanner(AbstractScanner):
     def __init__(self):
         self.clamd = clamd.ClamdNetworkSocket(CLAMD_HOST, CLAMD_PORT, CLAMD_TIMEOUT)
 
@@ -52,5 +52,5 @@ class Microengine(AbstractMicroengine):
 
     def __init__(self, client, testing=0, scanner=None, chains=None):
         """Initialize a ClamAV microengine"""
-        scanner = ClamavScanner()
+        scanner = Scanner()
         super().__init__(client, testing, scanner, chains)

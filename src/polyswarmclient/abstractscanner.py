@@ -3,7 +3,7 @@ import logging
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
-class Scanner(object):
+class AbstractScanner(object):
     """
     Base `Scanner` class. To be overwritten with other scanning logic.
     """
@@ -23,4 +23,4 @@ class Scanner(object):
             |   - **verdict** (*bool*): Whether this artifact is malicious or not
             |   - **metadata** (*str*): Optional metadata about this artifact
         """
-        return False, False, ''
+        raise NotImplementedError("You must subclass this class and override this method.")

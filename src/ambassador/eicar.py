@@ -2,7 +2,7 @@ import base64
 import logging
 import random
 
-from polyswarmclient.ambassador import Ambassador
+from polyswarmclient.abstractambassador import AbstractAmbassador
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -11,7 +11,7 @@ NOT_EICAR = 'this is not malicious'
 ARTIFACTS = [('eicar', EICAR), ('not_eicar', NOT_EICAR)]
 
 
-class EicarAmbassador(Ambassador):
+class Ambassador(AbstractAmbassador):
     """Ambassador which submits the EICAR test file"""
 
     async def next_bounty(self, chain):

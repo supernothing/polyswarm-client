@@ -3,7 +3,7 @@ import importlib
 import logging
 import sys
 
-from arbiter.verbatim import VerbatimArbiter
+from arbiter.verbatim import Arbiter as VerbatimArbiter
 from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)  # Initialize logger

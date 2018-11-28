@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)  # Initialize logger
 MAX_TRIES = 10
 
 
-class Ambassador(object):
+class AbstractAmbassador(object):
     def __init__(self, client, testing=0, chains=None, watchdog=0):
         self.client = client
         self.chains = chains
@@ -40,7 +40,7 @@ class Ambassador(object):
             chains (set(str)):  Set of chains you are acting on.
 
         Returns:
-            Ambassador: Ambassador instantiated with a Client.
+            AbstractAmbassador: Ambassador instantiated with a Client.
         """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
         return cls(client, testing, chains, watchdog)
@@ -59,7 +59,7 @@ class Ambassador(object):
             |   - **ipfs_uri** (*str*): IPFS URI of the artifact to post
             |   - **duration** (*int*): Duration of the bounty in blocks
         """
-        return None
+        raise NotImplementedError("You must subclass this class and override this method.")
 
     def on_bounty_posted(self, guid, amount, ipfs_uri, expiration, chain):
         """Override this to implement additional steps after bounty submission

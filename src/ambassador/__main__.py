@@ -3,8 +3,8 @@ import importlib
 import logging
 import sys
 
-from ambassador.eicar import EicarAmbassador
-from ambassador.filesystem import FilesystemAmbassador
+from ambassador.eicar import Ambassador as EicarAmbassador
+from ambassador.filesystem import Ambassador as FilesystemAmbassador
 from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)  # Initialize logger
