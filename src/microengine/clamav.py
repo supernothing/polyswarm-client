@@ -3,7 +3,7 @@ import logging
 import os
 
 from io import BytesIO
-from polyswarmclient.microengine import Microengine
+from polyswarmclient.abstractmicroengine import AbstractMicroengine
 from polyswarmclient.scanner import Scanner
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -40,7 +40,7 @@ class ClamavScanner(Scanner):
         return True, False, ''
 
 
-class ClamavMicroengine(Microengine):
+class Microengine(AbstractMicroengine):
     """
     Microengine which scans samples through clamd.
 

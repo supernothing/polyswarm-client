@@ -3,7 +3,7 @@ import os
 import tempfile
 import yara
 
-from polyswarmclient.microengine import Microengine
+from polyswarmclient.abstractmicroengine import AbstractMicroengine
 from polyswarmclient.scanner import Scanner
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -38,7 +38,7 @@ class YaraScanner(Scanner):
         return True, False, ''
 
 
-class YaraMicroengine(Microengine):
+class Microengine(AbstractMicroengine):
     """Microengine which matches samples against yara rules"""
 
     def __init__(self, client, testing=0, scanner=None, chains=None):

@@ -6,10 +6,32 @@
 
 Client library to simplify interacting with a polyswarmd instance from Python
 
+## Important Changes
 
-## Running Tests
+### The update from 0.1.2 to 0.2.0 is a breaking change for Microengines. 
 
-Use tox, or install dependencies in a virtual environment and run `pytest`
+Microgengine implementations using polyswarmclient <= 0.1.2 used this pattern:
+
+```
+from polyswarmclient.microengine import Microengine
+
+class CustomMicroengine(Microengine):
+    # Microengine implementation here
+```
+
+For polyswarmclient >= 0.2.0, Microengine implementations should use the following pattern:
+```
+from polyswarmclient.abstractmicroengine import AbstractMicroengine
+
+class Microengine(AbstractMicroengine):
+    # Microengine implementation here
+```
+
+This implies that custom microengines now only need to provide their python module name to the `--backend` argument
+instead of `module_name:CustomMicroengine`.
+
+Additionally, as of polyswarmclient 0.2.0, AbstractMicroengine.scan() will now raise an exception if it 
+has not been overridden by a sub-class and the subclass did not provide a scanner to the constructor.
 
 
 ## Configuring Development Environment
@@ -131,3 +153,6 @@ You will need to use your web browser for this step.
 Browse to: https://www.jetbrains.com/pycharm/download/#section=windows and click the `Download` button under Community.
 Once you've downloaded the installer, run it to install PyCharm.
 
+## Running Tests
+
+Use tox, or install dependencies in a virtual environment and run `pytest`

@@ -7,7 +7,7 @@ from polyswarmclient.events import RevealAssertion, SettleBounty
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
-class Microengine(object):
+class AbstractMicroengine(object):
     def __init__(self, client, testing=0, scanner=None, chains=None):
         self.client = client
         self.chains = chains
@@ -36,7 +36,7 @@ class Microengine(object):
             chains (set(str)):  Set of chains you are acting on.
 
         Returns:
-            Microengine: Microengine instantiated with a Client.
+            AbstractMicroengine: Microengine instantiated with a Client.
         """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
         return cls(client, testing, scanner, chains)
@@ -60,7 +60,8 @@ class Microengine(object):
         if self.scanner:
             return await self.scanner.scan(guid, content, chain)
 
-        return False, False, ''
+        raise Exception("NOT IMPLEMENTED. "
+                        "You must 1) override this scan method OR 2) provide a scanner to your Microengine constructor")
 
     def bid(self, guid, chain):
         """Override this to implement custom bid calculation logic

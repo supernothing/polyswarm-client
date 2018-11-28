@@ -3,11 +3,11 @@ import importlib
 import logging
 import sys
 
-from microengine.clamav import ClamavMicroengine
-from microengine.eicar import EicarMicroengine
-from microengine.multi import MultiMicroengine
-from microengine.scratch import ScratchMicroengine
-from microengine.yara import YaraMicroengine
+from microengine.clamav import Microengine as ClamavMicroengine
+from microengine.eicar import Microengine as EicarMicroengine
+from microengine.multi import Microengine as MultiMicroengine
+from microengine.scratch import Microengine as ScratchMicroengine
+from microengine.yara import Microengine as YaraMicroengine
 from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)  # Initialize logger
