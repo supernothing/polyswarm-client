@@ -1,5 +1,5 @@
 import click
-import importlib
+import importlib.util
 import logging
 import sys
 
@@ -20,30 +20,23 @@ def choose_backend(backend):
     Raises:
         (Exception): If backend is not found
     """
-    micro_engine_class = None
-    if backend == 'scratch':
-        import microengine.scratch
-        micro_engine_class = microengine.scratch.Microengine
-    elif backend == 'eicar':
-        import microengine.eicar
-        micro_engine_class = microengine.eicar.Microengine
-    elif backend == 'clamav':
-        import microengine.clamav
-        micro_engine_class = microengine.clamav.Microengine
-    elif backend == 'yara':
-        import microengine.yara
-        micro_engine_class = microengine.yara.Microengine
-    elif backend == 'multi':
-        import microengine.multi
-        micro_engine_class = microengine.multi.Microengine
+    backend_list = backend.split(":")
+    module_name_string = backend_list[0]
+
+    # determine if this string is a module that can be imported as-is or as sub-module of the microengine package
+    mod_spec = importlib.util.find_spec(module_name_string) or importlib.util.find_spec("microengine.{0}".format(module_name_string))
+    if mod_spec is None:
+        raise Exception("Microengine backend `{0}` cannot be imported as a python module.".format(backend))
+
+    # have valid module that can be imported, so import it.
+    micro_engine_module = importlib.import_module(mod_spec.name)
+
+    # find Microengine class in this module
+    if hasattr(micro_engine_module, "Microengine"):
+        micro_engine_class = micro_engine_module.Microengine
+    elif len(backend_list) == 2 and hasattr(micro_engine_module, backend_list[1]):
+        micro_engine_class = getattr(micro_engine_module, backend_list[1])
     else:
-        import_l = backend.split(":")
-        micro_engine_module_s = import_l[0]
-
-        micro_engine_module = importlib.import_module(micro_engine_module_s)
-        micro_engine_class = micro_engine_module.Microengine if ":" not in backend else getattr(micro_engine_module, import_l[1])
-
-    if micro_engine_class is None:
         raise Exception("No microengine backend found {0}".format(backend))
 
     return micro_engine_class
