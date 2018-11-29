@@ -1,13 +1,14 @@
 import logging
+from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
-class Scanner(object):
+class AbstractScanner(object):
     """
     Base `Scanner` class. To be overwritten with other scanning logic.
     """
-
+    @abstractmethod
     async def scan(self, guid, content, chain):
         """Override this to implement custom scanning logic
 
@@ -23,4 +24,4 @@ class Scanner(object):
             |   - **verdict** (*bool*): Whether this artifact is malicious or not
             |   - **metadata** (*str*): Optional metadata about this artifact
         """
-        return False, False, ''
+        pass

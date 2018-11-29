@@ -2,7 +2,7 @@ import logging
 import random
 import os
 
-from polyswarmclient.ambassador import Ambassador
+from polyswarmclient.abstractambassador import AbstractAmbassador
 from polyswarmclient.corpus import DownloadToFileSystemCorpus
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -11,7 +11,8 @@ ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
 ARTIFACT_BLACKLIST = os.getenv('ARTIFACT_BLACKLIST', 'truth.db').split(',')
 BOUNTY_TEST_DURATION_BLOCKS = int(os.getenv('BOUNTY_TEST_DURATION_BLOCKS', 5))
 
-class FilesystemAmbassador(Ambassador):
+
+class Ambassador(AbstractAmbassador):
     """Ambassador which submits artifacts from a directory"""
 
     def __init__(self, client, testing=0, chains=None, watchdog=0):

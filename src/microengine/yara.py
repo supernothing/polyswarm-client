@@ -3,14 +3,14 @@ import os
 import tempfile
 import yara
 
-from polyswarmclient.microengine import Microengine
-from polyswarmclient.scanner import Scanner
+from polyswarmclient.abstractmicroengine import AbstractMicroengine
+from polyswarmclient.abstractscanner import AbstractScanner
 
 logger = logging.getLogger(__name__)  # Initialize logger
 RULES_DIR = os.getenv('RULES_DIR', 'docker/yara-rules')
 
 
-class YaraScanner(Scanner):
+class Scanner(AbstractScanner):
     def __init__(self):
         self.rules = yara.compile(os.path.join(RULES_DIR, "malware/MALW_Eicar"))
 
@@ -38,7 +38,7 @@ class YaraScanner(Scanner):
         return True, False, ''
 
 
-class YaraMicroengine(Microengine):
+class Microengine(AbstractMicroengine):
     """Microengine which matches samples against yara rules"""
 
     def __init__(self, client, testing=0, scanner=None, chains=None):
@@ -49,5 +49,5 @@ class YaraMicroengine(Microengine):
             testing (int): How many test bounties to respond to
             chains (set[str]): Chain(s) to operate on
         """
-        scanner = YaraScanner()
+        scanner = Scanner()
         super().__init__(client, testing, scanner, chains)

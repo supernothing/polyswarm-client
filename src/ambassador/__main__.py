@@ -1,10 +1,8 @@
 import click
-import importlib
+import importlib.util
 import logging
 import sys
 
-from ambassador.eicar import EicarAmbassador
-from ambassador.filesystem import FilesystemAmbassador
 from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -22,19 +20,23 @@ def choose_backend(backend):
     Raises:
         (Exception): If backend is not found
     """
-    ambassador_class = None
-    if backend == 'eicar':
-        ambassador_class = EicarAmbassador
-    elif backend == 'filesystem':
-        ambassador_class = FilesystemAmbassador
+    backend_list = backend.split(":")
+    module_name_string = backend_list[0]
+
+    # determine if this string is a module that can be imported as-is or as sub-module of the ambassador package
+    mod_spec = importlib.util.find_spec(module_name_string) or importlib.util.find_spec("ambassador.{0}".format(module_name_string))
+    if mod_spec is None:
+        raise Exception("Ambassador backend `{0}` cannot be imported as a python module.".format(backend))
+
+    # have valid module that can be imported, so import it.
+    ambassador_module = importlib.import_module(mod_spec.name)
+
+    # find Ambassador class in this module
+    if hasattr(ambassador_module, "Ambassador"):
+        ambassador_class = ambassador_module.Ambassador
+    elif len(backend_list) == 2 and hasattr(ambassador_module, backend_list[1]):
+        ambassador_class = getattr(ambassador_module, backend_list[1])
     else:
-        import_l = backend.split(":")
-        ambassador_module_s = import_l[0]
-
-        ambassador_module = importlib.import_module(ambassador_module_s)
-        ambassador_class = ambassador_module.Ambassador if ":" not in backend else getattr(ambassador_module, import_l[1])
-
-    if ambassador_class is None:
         raise Exception("No ambassador backend found {0}".format(backend))
 
     return ambassador_class

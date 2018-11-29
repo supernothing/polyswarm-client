@@ -1,9 +1,8 @@
 import click
-import importlib
+import importlib.util
 import logging
 import sys
 
-from arbiter.verbatim import VerbatimArbiter
 from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -21,17 +20,23 @@ def choose_backend(backend):
     Raises:
         (Exception): If backend is not found
     """
-    arbiter_class = None
-    if backend == 'verbatim':
-        arbiter_class = VerbatimArbiter
+    backend_list = backend.split(":")
+    module_name_string = backend_list[0]
+
+    # determine if this string is a module that can be imported as-is or as sub-module of the arbiter package
+    mod_spec = importlib.util.find_spec(module_name_string) or importlib.util.find_spec("arbiter.{0}".format(module_name_string))
+    if mod_spec is None:
+        raise Exception("Arbiter backend `{0}` cannot be imported as a python module.".format(backend))
+
+    # have valid module that can be imported, so import it.
+    arbiter_module = importlib.import_module(mod_spec.name)
+
+    # find Arbiter class in this module
+    if hasattr(arbiter_module, "Arbiter"):
+        arbiter_class = arbiter_module.Arbiter
+    elif len(backend_list) == 2 and hasattr(arbiter_module, backend_list[1]):
+        arbiter_class = getattr(arbiter_module, backend_list[1])
     else:
-        import_l = backend.split(":")
-        arbiter_module_s = import_l[0]
-
-        arbiter_module = importlib.import_module(arbiter_module_s)
-        arbiter_class = arbiter_module.Arbiter if ":" not in backend else getattr(arbiter_module, import_l[1])
-
-    if arbiter_class is None:
         raise Exception("No arbiter backend found {0}".format(backend))
 
     return arbiter_class

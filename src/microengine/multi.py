@@ -3,15 +3,15 @@ import logging
 import microengine
 import os
 
-from polyswarmclient.microengine import Microengine
-from microengine.clamav import ClamavScanner
-from microengine.yara import YaraScanner
+from polyswarmclient.abstractmicroengine import AbstractMicroengine
+from microengine.clamav import Scanner as ClamavScanner
+from microengine.yara import Scanner as YaraScanner
 
 logger = logging.getLogger(__name__)  # Initialize logger
 BACKENDS = [ClamavScanner, YaraScanner]
 
 
-class MultiMicroengine(Microengine):
+class Microengine(AbstractMicroengine):
     """Microengine which aggregates multiple sub-microengines"""
 
     def __init__(self, client, testing=0, scanner=None, chains=None):

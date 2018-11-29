@@ -4,7 +4,7 @@ import hashlib
 import logging
 import os
 
-from polyswarmclient.arbiter import Arbiter
+from polyswarmclient.abstractarbiter import AbstractArbiter
 from polyswarmclient.corpus import DownloadToFileSystemCorpus
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -12,7 +12,7 @@ ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
 EICAR = base64.b64decode(b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=')
 
 
-class VerbatimArbiter(Arbiter):
+class Arbiter(AbstractArbiter):
     """Arbiter which matches hashes to a database of known samples"""
 
     def __init__(self, client, testing=0, scanner=None, chains=None):

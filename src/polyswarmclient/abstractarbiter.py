@@ -8,7 +8,8 @@ from polyswarmclient.events import VoteOnBounty, SettleBounty
 logger = logging.getLogger(__name__)  # Initialize logger
 MAX_STAKE_RETRIES = 10
 
-class Arbiter(object):
+
+class AbstractArbiter(object):
     def __init__(self, client, testing=0, scanner=None, chains=None):
         self.client = client
         self.chains = chains
@@ -37,7 +38,7 @@ class Arbiter(object):
             chains (set(str)):  Set of chains you are acting on.
 
         Returns:
-            Arbiter: Arbiter instantiated with a Client.
+            AbstractArbiter: Arbiter instantiated with a Client.
         """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
         return cls(client, testing, scanner, chains)
@@ -61,7 +62,7 @@ class Arbiter(object):
         if self.scanner:
             return await self.scanner.scan(guid, content, chain)
 
-        return False, False, ''
+        raise NotImplementedError("You must subclass this class and override this method.")
 
     def run(self):
         """
