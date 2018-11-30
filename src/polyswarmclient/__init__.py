@@ -164,7 +164,7 @@ class Client(object):
         if self.api_key and not self.polyswarmd_uri.startswith('https://'):
             raise Exception('Refusing to send API key over insecure transport')
 
-        self.params = {'account': self.account} if not self.api_key else {}
+        self.params = {'account': self.account}
         headers = {'Authorization': self.api_key} if self.api_key else {}
         try:
             # XXX: Set the timeouts here to reasonable values, probably should
