@@ -100,6 +100,7 @@ class Maintainer():
         self.last_relay = None
         self.latest_block = 0
         self.last_balance = 0
+        self.initial_balance = 0
         self.confirmations = confirmations
         self.minimum = self.client.toWei(minimum)
         self.refill_amount = self.client.toWei(refill_amount)
@@ -125,7 +126,8 @@ class Maintainer():
             logger.info('Sidechain balance (%s NCT) exceeds maximum (%s NCT). Withdrawing %s NCT', side_balance, self.maximum, withdrawal_amount)
             await self.client.relay.post_withdraw(withdrawal_amount)
             self.transfers += 1
-            logger.info('Transferred %d times of %s', self.transfers, self.testing)
+            if self.testing > 0:
+                logger.info('Transferred %d times of %s', self.transfers, self.testing)
             # Don't need to wait on withdrawals. The funds are instantly locked up on the sidechain
         else:
             logger.info('Insufficient funds for withdrawal. Have %s, need %s', side_balance, withdrawal_amount)
@@ -144,8 +146,10 @@ class Maintainer():
                 async with self.block_lock:
                     self.last_relay = self.latest_block + RELAY_LEEWAY
                     self.last_balance = side_balance
+                    self.initial_balance = side_balance
             self.transfers += 1
-            logger.info('Transferred %d times of %s', self.transfers, self.testing)
+            if self.testing > 0:
+                logger.info('Transferred %d times of %s', self.transfers, self.testing)
         else:
             logger.info('Insufficient funds for deposit. Have %s, need %s', home_balance, self.refill_amount)
 
@@ -176,15 +180,19 @@ class Maintainer():
                 logger.info('Waiting for %d more blocks', more_blocks)
                 return
             elif self.last_relay is not None:
-                logger.info('Finished waiting. Checking balance')
-                if self.last_balance >= side_balance:
-                    logger.error('Balance did not increase. Started at %s and ended at %s after transfer. Possible relay failure. Exiting', self.last_balance, side_balance)
-                    self.client.exit_code = 1
-                    self.client.stop()
+                logger.info('Checking balance')
+                # We can handle up to half refill_amount changes in either direction for any given block.
+                # Greater than that, and the client will have to restart.
+                if self.last_balance + (self.refill_amount / 2) >= side_balance:
+                    # Update balance, so each check against refill amount is from the latest changes
+                    self.last_balance = side_balance
+                    logger.error('Transfer does not appear to have completed. Initial Balance: %s Current Balance: %s.', self.initial_balance, side_balance)
                     return
-                logger.info('Balance increased to %s', side_balance)
-                self.last_relay = None
-                self.last_balance = 0
+                else:
+                    logger.info('Balance increased to %s', side_balance)
+                    self.last_relay = None
+                    self.last_balance = 0
+                    self.initial_balance = 0
 
             if self.maximum is not None and self.withdraw_target is not None and side_balance > self.maximum:
                 await self.try_withdrawal(side_balance)
