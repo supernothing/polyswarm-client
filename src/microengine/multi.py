@@ -1,9 +1,10 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import asyncio
 import logging
-import microengine
-import os
 
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
+from polyswarmclient.abstractscanner import AbstractScanner
 from microengine.clamav import Scanner as ClamavScanner
 from microengine.yara import Scanner as YaraScanner
 
@@ -11,28 +12,19 @@ logger = logging.getLogger(__name__)  # Initialize logger
 BACKENDS = [ClamavScanner, YaraScanner]
 
 
-class Microengine(AbstractMicroengine):
-    """Microengine which aggregates multiple sub-microengines"""
+class Scanner(AbstractScanner):
 
-    def __init__(self, client, testing=0, scanner=None, chains=None):
-        """Initialize a multi-backend microengine
-
-        Args:
-            client (polyswwarmclient.Client): Client to use
-            testing (int): How many test bounties to respond to
-            chains (set[str]): Chain(s) to operate on
-        """
-        super().__init__(client, testing, None, chains)
+    def __init__(self):
+        super(Scanner, self).__init__()
         self.backends = [cls() for cls in BACKENDS]
 
     async def scan(self, guid, content, chain):
-        """Scan an artifact with our chosen backends.
+        """Scan an artifact
 
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
             content (bytes): Content of the artifact to be scan
-            chain (str): Chain sample is being sent from
-
+            chain (str): Chain we are operating on
         Returns:
             (bool, bool, str): Tuple of bit, verdict, metadata
 
@@ -47,3 +39,19 @@ class Microengine(AbstractMicroengine):
         # Unzip the result tuples
         bits, verdicts, metadatas = tuple(zip(*results))
         return any(bits), any(verdicts), ';'.join(metadatas)
+
+
+class Microengine(AbstractMicroengine):
+    """Microengine which aggregates multiple sub-microengines"""
+
+    def __init__(self, client, testing=0, scanner=None, chains=None):
+        """Initialize a multi-backend microengine
+
+        Args:
+            client (polyswwarmclient.Client): Client to use
+            testing (int): How many test bounties to respond to
+            chains (set[str]): Chain(s) to operate on
+        """
+        scanner = Scanner()
+        super().__init__(client, testing, scanner, chains)
+
