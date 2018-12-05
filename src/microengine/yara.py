@@ -1,6 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import logging
 import os
-import tempfile
 import yara
 
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
