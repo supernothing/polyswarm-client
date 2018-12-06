@@ -3,13 +3,12 @@ image: docker:stable
 services:
   - docker:dind
 
-
-
 stages:
   - test
   - e2e
   - prebuildwindows
   - notifydependents
+  - pypi
 
 test:
   image: python:3.5
@@ -79,3 +78,14 @@ kickafterpacker:
   script:
     - python3 kick_downstream.py
 
+push-to-pypi:
+  image: python:3.5
+  stage: pypi
+  only:
+    - tags
+  before_script:
+    - pip install --upgrade setuptools wheel twine
+  script:
+    - python setup.py sdist bdist_wheel
+    - # Need to set env variables: TWINE_USERNAME, TWINE_PASSWORD, TWINE_REPOSITORY_URL in Gitlab
+    - twine upload dist/*
