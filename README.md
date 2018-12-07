@@ -21,7 +21,7 @@ You need python3 >= 3.5.4.
 Then to install polyswarm-client, use pip
 
 ```python
-$ pip install polyswarm-client
+pip install polyswarm-client
 ```
 
 ## Documentation
