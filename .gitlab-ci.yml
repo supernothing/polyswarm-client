@@ -87,5 +87,16 @@ push-to-pypi:
     - pip install --upgrade setuptools wheel twine
   script:
     - python setup.py sdist bdist_wheel
-    - # Need to set env variables: TWINE_USERNAME, TWINE_PASSWORD, TWINE_REPOSITORY_URL in Gitlab
+
+    # check git tag version vs setup.py version. bail if not equal.
+    - >-
+      tagver=$(git tag --sort='creatordate' --merged | tail -n 1)
+      setupver=$(grep "version=" setup.py | cut -d"'" -f 2)
+
+      if [ $tagver != $setupver ]
+      then
+        echo "git tag version ($tagver) does not match setup.py version ($setupver)"
+        exit 1
+      fi
+    # using env variables from Gitlab: TWINE_USERNAME, TWINE_PASSWORD, TWINE_REPOSITORY_URL
     - twine upload dist/*
