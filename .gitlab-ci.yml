@@ -90,7 +90,7 @@ push-to-pypi:
 
     # check git tag version vs setup.py version. bail if not equal.
     - >-
-      tagver=$(git tag --sort='creatordate' --merged | tail -n 1)
+      tagver=$(git describe --abbrev=0 --tags)
       setupver=$(grep "version=" setup.py | cut -d"'" -f 2)
 
       if [ $tagver != $setupver ]
