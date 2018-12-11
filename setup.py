@@ -15,7 +15,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='polyswarm-client',
-    version='1.0rc0',
+    version='1.0rc1',
     description='Client library to simplify interacting with a polyswarmd instance',
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -23,7 +23,7 @@ setup(
     author_email='info@polyswarm.io',
     url='https://github.com/polyswarm/polyswarm-client',
     license='MIT',
-    python_requires='>=3.5.6,<4',
+    python_requires='>=3.5.4,<4',
     install_requires=parse_requirements(),
     include_package_data=True,
     packages=['polyswarmclient', 'ambassador', 'arbiter', 'microengine', 'arbiter.verbatimdb', 'balancemanager'],
