@@ -17,6 +17,7 @@ class AbstractMicroengine(object):
         self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
 
         self.testing = testing
+        self.active_bounties = set()
         self.bounties_seen = 0
         self.reveals_posted = 0
         self.settles_posted = 0
@@ -92,6 +93,11 @@ class AbstractMicroengine(object):
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
+        if guid in self.active_bounties:
+            logger.info('Already received bounty, skipping')
+            return []
+        self.active_bounties.add(guid)
+
         self.bounties_seen += 1
         if self.testing > 0:
             if self.bounties_seen > self.testing:
@@ -169,6 +175,10 @@ class AbstractMicroengine(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
+        if bounty_guid not in self.active_bounties:
+            logger.warning('Trying to settle an inactive bounty, this should not happen')
+        self.active_bounties.remove(bounty_guid)
+
         self.settles_posted += 1
         if self.testing > 0:
             if self.settles_posted > self.testing:
