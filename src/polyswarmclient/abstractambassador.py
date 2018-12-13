@@ -135,7 +135,7 @@ class AbstractAmbassador(ABC):
                         continue
             elif balance < amount + bounty_fee:
                 tries += 1
-                logger.warning('Insufficient balance to post bounty on %s. Have %s, need %s.', chain, balance, amount+bounty_fee, extra={'extra': bounty})
+                logger.warning('Insufficient balance to post bounty on %s. Have %s NCT. Need %s NCT.', chain, balance, amount+bounty_fee, extra={'extra': bounty})
                 await asyncio.sleep(tries * tries)
                 continue
 

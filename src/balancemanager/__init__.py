@@ -65,9 +65,9 @@ class BalanceManager():
         else:
             if chain == 'home':
                 # Converting from amount_wei because it gives a better string output than self.amount
-                logger.info('Insufficient funds for deposit. Have %s, need %s', self.client.fromWei(balance), self.client.fromWei(amount_wei))
+                logger.info('Insufficient funds for deposit. Have %s NCT. Need %s NCT.', self.client.fromWei(balance), self.client.fromWei(amount_wei))
             elif chain == 'side':
-                logger.info('Insufficient funds for withdrawal. Have %s, need %s', self.client.fromWei(balance), self.client.fromWei(amount_wei))
+                logger.info('Insufficient funds for withdrawal. Have %s NCT. Need %s NCT.', self.client.fromWei(balance), self.client.fromWei(amount_wei))
 
             self.exit_code = 1
             self.client.stop()
@@ -130,7 +130,7 @@ class Maintainer():
                 logger.info('Transferred %d times of %s', self.transfers, self.testing)
             # Don't need to wait on withdrawals. The funds are instantly locked up on the sidechain
         else:
-            logger.info('Insufficient funds for withdrawal. Have %s, need %s', side_balance, withdrawal_amount)
+            logger.info('Insufficient funds for withdrawal. Have %s NCT. Need %s NCT.', side_balance, withdrawal_amount)
 
     async def try_deposit(self, side_balance):
         """
@@ -151,7 +151,7 @@ class Maintainer():
             if self.testing > 0:
                 logger.info('Transferred %d times of %s', self.transfers, self.testing)
         else:
-            logger.info('Insufficient funds for deposit. Have %s, need %s', home_balance, self.refill_amount)
+            logger.info('Insufficient funds for deposit. Have %s NCT. Need %s NCT', home_balance, self.refill_amount)
 
     async def watch_balance(self, block, chain):
         """
@@ -180,16 +180,16 @@ class Maintainer():
                 logger.info('Waiting for %d more blocks', more_blocks)
                 return
             elif self.last_relay is not None:
-                logger.info('Checking balance')
+                logger.info('Checking NCT balance')
                 # We can handle up to half refill_amount changes in either direction for any given block.
                 # Greater than that, and the client will have to restart.
                 if self.last_balance + (self.refill_amount / 2) >= side_balance:
                     # Update balance, so each check against refill amount is from the latest changes
                     self.last_balance = side_balance
-                    logger.error('Transfer does not appear to have completed. Initial Balance: %s Current Balance: %s.', self.initial_balance, side_balance)
+                    logger.error('Transfer does not appear to have completed. Initial Balance: %s NCT. Current Balance: %s NCT.', self.initial_balance, side_balance)
                     return
                 else:
-                    logger.info('Balance increased to %s', side_balance)
+                    logger.info('Balance increased to %s NCT', side_balance)
                     self.last_relay = None
                     self.last_balance = 0
                     self.initial_balance = 0

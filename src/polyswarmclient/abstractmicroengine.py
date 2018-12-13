@@ -126,7 +126,7 @@ class AbstractMicroengine(object):
         bid = self.bid(guid, chain)
         balance = await self.client.balances.get_nct_balance(chain)
         if balance < assertion_fee + bid:
-            logger.warning('Insufficient balance to post assertion for bounty on %s. Have %s need %s', chain, balance, assertion_fee + bid, extra={'extra': guid})
+            logger.warning('Insufficient balance to post assertion for bounty on %s. Have %s NCT. Need %s NCT', chain, balance, assertion_fee + bid, extra={'extra': guid})
             if self.testing > 0:
                 self.client.exit_code = 1
                 self.client.stop()

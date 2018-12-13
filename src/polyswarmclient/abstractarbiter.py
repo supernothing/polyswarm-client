@@ -90,7 +90,7 @@ class AbstractArbiter(object):
                     self.client.exit_code = 1
                     self.client.stop()
                 elif nct_balance < min_stake - staking_balance:
-                    logger.warning('Insufficient balance to deposit stake on %s. Have %s need %s', chain, nct_balance, min_stake - staking_balance)
+                    logger.warning('Insufficient balance to deposit stake on %s. Have %s NCT. Need %s NCT', chain, nct_balance, min_stake - staking_balance)
                     tries += 1
                     await asyncio.sleep(tries * tries)
                     continue

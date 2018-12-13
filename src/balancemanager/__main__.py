@@ -108,7 +108,7 @@ def maintain(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure
         minimum (float): Value of NCT on sidechain where you want to transfer more NCT
         refill-amount (float): Value of NCT to transfer anytime the balance falls below the minimum
     """
-    logger.info('Maintaining the minimum balance by depositing %s when it falls below %s', refill_amount, minimum)
+    logger.info('Maintaining the minimum balance by depositing %s NCT when it falls below %s NCT', refill_amount, minimum)
     if maximum > 0 and withdraw_target < 0:
         logger.warning('Must set a withdraw target when using a maximum')
         return
@@ -122,7 +122,7 @@ def maintain(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure
         return
 
     if maximum > 0 and withdraw_target > 0:
-        logger.info('Maintaining the maximum balance by withdrawing to %s when it exceeds the %s', withdraw_target, maximum)
+        logger.info('Maintaining the maximum balance by withdrawing to %s NCT when it exceeds the %s NCT', withdraw_target, maximum)
 
     client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
     Maintainer(client, confirmations, minimum, refill_amount, maximum, withdraw_target, testing).run()
