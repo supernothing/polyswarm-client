@@ -26,6 +26,7 @@ class AbstractAmbassador(ABC):
         self.testing = testing
         self.bounties_posted = 0
         self.settles_posted = 0
+        self.api_key = client.api_key
 
     @classmethod
     def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains=None, watchdog=0):
@@ -60,18 +61,6 @@ class AbstractAmbassador(ABC):
             |   - **amount** (*int*): Amount to place this bounty for
             |   - **ipfs_uri** (*str*): IPFS URI of the artifact to post
             |   - **duration** (*int*): Duration of the bounty in blocks
-        """
-        pass
-
-    def on_bounty_posted(self, guid, amount, ipfs_uri, expiration, chain):
-        """Override this to implement additional steps after bounty submission
-
-        Args:
-            guid (str): GUID of the posted bounty
-            amount (int): Amount of the posted bounty
-            ipfs_uri (str): URI of the artifact submitted
-            expiration (int): Block number of bounty expiration
-            chain (str): Chain we are operating on
         """
         pass
 
@@ -124,7 +113,7 @@ class AbstractAmbassador(ABC):
             if balance < amount + bounty_fee and tries >= MAX_TRIES:
                     # Skip to next bounty, so one ultra high value bounty doesn't DOS ambassador
                     if self.testing:
-                        logger.error('Failed %d attempts to post bounty to low balance. Exiting', tries)
+                        logger.error('Failed %d attempts to post bounty with low balance. Exiting', tries)
                         self.client.exit_code = 1
                         self.client.stop()
                         return
@@ -140,15 +129,18 @@ class AbstractAmbassador(ABC):
                 continue
 
             self.bounties_posted += 1
+            await self.on_before_bounty_posted(amount, ipfs_uri, duration, chain)
             logger.info('Submitting bounty %s', self.bounties_posted, extra={'extra': bounty})
-            bounties = await self.client.bounties.post_bounty(amount, ipfs_uri, duration, chain)
+            bounties = await self.on_post_bounty(amount, ipfs_uri, duration, chain)
+            if not bounties:
+                await self.on_bounty_post_failed(amount, ipfs_uri, duration, chain)
 
             for b in bounties:
                 guid = b['guid']
                 expiration = int(b['expiration'])
 
                 # Handle any additional steps in derived implementations
-                self.on_bounty_posted(guid, amount, ipfs_uri, expiration, chain)
+                await self.on_after_bounty_posted(guid, amount, ipfs_uri, expiration, chain)
 
                 sb = SettleBounty(guid)
                 self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
@@ -192,3 +184,54 @@ class AbstractAmbassador(ABC):
             logger.info("All testing bounties complete, exiting")
             self.client.stop()
         return ret
+
+    async def on_before_bounty_posted(self, amount, ipfs_uri, duration, chain):
+        """Override this to implement additional steps before the bounty is posted
+
+        Args:
+            amount (int): Amount to place this bounty for
+            ipfs_uri (str): IPFS URI of the artifact to post
+            duration (int): Duration of the bounty in blocks
+            chain (str): Chain we are operating on
+        """
+        pass
+
+    async def on_bounty_post_failed(self, amount, ipfs_uri, duration, chain):
+        """Override this to implement additional steps when a bounty fails to post
+
+        Args:
+            amount (int): Amount to place this bounty for
+            ipfs_uri (str): IPFS URI of the artifact to post
+            duration (int): Duration of the bounty in blocks
+            chain (str): Chain we are operating on
+        """
+        pass
+
+    async def on_after_bounty_posted(self, guid, amount, ipfs_uri, expiration, chain):
+        """Override this to implement additional steps after bounty is posted
+
+        Args:
+            guid (str): GUID of the posted bounty
+            amount (int): Amount of the posted bounty
+            ipfs_uri (str): URI of the artifact submitted
+            expiration (int): Block number of bounty expiration
+            chain (str): Chain we are operating on
+            error (dict): Error messages
+        """
+        pass
+
+    async def on_post_bounty(self, amount, ipfs_uri, duration, chain):
+        """
+        Called when ambassador is going to post a bounty.
+        This implements the logic to reach out and call polyswarmd.
+        Override this to implement additional when posting the bounty
+
+        Args:
+            amount (int): Amount to place this bounty for
+            ipfs_uri (str): IPFS URI of the artifact to post
+            duration (int): Duration of the bounty in blocks
+            chain (str): Chain we are operating on
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events
+        """
+        return await self.client.bounties.post_bounty(amount, ipfs_uri, duration, chain, api_key=self.api_key)

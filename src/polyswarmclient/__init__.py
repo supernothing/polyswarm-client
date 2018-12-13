@@ -56,6 +56,7 @@ def is_valid_ipfs_uri(ipfs_uri):
         logger.exception('Unexpected error: %s', err)
     return False
 
+
 class Client(object):
     """
     Client to connected to a ethereum wallet as well as a pollyswarm_d instance.
@@ -189,7 +190,7 @@ class Client(object):
             self.staking = None
             self.offers = None
 
-    async def make_request(self, method, path, chain, json=None, track_nonce=False, tries=5):
+    async def make_request(self, method, path, chain, json=None, track_nonce=False, api_key=None, tries=5):
         """Make a request to polyswarmd, expecting a json response
 
         Args:
@@ -198,6 +199,7 @@ class Client(object):
             chain (str): Which chain to operate on
             json (obj): JSON payload to send with request
             track_nonce (bool): Whether to track generated transaction and update nonce
+            api_key (str): Override default API key
             tries (int): Number of times to retry before giving up
         Returns:
             (bool, obj): Tuple of boolean representing success, and response JSON parsed from polyswarmd
@@ -215,13 +217,17 @@ class Client(object):
             await self.base_nonce_lock[chain].acquire()
             params['base_nonce'] = self.base_nonce[chain]
 
+        # Allow overriding API key per request
+        headers = {'Authorization': api_key} if api_key is not None else None
+
         qs = '&'.join([a + '=' + str(b) for (a, b) in params.items()])
         response = {}
         try:
             while tries > 0:
                 tries -= 1
 
-                async with self.__session.request(method, uri, params=params, json=json) as raw_response:
+                async with self.__session.request(method, uri, params=params, headers=headers,
+                                                  json=json) as raw_response:
                     response = await raw_response.json()
                 logger.debug('%s %s?%s', method, path, qs, extra={'extra': response})
 
@@ -244,12 +250,13 @@ class Client(object):
 
         return True, response.get('result')
 
-    async def post_transactions(self, transactions, chain):
+    async def post_transactions(self, transactions, chain, api_key=None):
         """Post a set of (signed) transactions to Ethereum via polyswarmd, parsing the emitted events
 
         Args:
             transactions (List[Transaction]): The transactions to sign and post
             chain (str): Which chain to operate on
+            api_key (str): Override default API key
 
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
@@ -266,7 +273,7 @@ class Client(object):
             signed.append(raw)
 
         success, result = await self.make_request('POST', '/transactions', chain, json={'transactions': signed},
-                                                  tries=1)
+                                                  api_key=api_key, tries=1)
         if not success:
             if self.tx_error_fatal:
                 logger.error('Received fatal transaction error', extra={'extra': result})
@@ -279,7 +286,7 @@ class Client(object):
 
         return result
 
-    async def make_request_with_transactions(self, method, path, chain, json=None, tries=5):
+    async def make_request_with_transactions(self, method, path, chain, json=None, api_key=None, tries=5):
         """Make a transaction generating request to polyswarmd, then sign and post the transactions
 
         Args:
@@ -287,6 +294,7 @@ class Client(object):
             path (str): Path portion of URI to send request to
             chain (str): Which chain to operate on
             json (obj): JSON payload to send with request
+            api_key (str): Override default API key
             tries (int): Number of times to retry before giving up
         Returns:
             (bool, obj): Tuple of boolean representing success, and response JSON parsed from polyswarmd
@@ -294,7 +302,8 @@ class Client(object):
         while tries > 0:
             tries -= 1
 
-            success, result = await self.make_request(method, path, chain, json=json, track_nonce=True, tries=1)
+            success, result = await self.make_request(method, path, chain, json=json, track_nonce=True, api_key=api_key,
+                                                      tries=1)
             if not success or not 'transactions' in result:
                 logger.error('Expected transactions, received', extra={'extra': result})
                 continue
@@ -303,7 +312,7 @@ class Client(object):
             transactions = result.get('transactions', [])
             if 'transactions' in result:
                 del result['transactions']
-            tx_result = await self.post_transactions(transactions, chain)
+            tx_result = await self.post_transactions(transactions, chain, api_key=api_key)
 
             errors = tx_result.get('errors', [])
             for e in errors:
@@ -317,21 +326,23 @@ class Client(object):
 
         return False, {}
 
-    async def update_base_nonce(self, chain):
+    async def update_base_nonce(self, chain, api_key=None):
         """Update account's nonce from polyswarmd
 
         Args:
             chain (str): Which chain to operate on
+            api_key (str): Override default API key
         """
         async with self.base_nonce_lock[chain]:
-            success, self.base_nonce[chain] = await self.make_request('GET', '/nonce', chain)
+            success, self.base_nonce[chain] = await self.make_request('GET', '/nonce', chain, api_key=api_key)
 
-    async def list_artifacts(self, ipfs_uri):
+    async def list_artifacts(self, ipfs_uri, api_key=None):
         """
         Return a list of artificats from a given ipfs_uri.
 
         Args:
             ipfs_uri (str): IPFS URI to get artifiacts from.
+            api_key (str): Override default API key
 
         Returns:
             List[(str, str)]: A list of tuples. First tuple element is the artifact name, second tuple element
@@ -345,7 +356,8 @@ class Client(object):
 
         uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}'.format(ipfs_uri))
         params = dict(self.params)
-        async with self.__session.get(uri, params=self.params) as raw_response:
+        headers = {'Authorization': api_key} if api_key is not None else None
+        async with self.__session.get(uri, params=params, headers=headers) as raw_response:
             response = await raw_response.json()
 
         logger.debug('GET /artifacts/%s', ipfs_uri, extra={'extra': response})
@@ -355,12 +367,13 @@ class Client(object):
 
         return [(a['name'], a['hash']) for a in response.get('result', {})]
 
-    async def get_artifact(self, ipfs_uri, index):
+    async def get_artifact(self, ipfs_uri, index, api_key=None):
         """Retrieve an artifact from IPFS via polyswarmd
 
         Args:
             ipfs_uri (str): IPFS hash of the artifact to retrieve
             index (int): Index of the sub artifact to retrieve
+            api_key (str): Override default API key
         Returns:
             (bytes): Content of the artifact
         """
@@ -369,7 +382,8 @@ class Client(object):
 
         uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}/{1}'.format(ipfs_uri, index))
         params = dict(self.params)
-        async with self.__session.get(uri, params=params) as raw_response:
+        headers = {'Authorization': api_key} if api_key is not None else None
+        async with self.__session.get(uri, params=params, headers=headers) as raw_response:
             if raw_response.status == 200:
                 return await raw_response.read()
 
@@ -383,10 +397,11 @@ class Client(object):
 
     # Async iterator helper class
     class __GetArtifacts(object):
-        def __init__(self, client, ipfs_uri):
+        def __init__(self, client, ipfs_uri, api_key=None):
             self.i = 0
             self.client = client
             self.ipfs_uri = ipfs_uri
+            self.api_key = api_key
 
         async def __aiter__(self):
             return self
@@ -399,18 +414,19 @@ class Client(object):
             self.i += 1
 
             if i < 256:
-                content = await self.client.get_artifact(self.ipfs_uri, i)
+                content = await self.client.get_artifact(self.ipfs_uri, i, api_key=self.api_key)
                 if content:
                     return content
 
             raise StopAsyncIteration
 
-    def get_artifacts(self, ipfs_uri):
+    def get_artifacts(self, ipfs_uri, api_key=None):
         """
         Get an iterator to return artifacts.
 
         Args:
             ipfs_uri (str): URI where artificats are located
+            api_key (str): Override default API key
 
         Returns:
             `__GetArtifacts` iterator
@@ -418,9 +434,9 @@ class Client(object):
         if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
-        return Client.__GetArtifacts(self, ipfs_uri)
+        return Client.__GetArtifacts(self, ipfs_uri, api_key=api_key)
 
-    async def post_artifacts(self, files):
+    async def post_artifacts(self, files, api_key=None):
         """Post artifacts to polyswarmd, flexible files parameter to support different use-cases
 
         Args:
@@ -428,6 +444,7 @@ class Client(object):
                 (filename, bytes): File name and contents to upload
                 (filename, file_obj): (Optional) file name and file object to upload
                 (filename, None): File name to open and upload
+            api_key (str): Override default API key
         Returns:
             (str): IPFS URI of the uploaded artifact
         """
@@ -453,7 +470,8 @@ class Client(object):
 
                 uri = urljoin(self.polyswarmd_uri, '/artifacts')
                 params = dict(self.params)
-                async with self.__session.post(uri, params=params, data=mpwriter) as response:
+                headers = {'Authorization': api_key} if api_key is not None else None
+                async with self.__session.post(uri, params=params, headers=headers, data=mpwriter) as response:
                     response = await response.json()
 
                 logger.debug('POST/artifacts', extra={'extra': response})

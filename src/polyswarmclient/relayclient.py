@@ -8,37 +8,41 @@ class RelayClient(object):
         self.__client = client
         self.parameters = {}
 
-    async def post_deposit(self, amount):
+    async def post_deposit(self, amount, api_key=None):
         """Post a deposit to the relay contract
 
         Args:
             amount (int): The amount to deposit to the sidechain
             chain (str): Which chain to operate on
+            api_key (str): Override default API key
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
         deposit = {
             'amount': str(amount),
         }
-        success, results = await self.__client.make_request_with_transactions('POST', '/relay/deposit', 'home', json=deposit)
+        success, results = await self.__client.make_request_with_transactions('POST', '/relay/deposit', 'home',
+                                                                              json=deposit, api_key=api_key)
         if not success or 'transfers' not in results:
             logger.error('Expected deposit to relay', extra={'extra': results})
 
         return results.get('transfers', [])
 
-    async def post_withdraw(self, amount):
+    async def post_withdraw(self, amount, api_key=None):
         """Post a withdrawal to the relay contract
 
         Args:
             amount (int): The amount to withdraw from the sidechain
             chain (str): Which chain to operate on
+            api_key (str): Override default API key
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
         withdrawal = {
             'amount': str(amount),
         }
-        success, results = await self.__client.make_request_with_transactions('POST', '/relay/withdrawal', chain='side', json=withdrawal)
+        success, results = await self.__client.make_request_with_transactions('POST', '/relay/withdrawal', chain='side',
+                                                                              json=withdrawal, api_key=api_key)
         if not success or 'transfers' not in results:
             logger.error('Expected withdrawl from relay', extra={'extra': results})
             return {}
