@@ -24,7 +24,8 @@ def choose_backend(backend):
     module_name_string = backend_list[0]
 
     # determine if this string is a module that can be imported as-is or as sub-module of the arbiter package
-    mod_spec = importlib.util.find_spec(module_name_string) or importlib.util.find_spec("arbiter.{0}".format(module_name_string))
+    mod_spec = importlib.util.find_spec(module_name_string) or importlib.util.find_spec(
+        "arbiter.{0}".format(module_name_string))
     if mod_spec is None:
         raise Exception("Arbiter backend `{0}` cannot be imported as a python module.".format(backend))
 
@@ -66,6 +67,7 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
     """Entrypoint for the arbiter driver
 
     Args:
+        log (str): Logging level
         polyswarmd_addr(str): Address of polyswarmd
         keyfile (str): Path to private key file to use to sign transactions
         password (str): Password to decrypt the encrypted private key
@@ -73,6 +75,7 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
         api_key(str): API key to use with polyswarmd
         testing (int): Mode to process N bounties then exit (optional)
         insecure_transport (bool): Connect to polyswarmd without TLS
+        chains (List[str]): Chain(s) to operate on
         log_format (str): Format to output logs in. `text` or `json`
     """
 

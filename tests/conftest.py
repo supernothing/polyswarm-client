@@ -3,7 +3,7 @@ import base64
 import pytest
 import tempfile
 
-from . import success, failure
+from . import success
 from aioresponses import aioresponses
 from asynctest.mock import patch
 from polyswarmclient import Client
@@ -81,7 +81,7 @@ class MockClient(Client):
             tf.write(TESTKEY)
             tf.flush()
 
-            super().__init__('localhost', tf.name, TESTKEY_PASSWORD, api_key=None, insecure_transport=True)
+            super().__init__('localhost', tf.name, TESTKEY_PASSWORD, insecure_transport=True)
 
         self.http_mock = aioresponses()
 

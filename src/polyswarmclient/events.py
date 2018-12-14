@@ -85,7 +85,7 @@ class OnNewBlockCallback(Callback):
 class OnNewBountyCallback(Callback):
     """Called upon receiving a new bounty"""
 
-    async def run(self, guid, author, amount, uri, expiration, chain):
+    async def run(self, guid, author, amount, uri, expiration, block_number, txhash, chain):
         """Run the registered callbacks
 
         Args:
@@ -93,15 +93,17 @@ class OnNewBountyCallback(Callback):
             author (str): Author of the bounty
             uri (str): URI of the artifacts in the bounty
             expiration (int): Block number the bounty expires on
+            block_number (int): Block number the bounty was posted on
+            txhash (str): Transaction hash which caused the event
             chain (str): Chain event received on
         """
-        return await super().run(guid, author, amount, uri, expiration, chain)
+        return await super().run(guid, author, amount, uri, expiration, block_number, txhash, chain)
 
 
 class OnNewAssertionCallback(Callback):
     """Called upon receiving a new assertion"""
 
-    async def run(self, bounty_guid, author, index, bid, mask, commitment, chain):
+    async def run(self, bounty_guid, author, index, bid, mask, commitment, block_number, txhash, chain):
         """Run the registered callbacks
 
         Args:
@@ -110,15 +112,17 @@ class OnNewAssertionCallback(Callback):
             index (int): Index of the assertion within the bounty
             mask (List[bool]): Bitmask indicating which artifacts are being asserted on
             commitment (int): Commitment hash representing the assertion's confidential verdicts
+            block_number (int): Block number the assertion was posted on
+            txhash (str): Transaction hash which caused the event
             chain (str): Chain event received on
         """
-        return await super().run(bounty_guid, author, index, bid, mask, commitment, chain)
+        return await super().run(bounty_guid, author, index, bid, mask, commitment, block_number, txhash, chain)
 
 
 class OnRevealAssertionCallback(Callback):
     """Called upon receiving a new assertion reveal"""
 
-    async def run(self, bounty_guid, author, index, nonce, verdicts, metadata, chain):
+    async def run(self, bounty_guid, author, index, nonce, verdicts, metadata, block_number, txhash, chain):
         """Run the registered callbacks
 
         Args:
@@ -128,69 +132,78 @@ class OnRevealAssertionCallback(Callback):
             nonce (int): Nonce used to calculate the commitment hash for this assertion
             verdicts (List[bool]): Bitmask indicating malicious or benign verdicts for each artifact
             metadata (str): Optional metadata for this assertion
+            block_number (int): Block number the assertion was revealed on
+            txhash (str): Transaction hash which caused the event
             chain (str): Chain event received on
         """
-        return await super().run(bounty_guid, author, index, nonce, verdicts, metadata, chain)
+        return await super().run(bounty_guid, author, index, nonce, verdicts, metadata, block_number, txhash, chain)
 
 
 class OnNewVoteCallback(Callback):
     """Called upon receiving a new arbiter vote"""
 
-    async def run(self, bounty_guid, votes, voter, chain):
+    async def run(self, bounty_guid, votes, voter, block_number, txhash, chain):
         """Run the registered callbacks
 
         Args:
             bounty_guid (str): Bounty GUID
             votes (List[bool]): Bitmask indicating malicious or benign votes for each artifact
             voter (str): Which arbiter is voting
+            block_number (int): Block number the vote was placed on
+            txhash (str): Transaction hash which caused the event
             chain (str): Chain event received on
         """
-        return await super().run(bounty_guid, votes, voter, chain)
+        return await super().run(bounty_guid, votes, voter, block_number, txhash, chain)
 
 
 class OnQuorumReachedCallback(Callback):
     """Called upon a bounty reaching quorum"""
 
-    async def run(self, bounty_guid, quorum_block, chain):
+    async def run(self, bounty_guid, block_number, txhash, chain):
         """Run the registered callbacks
 
         Args:
             bounty_guid (str): Bounty GUID
-            quorum_block (int): Block the bounty reached quorum on
+            block_number (int): Block number quorum was reached on
+            txhash (str): Transaction hash which caused the event
             chain (str): Chain event received on
         """
-        return await super().run(bounty_guid, quorum_block, chain)
+        return await super().run(bounty_guid, block_number, txhash, chain)
 
 
 class OnSettledBountyCallback(Callback):
     """Called upon a bounty being settled"""
 
-    async def run(self, bounty_guid, settled_block, settler, chain):
+    async def run(self, bounty_guid, settler, payout, block_number, txhash, chain):
         """Run the registered callbacks
 
         Args:
             bounty_guid (str): Bounty GUID
-            settled_block (int): Block the bounty was settled on
             settler (str): Address settling the bounty
+            payout (int): Amount paied to the settler
+            block_number (int): Block number the bounty was settled on
+            txhash (str): Transaction hash which caused the event
             chain (str): Chain event received on
         """
-        return await super().run(bounty_guid, settled_block, settler, chain)
+        return await super().run(bounty_guid, settler, payout, block_number, txhash, chain)
 
 
 class OnInitializedChannelCallback(Callback):
     """Called upon a channel being initialized"""
 
-    async def run(self, guid, ambassador, expert, multi_signature):
+    async def run(self, guid, ambassador, expert, multi_signature, block_number, txhash):
         """Run the registered callbacks
 
         Args:
             guid (str): GUID of the channel
             ambassador (str): Address of the ambassador
             expert (str): Address of the expert
-            msig (str): Address of the multi sig contract
+            multi_signature (str): Address of the multi sig contract
+            block_number (int): Block number the channel was initialized on
+            txhash (str): Transaction hash which caused the event
         """
 
-        return await super().run(guid, ambassador, expert, multi_signature)
+        return await super().run(guid, ambassador, expert, multi_signature, block_number, txhash)
 
 
 class Schedule(object):

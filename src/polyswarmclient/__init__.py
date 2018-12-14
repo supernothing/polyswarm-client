@@ -108,6 +108,8 @@ class Client(object):
         self.bounties = None
         self.staking = None
         self.offers = None
+        self.relay = None
+        self.balances = None
 
         # Events from client
         self.on_run = events.OnRunCallback()
@@ -129,19 +131,23 @@ class Client(object):
 
     def __exception_handler(self, loop, context):
         """
-        See _Python docs: https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.call_exception_handler for more information.
+        See _Python docs: https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.call_exception_handler
+        for more information.
         """
         self.exit_code = -1
         self.stop()
         loop.default_exception_handler(context)
 
-    def run(self, chains={'home', 'side'}):
+    def run(self, chains=None):
         """
         Run the main event loop
 
         Args:
             chains (set(str)): Set of chains to operate on. Defaults to {'home', 'side'}
         """
+        if chains is None:
+            chains = {'home', 'side'}
+
         asyncio.get_event_loop().set_exception_handler(self.__exception_handler)
         asyncio.get_event_loop().create_task(self.run_task(chains))
         asyncio.get_event_loop().run_forever()
@@ -155,13 +161,15 @@ class Client(object):
         """
         asyncio.get_event_loop().stop()
 
-    async def run_task(self, chains={'home', 'side'}):
+    async def run_task(self, chains=None):
         """
         How the event loop handles running a task.
 
         Args:
             chains (set(str)): Set of chains to operate on. Defaults to {'home', 'side'}
         """
+        if chains is None:
+            chains = {'home', 'side'}
         if self.api_key and not self.polyswarmd_uri.startswith('https://'):
             raise Exception('Refusing to send API key over insecure transport')
 
@@ -304,7 +312,7 @@ class Client(object):
 
             success, result = await self.make_request(method, path, chain, json=json, track_nonce=True, api_key=api_key,
                                                       tries=1)
-            if not success or not 'transactions' in result:
+            if not success or 'transactions' not in result:
                 logger.error('Expected transactions, received', extra={'extra': result})
                 continue
 
@@ -389,10 +397,12 @@ class Client(object):
 
             return None
 
-    def toWei(self, amount, unit='ether'):
+    @staticmethod
+    def to_wei(amount, unit='ether'):
         return w3.toWei(amount, unit)
 
-    def fromWei(self, amount, unit='ether'):
+    @staticmethod
+    def from_wei(amount, unit='ether'):
         return w3.fromWei(amount, unit)
 
     # Async iterator helper class
@@ -510,13 +520,14 @@ class Client(object):
         while self.__schedule[chain].peek() and self.__schedule[chain].peek()[0] < number:
             exp, task = self.__schedule[chain].get()
             if isinstance(task, events.RevealAssertion):
-                asyncio.get_event_loop().create_task(
+                await asyncio.get_event_loop().create_task(
                     self.on_reveal_assertion_due.run(bounty_guid=task.guid, index=task.index, nonce=task.nonce,
                                                      verdicts=task.verdicts, metadata=task.metadata, chain=chain))
             elif isinstance(task, events.SettleBounty):
-                asyncio.get_event_loop().create_task(self.on_settle_bounty_due.run(bounty_guid=task.guid, chain=chain))
+                await asyncio.get_event_loop().create_task(
+                    self.on_settle_bounty_due.run(bounty_guid=task.guid, chain=chain))
             elif isinstance(task, events.VoteOnBounty):
-                asyncio.get_event_loop().create_task(
+                await asyncio.get_event_loop().create_task(
                     self.on_vote_on_bounty_due.run(bounty_guid=task.guid, votes=task.votes,
                                                    valid_bloom=task.valid_bloom, chain=chain))
 
@@ -535,11 +546,14 @@ class Client(object):
         last_block = 0
         async with websockets.connect(wsuri) as ws:
             while not ws.closed:
+                resp = None
                 try:
                     resp = await ws.recv()
                     resp = json.loads(resp)
                     event = resp.get('event')
                     data = resp.get('data')
+                    block_number = resp.get('block_number')
+                    txhash = resp.get('txhash')
                 except json.JSONDecodeError:
                     logging.error('Invalid event response from polyswarmd: %s', resp)
                     continue
@@ -557,21 +571,28 @@ class Client(object):
                     if number % 100 == 0:
                         logger.debug('Block %s on chain %s', number, chain)
 
-                    asyncio.get_event_loop().create_task(self.on_new_block.run(number=number, chain=chain))
-                    asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number, chain=chain))
+                    await asyncio.get_event_loop().create_task(self.on_new_block.run(number=number, chain=chain))
+                    await asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number, chain=chain))
                 elif event == 'bounty':
-                    asyncio.get_event_loop().create_task(self.on_new_bounty.run(**data, chain=chain))
+                    await asyncio.get_event_loop().create_task(
+                        self.on_new_bounty.run(**data, block_number=block_number, txhash=txhash, chain=chain))
                 elif event == 'assertion':
-                    asyncio.get_event_loop().create_task(self.on_new_assertion.run(**data, chain=chain))
+                    await asyncio.get_event_loop().create_task(
+                        self.on_new_assertion.run(**data, block_number=block_number, txhash=txhash, chain=chain))
                 elif event == 'reveal':
-                    asyncio.get_event_loop().create_task(self.on_reveal_assertion.run(**data, chain=chain))
+                    await asyncio.get_event_loop().create_task(
+                        self.on_reveal_assertion.run(**data, block_number=block_number, txhash=txhash, chain=chain))
                 elif event == 'vote':
-                    asyncio.get_event_loop().create_task(self.on_new_vote.run(**data, chain=chain))
+                    await asyncio.get_event_loop().create_task(
+                        self.on_new_vote.run(**data, block_number=block_number, txhash=txhash, chain=chain))
                 elif event == 'quorum':
-                    asyncio.get_event_loop().create_task(self.on_quorum_reached.run(**data, chain=chain))
+                    await asyncio.get_event_loop().create_task(
+                        self.on_quorum_reached.run(**data, block_number=block_number, txhash=txhash, chain=chain))
                 elif event == 'settled_bounty':
-                    asyncio.get_event_loop().create_task(self.on_settled_bounty.run(**data, chain=chain))
+                    await asyncio.get_event_loop().create_task(
+                        self.on_settled_bounty.run(**data, block_number=block_number, txhash=txhash, chain=chain))
                 elif event == 'initialized_channel':
-                    asyncio.get_event_loop().create_task(self.on_initialized_channel.run(**data))
+                    await asyncio.get_event_loop().create_task(
+                        self.on_initialized_channel.run(**data, block_number=block_number, txhash=txhash))
                 else:
                     logger.error('Invalid event type from polyswarmd: %s', resp)

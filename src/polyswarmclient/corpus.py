@@ -3,7 +3,6 @@ import os
 import tempfile
 import urllib.request
 from subprocess import check_call
-from arbiter.verbatimdb.db import generate_db
 
 logger = logging.getLogger(__name__)  # Initialize logger
 

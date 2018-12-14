@@ -13,7 +13,6 @@ class RelayClient(object):
 
         Args:
             amount (int): The amount to deposit to the sidechain
-            chain (str): Which chain to operate on
             api_key (str): Override default API key
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
@@ -33,7 +32,6 @@ class RelayClient(object):
 
         Args:
             amount (int): The amount to withdraw from the sidechain
-            chain (str): Which chain to operate on
             api_key (str): Override default API key
         Returns:
             Response JSON parsed from polyswarmd containing emitted events

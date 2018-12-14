@@ -1,23 +1,22 @@
 import asyncio
-import functools
-import sys
 import logging
 
-from polyswarmclient import Client
-
-logger = logging.getLogger(__name__)  # Initialize logger
-
+logger = logging.getLogger(__name__)
 
 # Extra blocks for the relay to process. Includes multiple relay transactions.
 # 3 is minimum. 5 Gives a little extra room for slow transactions
 RELAY_LEEWAY = 5
 
-class BalanceManager():
+
+class BalanceManager(object):
     """
     Balance manager is used for single transfer events in either direction.
     Create a client, choose a chain and amount then run it.
     """
-    def __init__(self, client, amount, testing=0, chains={'home', 'side'}):
+
+    def __init__(self, client, amount, testing=0, chains=None):
+        if chains is None:
+            chains = {'home', 'side'}
         self.client = client
         self.chains = chains
         self.amount = amount
@@ -52,7 +51,7 @@ class BalanceManager():
         It also checks the balances to make sure the source chain wallet can cover the transfer.
         """
         balance = await self.client.balances.get_nct_balance(chain)
-        amount_wei = self.client.toWei(self.amount)
+        amount_wei = self.client.to_wei(self.amount)
         if balance >= amount_wei:
             if chain == 'home':
                 # deposit
@@ -65,33 +64,41 @@ class BalanceManager():
         else:
             if chain == 'home':
                 # Converting from amount_wei because it gives a better string output than self.amount
-                logger.info('Insufficient funds for deposit. Have %s NCT. Need %s NCT.', self.client.fromWei(balance), self.client.fromWei(amount_wei))
+                logger.info('Insufficient funds for deposit. Have %s NCT. Need %s NCT.', self.client.fromWei(balance),
+                            self.client.fromWei(amount_wei))
             elif chain == 'side':
-                logger.info('Insufficient funds for withdrawal. Have %s NCT. Need %s NCT.', self.client.fromWei(balance), self.client.fromWei(amount_wei))
+                logger.info('Insufficient funds for withdrawal. Have %s NCT. Need %s NCT.',
+                            self.client.fromWei(balance), self.client.fromWei(amount_wei))
 
             self.exit_code = 1
             self.client.stop()
+
 
 class Deposit(BalanceManager):
     """
     Deposit only version of Balance Manager
     """
+
     def __init__(self, client, amount, testing=0):
         super().__init__(client, amount, testing=testing, chains={'home'})
+
 
 class Withdraw(BalanceManager):
     """
     Withdraw only version of Balance Manager
     """
+
     def __init__(self, client, amount, testing=0):
         super().__init__(client, amount, testing=testing, chains={'side'})
 
-class Maintainer():
+
+class Maintainer(object):
     """
     This class maintains a balance on the sidechain.
     It requires a base setup of a minimum balance.
     Optionally, it can take a maximum balance, so that earnings can automatically be transferred back to the homechain.
     """
+
     def __init__(self, client, confirmations, minimum, refill_amount, maximum, withdraw_target, testing=0):
         self.deposit_lock = asyncio.Lock()
         self.block_lock = asyncio.Lock()
@@ -102,10 +109,10 @@ class Maintainer():
         self.last_balance = 0
         self.initial_balance = 0
         self.confirmations = confirmations
-        self.minimum = self.client.toWei(minimum)
-        self.refill_amount = self.client.toWei(refill_amount)
-        self.maximum = None if maximum < 0 else self.client.toWei(maximum)
-        self.withdraw_target = None if withdraw_target < 0 else self.client.toWei(withdraw_target)
+        self.minimum = self.client.to_wei(minimum)
+        self.refill_amount = self.client.to_wei(refill_amount)
+        self.maximum = None if maximum < 0 else self.client.to_wei(maximum)
+        self.withdraw_target = None if withdraw_target < 0 else self.client.to_wei(withdraw_target)
         self.testing = testing
         self.transfers = 0
 
@@ -123,7 +130,8 @@ class Maintainer():
         """
         withdrawal_amount = side_balance - self.withdraw_target
         if side_balance > withdrawal_amount:
-            logger.info('Sidechain balance (%s NCT) exceeds maximum (%s NCT). Withdrawing %s NCT', side_balance, self.maximum, withdrawal_amount)
+            logger.info('Sidechain balance (%s NCT) exceeds maximum (%s NCT). Withdrawing %s NCT', side_balance,
+                        self.maximum, withdrawal_amount)
             await self.client.relay.post_withdraw(withdrawal_amount)
             self.transfers += 1
             if self.testing > 0:
@@ -139,7 +147,8 @@ class Maintainer():
         home_balance = await self.client.balances.get_nct_balance(chain='home')
         side_balance = await self.client.balances.get_nct_balance(chain='side')
         if home_balance >= self.refill_amount:
-            logger.info('Sidechain balance (%s NCT) is below minimum (%s NCT). Depositing %s NCT', side_balance, self.minimum, self.refill_amount)
+            logger.info('Sidechain balance (%s NCT) is below minimum (%s NCT). Depositing %s NCT', side_balance,
+                        self.minimum, self.refill_amount)
             # Tell it to wait for the transaction to complete
             if await self.client.relay.post_deposit(self.refill_amount):
                 # Account for blocks that moved while creating the transaction, and the transactions made by the relay
@@ -186,7 +195,9 @@ class Maintainer():
                 if self.last_balance + (self.refill_amount / 2) >= side_balance:
                     # Update balance, so each check against refill amount is from the latest changes
                     self.last_balance = side_balance
-                    logger.error('Transfer does not appear to have completed. Initial Balance: %s NCT. Current Balance: %s NCT.', self.initial_balance, side_balance)
+                    logger.error(
+                        'Transfer does not appear to have completed. Initial Balance: %s NCT. Current Balance: %s NCT.',
+                        self.initial_balance, side_balance)
                     return
                 else:
                     logger.info('Balance increased to %s NCT', side_balance)

@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from polyswarmclient import Client
@@ -23,7 +22,8 @@ class AbstractMicroengine(object):
         self.settles_posted = 0
 
     @classmethod
-    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, scanner=None, chains=None):
+    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False,
+                scanner=None, chains=None):
         """Connect the Microengine to a Client.
 
         Args:
@@ -61,7 +61,8 @@ class AbstractMicroengine(object):
         if self.scanner:
             return await self.scanner.scan(guid, content, chain)
 
-        raise NotImplementedError("You must 1) override this scan method OR 2) provide a scanner to your Microengine constructor")
+        raise NotImplementedError(
+            "You must 1) override this scan method OR 2) provide a scanner to your Microengine constructor")
 
     def bid(self, guid, chain):
         """Override this to implement custom bid calculation logic
@@ -80,7 +81,7 @@ class AbstractMicroengine(object):
         """
         self.client.run(self.chains)
 
-    async def handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
+    async def handle_new_bounty(self, guid, author, amount, uri, expiration, block_number, txhash, chain):
         """Scan and assert on a posted bounty
 
         Args:
@@ -89,6 +90,8 @@ class AbstractMicroengine(object):
             amount (str): Amount of the bounty in base NCT units (10 ^ -18)
             uri (str): IPFS hash of the root artifact
             expiration (str): Block number of the bounty's expiration
+            block_number (int): Block number the vote was placed on
+            txhash (str): Transaction hash which caused the event
             chain (str): Is this on the home or side chain?
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
@@ -126,7 +129,8 @@ class AbstractMicroengine(object):
         bid = self.bid(guid, chain)
         balance = await self.client.balances.get_nct_balance(chain)
         if balance < assertion_fee + bid:
-            logger.warning('Insufficient balance to post assertion for bounty on %s. Have %s NCT. Need %s NCT', chain, balance, assertion_fee + bid, extra={'extra': guid})
+            logger.warning('Insufficient balance to post assertion for bounty on %s. Have %s NCT. Need %s NCT', chain,
+                           balance, assertion_fee + bid, extra={'extra': guid})
             if self.testing > 0:
                 self.client.exit_code = 1
                 self.client.stop()
@@ -148,7 +152,7 @@ class AbstractMicroengine(object):
         Callback registered in `__init__` to handle the reveal assertion.
 
         Args:
-            guid (str): GUID of the bounty being asserted on
+            bounty_guid (str): GUID of the bounty being asserted on
             index (int): Index of the assertion to reveal
             nonce (str): Secret nonce used to reveal assertion
             verdicts (List[bool]): List of verdicts for each artifact in the bounty
@@ -170,7 +174,7 @@ class AbstractMicroengine(object):
         Callback registered in `__init__` to handle a settled bounty.
 
         Args:
-            guid (str): GUID of the bounty being asserted on
+            bounty_guid (str): GUID of the bounty being asserted on
             chain (str): Chain to operate on
         Returns:
             Response JSON parsed from polyswarmd containing emitted events

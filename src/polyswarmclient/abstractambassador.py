@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import sys
 
 from abc import ABC, abstractmethod
 from polyswarmclient import Client
@@ -29,7 +28,8 @@ class AbstractAmbassador(ABC):
         self.api_key = client.api_key
 
     @classmethod
-    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains=None, watchdog=0):
+    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains=None,
+                watchdog=0):
         """Connect the Ambassador to a Client.
 
         Args:
@@ -111,20 +111,22 @@ class AbstractAmbassador(ABC):
             balance = await self.client.balances.get_nct_balance(chain)
             # If we don't have the balance, don't submit. Wait and try a few times, then skip
             if balance < amount + bounty_fee and tries >= MAX_TRIES:
-                    # Skip to next bounty, so one ultra high value bounty doesn't DOS ambassador
-                    if self.testing:
-                        logger.error('Failed %d attempts to post bounty with low balance. Exiting', tries)
-                        self.client.exit_code = 1
-                        self.client.stop()
-                        return
-                    else:
-                        logger.warning('Failed %d attempts to post bounty due to low balance. Skipping', tries, extra={'extra': bounty})
-                        tries = 0
-                        bounty = await self.next_bounty(chain)
-                        continue
+                # Skip to next bounty, so one ultra high value bounty doesn't DOS ambassador
+                if self.testing:
+                    logger.error('Failed %d attempts to post bounty due to low balance. Exiting', tries)
+                    self.client.exit_code = 1
+                    self.client.stop()
+                    return
+                else:
+                    logger.warning('Failed %d attempts to post bounty due to low balance. Skipping', tries,
+                                   extra={'extra': bounty})
+                    tries = 0
+                    bounty = await self.next_bounty(chain)
+                    continue
             elif balance < amount + bounty_fee:
                 tries += 1
-                logger.warning('Insufficient balance to post bounty on %s. Have %s NCT. Need %s NCT.', chain, balance, amount+bounty_fee, extra={'extra': bounty})
+                logger.warning('Insufficient balance to post bounty on %s. Have %s NCT. Need %s NCT.', chain, balance,
+                               amount + bounty_fee, extra={'extra': bounty})
                 await asyncio.sleep(tries * tries)
                 continue
 
@@ -216,7 +218,6 @@ class AbstractAmbassador(ABC):
             ipfs_uri (str): URI of the artifact submitted
             expiration (int): Block number of bounty expiration
             chain (str): Chain we are operating on
-            error (dict): Error messages
         """
         pass
 

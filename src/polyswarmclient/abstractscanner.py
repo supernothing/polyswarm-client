@@ -4,10 +4,11 @@ from abc import ABC, abstractmethod
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
-class AbstractScanner(object):
+class AbstractScanner(ABC):
     """
     Base `Scanner` class. To be overwritten with other scanning logic.
     """
+
     @abstractmethod
     async def scan(self, guid, content, chain):
         """Override this to implement custom scanning logic

@@ -1,5 +1,4 @@
 import click
-import importlib
 import logging
 import sys
 import functools
@@ -10,17 +9,20 @@ from polyswarmclient import Client
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
+
 def validate_optional_transfer_amount(ctx, param, value):
     if value != 0:
         return value
     else:
         raise click.BadParameter('must be greater than 0')
 
+
 def validate_transfer_amount(ctx, param, value):
     if value > 0:
         return value
     else:
         raise click.BadParameter('must be greater than 0')
+
 
 def polyswarm_client(func):
     @click.option('--polyswarmd-addr', envvar='POLYSWARMD_ADDR', default='localhost:31337',
@@ -38,7 +40,9 @@ def polyswarm_client(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
+
     return wrapper
+
 
 @click.group()
 @click.option('--log', default='INFO',
@@ -73,6 +77,7 @@ def deposit(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure_
     d.run()
     sys.exit(d.exit_code)
 
+
 @cli.command()
 @polyswarm_client
 @click.argument('amount', type=float, callback=validate_transfer_amount)
@@ -89,6 +94,7 @@ def withdraw(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure
     w.run()
     sys.exit(w.exit_code)
 
+
 @cli.command()
 @polyswarm_client
 @click.option('--maximum', type=float, callback=validate_optional_transfer_amount, default=-1,
@@ -100,7 +106,8 @@ def withdraw(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure
 @click.argument('minimum', type=float, callback=validate_transfer_amount)
 @click.argument('refill-amount', type=float, callback=validate_transfer_amount)
 @click.pass_context
-def maintain(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, maximum, withdraw_target, confirmations, minimum, refill_amount):
+def maintain(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, maximum, withdraw_target,
+             confirmations, minimum, refill_amount):
     """
     Entrypoint to withdraw NCT from a sidechain into the homechain
 
@@ -108,7 +115,8 @@ def maintain(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure
         minimum (float): Value of NCT on sidechain where you want to transfer more NCT
         refill-amount (float): Value of NCT to transfer anytime the balance falls below the minimum
     """
-    logger.info('Maintaining the minimum balance by depositing %s NCT when it falls below %s NCT', refill_amount, minimum)
+    logger.info('Maintaining the minimum balance by depositing %s NCT when it falls below %s NCT', refill_amount,
+                minimum)
     if maximum > 0 and withdraw_target < 0:
         logger.warning('Must set a withdraw target when using a maximum')
         return
@@ -122,7 +130,8 @@ def maintain(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure
         return
 
     if maximum > 0 and withdraw_target > 0:
-        logger.info('Maintaining the maximum balance by withdrawing to %s NCT when it exceeds the %s NCT', withdraw_target, maximum)
+        logger.info('Maintaining the maximum balance by withdrawing to %s NCT when it exceeds %s NCT', withdraw_target,
+                    maximum)
 
     client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
     Maintainer(client, confirmations, minimum, refill_amount, maximum, withdraw_target, testing).run()

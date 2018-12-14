@@ -61,12 +61,12 @@ def test_casting_to_integer():
 def test_casting_to_binary():
     bloom = BloomFilter()
 
-    assert bin(bloom) == '0b0'
+    assert bin(bloom.value) == '0b0'
 
     bloom.add(b'value 1')
     bloom.add(b'value 2')
 
-    assert bin(bloom) == (
+    assert bin(bloom.value) == (
         '0b100000000000000000000000000000000000000000100000010000000000000000000000000000'
         '00000000000000000000000000000000100000000000000000000000000000000000000000000000'
         '00000000000000000000000000000000000000000000000000000000000000000000000000000000'

@@ -6,7 +6,8 @@ from polyswarmclient.abstractambassador import AbstractAmbassador
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
-EICAR = base64.b64decode(b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=')
+EICAR = base64.b64decode(
+    b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=')
 NOT_EICAR = 'this is not malicious'
 ARTIFACTS = [('eicar', EICAR), ('not_eicar', NOT_EICAR)]
 

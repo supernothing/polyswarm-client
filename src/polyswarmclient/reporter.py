@@ -1,15 +1,16 @@
 import asyncio
 import base64
+import functools
 import logging
 import os
 import random
-import sys
 
 from polyswarmclient import Client
 from polyswarmclient.events import SettleBounty
 
 logger = logging.getLogger(__name__)  # Initialize logger
-EICAR = base64.b64decode(b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=')
+EICAR = base64.b64decode(
+    b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=')
 
 # TODO: Do we want all 'drivers' in this library?
 POLYSWARMD_HOST = os.environ.get('POLYSWARMD_HOST', 'gamma-polyswarmd.prod.polyswarm.network')
@@ -45,8 +46,9 @@ class BountyProgress(object):
             return
 
         if self.stage == 'posted' and number > self.expiration:
-            logger.error('Failed to get at least 1 assertion on bounty %s before expiration of %s (block %s) check micro engines',
-                         self.guid, self.expiration, number)
+            logger.error(
+                'Failed to get at least 1 assertion on bounty %s before expiration of %s (block %s) check micro engines',
+                self.guid, self.expiration, number)
             self.failed_already = True
 
     def mark_stage_complete(self, s):
@@ -86,7 +88,9 @@ class Reporter(object):
         insecure_transport (bool): Allow insecure transport such as HTTP?
         chains (set(str)):  Set of chains you are acting on.
     """
-    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False, chains=None):
+
+    def __init__(self, polyswarmd_uri, keyfile, password, api_key=None, testing=-1, insecure_transport=False,
+                 chains=None):
         self.chains = chains
         self.testing = testing
         self.client = Client(polyswarmd_uri, keyfile, password, api_key, testing > 0, insecure_transport)
@@ -135,7 +139,8 @@ class Reporter(object):
 
             # TODO track that they make it through stages of bounty hell: vote, arbitration, close
             logger.info('Posting bounty')
-            bounties = await self.client.bounties.post_bounty(bounty_amount_minimum + random.randint(0, 600000), ipfs_uri, 20, chain)
+            bounties = await self.client.bounties.post_bounty(bounty_amount_minimum + random.randint(0, 600000),
+                                                              ipfs_uri, 20, chain)
             logger.info('Bounty posted')
 
             for bounty in bounties:
@@ -166,9 +171,10 @@ class Reporter(object):
             b.check_block(number, chain)
 
         completions = [b.all_complete() for b in self.bounties.values()]
-        if completions:
-            if functools.reduce(lambda x, y: x and y, completions):
-                self.stop_event.set()
+        if completions and functools.reduce(lambda x, y: x and y, completions):
+            # FIXME: This was broken, removing invalid reference but unsure of correct behavior
+            # self.stop_event.set()
+            pass
 
     async def handle_assertion(self, bounty_guid, author, index, bid, mask, commitment, chain=None):
         """

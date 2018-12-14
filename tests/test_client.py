@@ -4,7 +4,7 @@ import polyswarmclient
 import random
 import uuid
 
-from . import success, failure, event, random_address, random_bitset, random_ipfs_uri
+from . import success, event, random_address, random_bitset, random_ipfs_uri
 
 
 def test_check_response():
@@ -97,7 +97,7 @@ async def test_on_new_bounty(mock_client):
     home_bounty = make_bounty()
     side_bounty = make_bounty()
 
-    async def handle_new_bounty(guid, author, amount, uri, expiration, chain):
+    async def handle_new_bounty(guid, author, amount, uri, expiration, block_number, txhash, chain):
         new_bounty = {
             'guid': guid,
             'author': author,
@@ -141,7 +141,7 @@ async def test_on_new_assertion(mock_client):
     home_assertion = make_assertion()
     side_assertion = make_assertion()
 
-    async def handle_new_assertion(bounty_guid, author, index, bid, mask, commitment, chain):
+    async def handle_new_assertion(bounty_guid, author, index, bid, mask, commitment, block_number, txhash, chain):
         new_assertion = {
             'bounty_guid': bounty_guid,
             'author': author,
@@ -186,7 +186,8 @@ async def test_on_reveal_assertion(mock_client):
     home_reveal = make_reveal()
     side_reveal = make_reveal()
 
-    async def handle_reveal_assertion(bounty_guid, author, index, nonce, verdicts, metadata, chain):
+    async def handle_reveal_assertion(bounty_guid, author, index, nonce, verdicts, metadata, block_number, txhash,
+                                      chain):
         new_reveal = {
             'bounty_guid': bounty_guid,
             'author': author,
@@ -228,7 +229,7 @@ async def test_on_new_vote(mock_client):
     home_vote = make_vote()
     side_vote = make_vote()
 
-    async def handle_new_vote(bounty_guid, votes, voter, chain):
+    async def handle_new_vote(bounty_guid, votes, voter, block_number, txhash, chain):
         new_vote = {
             'bounty_guid': bounty_guid,
             'votes': votes,
@@ -260,16 +261,14 @@ async def test_on_quorum_reached(mock_client):
     def make_quorum():
         return {
             'bounty_guid': str(uuid.uuid4()),
-            'quorum_block': random.randint(0, 1000),
         }
 
     home_quorum = make_quorum()
     side_quorum = make_quorum()
 
-    async def handle_new_vote(bounty_guid, quorum_block, chain):
+    async def handle_new_vote(bounty_guid, block_number, txhash, chain):
         new_quorum = {
             'bounty_guid': bounty_guid,
-            'quorum_block': quorum_block,
         }
 
         if chain == 'home':
@@ -297,18 +296,18 @@ async def test_on_settled_bounty(mock_client):
     def make_settle():
         return {
             'bounty_guid': str(uuid.uuid4()),
-            'settled_block': random.randint(0, 1000),
             'settler': random_address(),
+            'payout': random.randint(0, 1000) * 10 ** 18,
         }
 
     home_settle = make_settle()
     side_settle = make_settle()
 
-    async def handle_settled_bounty(bounty_guid, settled_block, settler, chain):
+    async def handle_settled_bounty(bounty_guid, settler, payout, block_number, txhash, chain):
         new_settle = {
             'bounty_guid': bounty_guid,
-            'settled_block': settled_block,
             'settler': settler,
+            'payout': payout,
         }
 
         if chain == 'home':
@@ -342,7 +341,7 @@ async def test_on_initialized_channel(mock_client):
 
     initialized_channel = make_initialized_channel()
 
-    async def handle_initialized_channel(guid, ambassador, expert, multi_signature):
+    async def handle_initialized_channel(guid, ambassador, expert, multi_signature, block_number, txhash):
         new_initialized_channel = {
             'guid': guid,
             'ambassador': ambassador,

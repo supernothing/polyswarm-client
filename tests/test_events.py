@@ -1,4 +1,3 @@
-import asyncio
 import pytest
 
 from polyswarmclient import events
@@ -83,155 +82,167 @@ async def test_on_new_block_callback():
 async def test_on_new_bounty_callback():
     cb = events.OnNewBountyCallback()
 
-    async def check_parameters(guid, author, amount, uri, expiration, chain):
+    async def check_parameters(guid, author, amount, uri, expiration, block_number, txhash, chain):
         return guid == 'guid' and author == 'author' and amount == 42 and uri == 'uri' and expiration == 100 and chain == 'home'
 
     cb.register(check_parameters)
 
-    assert await cb.run(guid='guid', author='author', amount=42, uri='uri', expiration=100, chain='home') == [True]
-    assert await cb.run(guid='not guid', author='author', amount=42, uri='uri', expiration=100, chain='home') == [False]
+    assert await cb.run(guid='guid', author='author', amount=42, uri='uri', expiration=100, block_number=0,
+                        txhash='0x0', chain='home') == [True]
+    assert await cb.run(guid='not guid', author='author', amount=42, uri='uri', expiration=100, block_number=0,
+                        txhash='0x0', chain='home') == [False]
 
-    async def invalid_signature(guid, author, amount, uri, expiration, chain, foo):
+    async def invalid_signature(guid, author, amount, uri, expiration, chain, block_number, txhash, foo):
         return False
 
     cb.register(invalid_signature)
 
     with pytest.raises(TypeError):
-        await cb.run(guid='guid', author='author', amount=42, uri='uri', expiration=100, chain='home')
+        await cb.run(guid='guid', author='author', amount=42, uri='uri', expiration=100, block_number=0, txhash='0x0',
+                     chain='home')
 
 
 @pytest.mark.asyncio
 async def test_on_new_assertion_callback():
     cb = events.OnNewAssertionCallback()
 
-    async def check_parameters(bounty_guid, author, index, bid, mask, commitment, chain):
+    async def check_parameters(bounty_guid, author, index, bid, mask, commitment, block_number, txhash, chain):
         return bounty_guid == 'guid' and author == 'author' and bid == 1 and index == 0 and mask == [
             True] and commitment == 42 and chain == 'home'
 
     cb.register(check_parameters)
 
     assert await cb.run(bounty_guid='guid', author='author', bid=1, index=0, mask=[True], commitment=42,
-                        chain='home') == [True]
+                        block_number=0, txhash='0x0', chain='home') == [True]
     assert await cb.run(bounty_guid='not guid', author='author', bid=1, index=0, mask=[True], commitment=42,
-                        chain='home') == [False]
+                        block_number=0, txhash='0x0', chain='home') == [False]
 
-    async def invalid_signature(bounty_guid, author, index, bid, mask, commitment, chain, foo):
+    async def invalid_signature(bounty_guid, author, index, bid, mask, commitment, block_number, txhash, chain, foo):
         return False
 
     cb.register(invalid_signature)
 
     with pytest.raises(TypeError):
-        await cb.run(bounty_guid='guid', author='author', index=0, mask=[True], commitment=42, chain='home')
+        await cb.run(bounty_guid='guid', author='author', bid=1, index=0, mask=[True], commitment=42, block_number=0,
+                     txhash='0x0', chain='home')
 
 
 @pytest.mark.asyncio
 async def test_on_reveal_assertion_callback():
     cb = events.OnRevealAssertionCallback()
 
-    async def check_parameters(bounty_guid, author, index, nonce, verdicts, metadata, chain):
+    async def check_parameters(bounty_guid, author, index, nonce, verdicts, metadata, block_number, txhash, chain):
         return bounty_guid == 'guid' and author == 'author' and index == 0 and nonce == 42 and verdicts == [
             True] and metadata == '' and chain == 'home'
 
     cb.register(check_parameters)
 
     assert await cb.run(bounty_guid='guid', author='author', index=0, nonce=42, verdicts=[True], metadata='',
-                        chain='home') == [True]
+                        block_number=0, txhash='0x0', chain='home') == [True]
     assert await cb.run(bounty_guid='not guid', author='author', index=0, nonce=42, verdicts=[True], metadata='',
-                        chain='home') == [False]
+                        block_number=0, txhash='0x0', chain='home') == [False]
 
-    async def invalid_signature(bounty_guid, author, index, nonce, verdicts, metadata, chain, foo):
+    async def invalid_signature(bounty_guid, author, index, nonce, verdicts, metadata, block_number, txhash, chain,
+                                foo):
         return False
 
     cb.register(invalid_signature)
 
     with pytest.raises(TypeError):
-        await cb.run(bounty_guid='guid', author='author', index=0, nonce=42, verdicts=[True], metadata='', chain='home')
+        await cb.run(bounty_guid='guid', author='author', index=0, nonce=42, verdicts=[True], metadata='',
+                     block_number=0, txhash='0x0', chain='home')
 
 
 @pytest.mark.asyncio
 async def test_on_new_vote_callback():
     cb = events.OnNewVoteCallback()
 
-    async def check_parameters(bounty_guid, votes, voter, chain):
+    async def check_parameters(bounty_guid, votes, voter, block_number, txhash, chain):
         return bounty_guid == 'guid' and votes == [True] and voter == 'voter' and chain == 'home'
 
     cb.register(check_parameters)
 
-    assert await cb.run(bounty_guid='guid', votes=[True], voter='voter', chain='home') == [True]
-    assert await cb.run(bounty_guid='not guid', votes=[True], voter='voter', chain='home') == [False]
+    assert await cb.run(bounty_guid='guid', votes=[True], voter='voter', block_number=0, txhash='0x0',
+                        chain='home') == [True]
+    assert await cb.run(bounty_guid='not guid', votes=[True], voter='voter', block_number=0, txhash='0x0',
+                        chain='home') == [False]
 
-    async def invalid_signature(bounty_guid, votes, voter, chain, foo):
+    async def invalid_signature(bounty_guid, votes, voter, block_number, txhash, chain, foo):
         return False
 
     cb.register(invalid_signature)
 
     with pytest.raises(TypeError):
-        await cb.run(bounty_guid='guid', votes=[True], voter='voter', chain='home')
+        await cb.run(bounty_guid='guid', votes=[True], voter='voter', block_number=0, txhash='0x0', chain='home')
 
 
 @pytest.mark.asyncio
 async def test_on_quorum_reached_callback():
     cb = events.OnQuorumReachedCallback()
 
-    async def check_parameters(bounty_guid, quorum_block, chain):
-        return bounty_guid == 'guid' and quorum_block == 42 and chain == 'home'
+    async def check_parameters(bounty_guid, block_number, txhash, chain):
+        return bounty_guid == 'guid' and chain == 'home'
 
     cb.register(check_parameters)
 
-    assert await cb.run(bounty_guid='guid', quorum_block=42, chain='home') == [True]
-    assert await cb.run(bounty_guid='not guid', quorum_block=42, chain='home') == [False]
+    assert await cb.run(bounty_guid='guid', block_number=0, txhash='0x0', chain='home') == [True]
+    assert await cb.run(bounty_guid='not guid', block_number=0, txhash='0x0', chain='home') == [False]
 
-    async def invalid_signature(bounty_guid, quorum_block, chain, foo):
+    async def invalid_signature(bounty_guid, chain, block_number, txhash, foo):
         return False
 
     cb.register(invalid_signature)
 
     with pytest.raises(TypeError):
-        await cb.run(bounty_guid='guid', quorum_block=42, chain='home')
+        await cb.run(bounty_guid='guid', block_number=0, txhash='0x0', chain='home')
 
 
 @pytest.mark.asyncio
 async def test_on_settled_bounty_callback():
     cb = events.OnSettledBountyCallback()
 
-    async def check_parameters(bounty_guid, settled_block, settler, chain):
-        return bounty_guid == 'guid' and settled_block == 42 and settler == 'settler' and chain == 'home'
+    async def check_parameters(bounty_guid, settler, payout, block_number, txhash, chain):
+        return bounty_guid == 'guid' and settler == 'settler' and payout == 42 and chain == 'home'
 
     cb.register(check_parameters)
 
-    assert await cb.run(bounty_guid='guid', settled_block=42, settler='settler', chain='home') == [True]
-    assert await cb.run(bounty_guid='not guid', settled_block=42, settler='settler', chain='home') == [False]
+    assert await cb.run(bounty_guid='guid', settler='settler', payout=42, block_number=0, txhash='0x0',
+                        chain='home') == [True]
+    assert await cb.run(bounty_guid='not guid', settler='settler', payout=42, block_number=0, txhash='0x0',
+                        chain='home') == [False]
 
-    async def invalid_signature(bounty_guid, settled_block, settler, chain, foo):
+    async def invalid_signature(bounty_guid, settler, payout, block_number, txhash, chain, foo):
         return False
 
     cb.register(invalid_signature)
 
     with pytest.raises(TypeError):
-        await cb.run(bounty_guid='guid', settled_block=42, settler='settler', chain='home')
+        await cb.run(bounty_guid='guid', settler='settler', payout=42, block_number=0, txhash='0x0', chain='home')
 
 
 @pytest.mark.asyncio
 async def test_on_initialized_channel_callback():
     cb = events.OnInitializedChannelCallback()
 
-    async def check_parameters(guid, ambassador, expert, multi_signature):
+    async def check_parameters(guid, ambassador, expert, multi_signature, block_number, txhash):
         return guid == 'guid' and ambassador == 'ambassador' and expert == 'expert' and multi_signature == 'multi_signature'
 
     cb.register(check_parameters)
 
-    assert await cb.run(guid='guid', ambassador='ambassador', expert='expert', multi_signature='multi_signature') == [
-        True]
+    assert await cb.run(guid='guid', ambassador='ambassador', expert='expert', multi_signature='multi_signature',
+                        block_number=0, txhash='0x0') == [
+               True]
     assert await cb.run(guid='not guid', ambassador='ambassador', expert='expert',
-                        multi_signature='multi_signature') == [False]
+                        multi_signature='multi_signature', block_number=0, txhash='0x0') == [False]
 
-    async def invalid_signature(guid, ambassador, expert, multi_signature, foo):
+    async def invalid_signature(guid, ambassador, expert, multi_signature, block_number, txhash, foo):
         return False
 
     cb.register(invalid_signature)
 
     with pytest.raises(TypeError):
-        await cb.run(guid='guid', ambassador='ambassador', expert='expert', multi_signature='multi_signature')
+        await cb.run(guid='guid', ambassador='ambassador', expert='expert', multi_signature='multi_signature',
+                     block_number=0, txhash='0x0')
 
 
 def test_schedule():
@@ -256,13 +267,13 @@ async def test_on_reveal_assertion_due_callback():
     cb = events.OnRevealAssertionDueCallback()
 
     async def check_parameters(bounty_guid, index, nonce, verdicts, metadata, chain):
-        return bounty_guid == 'guid' and index == 0 and nonce == 42 and verdicts == [
+        return bounty_guid == 'guid' and index == 0 and nonce == '42' and verdicts == [
             True] and metadata == '' and chain == 'home'
 
     cb.register(check_parameters)
 
-    assert await cb.run(bounty_guid='guid', index=0, nonce=42, verdicts=[True], metadata='', chain='home') == [True]
-    assert await cb.run(bounty_guid='not guid', index=0, nonce=42, verdicts=[True], metadata='', chain='home') == [
+    assert await cb.run(bounty_guid='guid', index=0, nonce='42', verdicts=[True], metadata='', chain='home') == [True]
+    assert await cb.run(bounty_guid='not guid', index=0, nonce='42', verdicts=[True], metadata='', chain='home') == [
         False]
 
     async def invalid_signature(bounty_guid, index, nonce, verdicts, metadata, chain, foo):
@@ -271,7 +282,7 @@ async def test_on_reveal_assertion_due_callback():
     cb.register(invalid_signature)
 
     with pytest.raises(TypeError):
-        await cb.run(bounty_guid='guid', index=0, nonce=42, verdicts=[True], metadata='', chain='home')
+        await cb.run(bounty_guid='guid', index=0, nonce='42', verdicts=[True], metadata='', chain='home')
 
 
 @pytest.mark.asyncio

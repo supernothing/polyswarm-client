@@ -8,6 +8,7 @@ class ExtraTextFormatter(logging.Formatter):
     """
     Custom formatter that adds extra fields to the message string
     """
+
     def format(self, record):
         """
         Takes a LogRecord and sets record.message = record.msg % record.args
@@ -25,22 +26,25 @@ class ExtraTextFormatter(logging.Formatter):
 
         return super().format(record)
 
+
 def init_logging(log_format, loglevel=logging.INFO):
     """
     Logic to support JSON logging.
     """
-    logger = logging.getLogger()  # Root logger
+
+    # Root logger
+    logger = logging.getLogger()
     if log_format and log_format in ['json', 'datadog']:
-        logHandler = logging.StreamHandler()
+        log_handler = logging.StreamHandler()
         formatter = jsonlogger.JsonFormatter()
         formatter = JSONFormatter('(level) (name) (timestamp) (message)')
-        logHandler.setFormatter(formatter)
-        logger.addHandler(logHandler)
+        log_handler.setFormatter(formatter)
+        logger.addHandler(log_handler)
         logger.setLevel(loglevel)
         logger.info("Logging in JSON format.")
     else:
-        logHandler = logging.StreamHandler()
-        logHandler.setFormatter(ExtraTextFormatter(fmt='%(levelname)s:%(name)s:%(asctime)s %(message)s'))
-        logger.addHandler(logHandler)
+        log_handler = logging.StreamHandler()
+        log_handler.setFormatter(ExtraTextFormatter(fmt='%(levelname)s:%(name)s:%(asctime)s %(message)s'))
+        logger.addHandler(log_handler)
         logger.setLevel(loglevel)
         logger.info("Logging in text format.")

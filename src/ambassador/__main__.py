@@ -24,7 +24,8 @@ def choose_backend(backend):
     module_name_string = backend_list[0]
 
     # determine if this string is a module that can be imported as-is or as sub-module of the ambassador package
-    mod_spec = importlib.util.find_spec(module_name_string) or importlib.util.find_spec("ambassador.{0}".format(module_name_string))
+    mod_spec = importlib.util.find_spec(module_name_string) or importlib.util.find_spec(
+        "ambassador.{0}".format(module_name_string))
     if mod_spec is None:
         raise Exception("Ambassador backend `{0}` cannot be imported as a python module.".format(backend))
 
@@ -67,10 +68,12 @@ def choose_backend(backend):
               help='Log format. Can be `json` or `text` (default)')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')
-def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, watchdog, log_format):
+def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, watchdog,
+         log_format):
     """Entrypoint for the ambassador driver
 
     Args:
+        log (str): Logging level
         polyswarmd_addr(str): Address of polyswarmd
         keyfile (str): Path to private key file to use to sign transactions
         password (str): Password to decrypt the encrypted private key

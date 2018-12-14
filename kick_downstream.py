@@ -45,6 +45,8 @@ class DownstreamKicker(object):
 
         trigger_token = self.get_or_update_project_token(project_id)
         ref_name = os.getenv("CI_COMMIT_REF_NAME")
+
+        r = None
         try:
             r = requests.post("{0}/api/v4/projects/{1}/trigger/pipeline".format(self.gitlab_url_base, project_id),
                               data={'ref': ref_name, 'token': trigger_token},
@@ -59,10 +61,10 @@ class DownstreamKicker(object):
         return r
 
     def get_engine_projects(self):
-        '''
+        """
         Get all projects that are engines, rebuild.
         :return: ['engine-ikarus']
-        '''
+        """
         ps = []
         for p in self._get_all_projects():
             if p['path_with_namespace'].startswith("externalci/engine-"):

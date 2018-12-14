@@ -2,7 +2,6 @@ import asyncio
 import logging
 
 from polyswarmclient import Client
-from polyswarmclient.bloom import BloomFilter
 from polyswarmclient.events import VoteOnBounty, SettleBounty
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -26,7 +25,8 @@ class AbstractArbiter(object):
         self.settles_posted = 0
 
     @classmethod
-    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, scanner=None, chains=None):
+    def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False,
+                scanner=None, chains=None):
         """Connect the Arbiter to a Client.
 
         Args:
@@ -90,7 +90,8 @@ class AbstractArbiter(object):
                     self.client.exit_code = 1
                     self.client.stop()
                 elif nct_balance < min_stake - staking_balance:
-                    logger.warning('Insufficient balance to deposit stake on %s. Have %s NCT. Need %s NCT', chain, nct_balance, min_stake - staking_balance)
+                    logger.warning('Insufficient balance to deposit stake on %s. Have %s NCT. Need %s NCT', chain,
+                                   nct_balance, min_stake - staking_balance)
                     tries += 1
                     await asyncio.sleep(tries * tries)
                     continue
@@ -99,7 +100,7 @@ class AbstractArbiter(object):
                 logger.info('Depositing stake: %s', deposits)
                 break
 
-    async def handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
+    async def handle_new_bounty(self, guid, author, amount, uri, expiration, block_number, txhash, chain):
         """Scan and assert on a posted bounty
 
         Args:
@@ -108,6 +109,8 @@ class AbstractArbiter(object):
             amount (str): Amount of the bounty in base NCT units (10 ^ -18)
             uri (str): IPFS hash of the root artifact
             expiration (str): Block number of the bounty's expiration
+            block_number (int): Block number the bounty was posted on
+            txhash (str): Transaction hash which caused the event
             chain (str): Is this on the home or side chain?
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
