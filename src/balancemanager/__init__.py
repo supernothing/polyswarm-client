@@ -64,11 +64,11 @@ class BalanceManager(object):
         else:
             if chain == 'home':
                 # Converting from amount_wei because it gives a better string output than self.amount
-                logger.info('Insufficient funds for deposit. Have %s NCT. Need %s NCT.', self.client.fromWei(balance),
-                            self.client.fromWei(amount_wei))
+                logger.info('Insufficient funds for deposit. Have %s NCT. Need %s NCT.', self.client.from_wei(balance),
+                            self.client.from_wei(amount_wei))
             elif chain == 'side':
                 logger.info('Insufficient funds for withdrawal. Have %s NCT. Need %s NCT.',
-                            self.client.fromWei(balance), self.client.fromWei(amount_wei))
+                            self.client.from_wei(balance), self.client.from_wei(amount_wei))
 
             self.exit_code = 1
             self.client.stop()
