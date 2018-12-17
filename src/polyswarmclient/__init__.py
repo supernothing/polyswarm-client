@@ -320,19 +320,27 @@ class Client(object):
             if 'transactions' in result:
                 del result['transactions']
             tx_result = await self.post_transactions(transactions, chain, api_key=api_key)
+            if tx_result is not None:
+                errors = tx_result.get('errors', [])
+                nonce_error = False
+                for e in errors:
+                    if 'invalid transaction error' in e.lower():
+                        nonce_error = True
+                        break
 
-            errors = tx_result.get('errors', [])
-            for e in errors:
-                if 'invalid transaction error' in e.lower():
+                    if 'transaction failed at block' in e.lower():
+                        logger.error('Transaction failed due to incorrect parameters or missed window, not retrying')
+                        return False, {}
+
+                if nonce_error:
                     logger.error('Nonce desync detected, resyncing nonce and retrying')
                     await self.update_base_nonce(chain)
                     continue
 
-                if 'transaction failed at block' in e.lower():
-                    logger.error('Transaction failed due to incorrect parameters or missed window, not retrying')
-                    return False, {}
-
-            return True, {**result, **tx_result}
+                return True, {**result, **tx_result}
+            else:
+                logger.error('Received no response for transaction, retrying')
+                continue
 
         return False, {}
 
