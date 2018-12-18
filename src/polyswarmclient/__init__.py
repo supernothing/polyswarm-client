@@ -173,11 +173,10 @@ class Client(object):
             raise Exception('Refusing to send API key over insecure transport')
 
         self.params = {'account': self.account}
-        headers = {'Authorization': self.api_key} if self.api_key else {}
         try:
             # XXX: Set the timeouts here to reasonable values, probably should
             # be configurable
-            async with aiohttp.ClientSession(headers=headers, conn_timeout=300.0, read_timeout=300.0) as self.__session:
+            async with aiohttp.ClientSession(conn_timeout=300.0, read_timeout=300.0) as self.__session:
                 self.bounties = BountiesClient(self)
                 self.staking = StakingClient(self)
                 self.offers = OffersClient(self)
@@ -225,6 +224,8 @@ class Client(object):
             params['base_nonce'] = self.base_nonce[chain]
 
         # Allow overriding API key per request
+        if api_key is None:
+            api_key = self.api_key
         headers = {'Authorization': api_key} if api_key is not None else None
 
         qs = '&'.join([a + '=' + str(b) for (a, b) in params.items()])
@@ -356,7 +357,12 @@ class Client(object):
             api_key (str): Override default API key
         """
         async with self.base_nonce_lock[chain]:
-            success, self.base_nonce[chain] = await self.make_request('GET', '/nonce', chain, api_key=api_key)
+            success, base_nonce = await self.make_request('GET', '/nonce', chain, api_key=api_key)
+
+            if success:
+                self.base_nonce[chain] = base_nonce
+            else:
+                logger.error('Failed to fetch base nonce')
 
     async def list_artifacts(self, ipfs_uri, api_key=None):
         """
@@ -378,7 +384,12 @@ class Client(object):
 
         uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}'.format(ipfs_uri))
         params = dict(self.params)
+
+        # Allow overriding API key per request
+        if api_key is None:
+            api_key = self.api_key
         headers = {'Authorization': api_key} if api_key is not None else None
+
         async with self.__session.get(uri, params=params, headers=headers) as raw_response:
             try:
                 response = await raw_response.json()
@@ -409,7 +420,12 @@ class Client(object):
 
         uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}/{1}'.format(ipfs_uri, index))
         params = dict(self.params)
+
+        # Allow overriding API key per request
+        if api_key is None:
+            api_key = self.api_key
         headers = {'Authorization': api_key} if api_key is not None else None
+
         async with self.__session.get(uri, params=params, headers=headers) as raw_response:
             if raw_response.status == 200:
                 return await raw_response.read()
@@ -499,7 +515,12 @@ class Client(object):
 
                 uri = urljoin(self.polyswarmd_uri, '/artifacts')
                 params = dict(self.params)
+
+                # Allow overriding API key per request
+                if api_key is None:
+                    api_key = self.api_key
                 headers = {'Authorization': api_key} if api_key is not None else None
+
                 async with self.__session.post(uri, params=params, headers=headers, data=mpwriter) as raw_response:
                     try:
                         response = await raw_response.json()
