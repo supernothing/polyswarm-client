@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from setuptools import setup
+from setuptools import find_packages, setup
 
 
 def parse_requirements():
@@ -26,15 +26,8 @@ setup(
     python_requires='>=3.5.4,<4',
     install_requires=parse_requirements(),
     include_package_data=True,
-    packages=['polyswarmclient', 'ambassador', 'arbiter', 'microengine', 'arbiter.verbatimdb', 'balancemanager'],
-    package_dir={
-        'polyswarmclient': 'src/polyswarmclient',
-        'ambassador': 'src/ambassador',
-        'arbiter': 'src/arbiter',
-        'microengine': 'src/microengine',
-        'arbiter.verbatimdb': 'src/arbiter/verbatimdb',
-        'balancemanager': 'src/balancemanager'
-    },
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
     entry_points={
         'console_scripts': [
             'ambassador=ambassador.__main__:main',

@@ -235,7 +235,14 @@ class Client(object):
 
                 async with self.__session.request(method, uri, params=params, headers=headers,
                                                   json=json) as raw_response:
-                    response = await raw_response.json()
+                    try:
+                        response = await raw_response.json()
+                    except (ValueError, aiohttp.ContentTypeError):
+                        response = await raw_response.read() if raw_response else 'None'
+                        logger.error('Received non-json response from polyswarmd: %s', response)
+                        response = {}
+                        continue
+
                 logger.debug('%s %s?%s', method, path, qs, extra={'extra': response})
 
                 if not check_response(response):
@@ -373,7 +380,12 @@ class Client(object):
         params = dict(self.params)
         headers = {'Authorization': api_key} if api_key is not None else None
         async with self.__session.get(uri, params=params, headers=headers) as raw_response:
-            response = await raw_response.json()
+            try:
+                response = await raw_response.json()
+            except (ValueError, aiohttp.ContentTypeError):
+                response = await raw_response.read() if raw_response else 'None'
+                logger.error('Received non-json response from polyswarmd: %s', response)
+                return []
 
         logger.debug('GET /artifacts/%s', ipfs_uri, extra={'extra': response})
 
@@ -488,8 +500,13 @@ class Client(object):
                 uri = urljoin(self.polyswarmd_uri, '/artifacts')
                 params = dict(self.params)
                 headers = {'Authorization': api_key} if api_key is not None else None
-                async with self.__session.post(uri, params=params, headers=headers, data=mpwriter) as response:
-                    response = await response.json()
+                async with self.__session.post(uri, params=params, headers=headers, data=mpwriter) as raw_response:
+                    try:
+                        response = await raw_response.json()
+                    except (ValueError, aiohttp.ContentTypeError):
+                        response = await raw_response.read() if raw_response else 'None'
+                        logger.error('Received non-json response from polyswarmd: %s', response)
+                        return None
 
                 logger.debug('POST/artifacts', extra={'extra': response})
 
