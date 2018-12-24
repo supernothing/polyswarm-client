@@ -3,7 +3,7 @@ aiohttp==2.3.1
 aioresponses==0.5.0
 asynctest==0.12.2
 base58==0.2.5
-clamd==1.0.2
+git+https://github.com/polyswarm/python-clamd.git@async#egg=clamd
 click==6.7
 coverage==4.5.1
 hypothesis==3.82.1

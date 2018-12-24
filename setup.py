@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 
 def parse_requirements():
     with open('requirements.txt', 'r') as f:
-        return f.read().splitlines()
+        return [r for r in f.read().splitlines() if not r.startswith('git')]
 
 
 # The README.md will be used as the content for the PyPi package details page on the Python Package Index.

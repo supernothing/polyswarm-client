@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import clamd
 import logging
 import os
@@ -17,7 +15,7 @@ CLAMD_TIMEOUT = 30.0
 
 class Scanner(AbstractScanner):
     def __init__(self):
-        self.clamd = clamd.ClamdNetworkSocket(CLAMD_HOST, CLAMD_PORT, CLAMD_TIMEOUT)
+        self.clamd = clamd.ClamdAsyncNetworkSocket(CLAMD_HOST, CLAMD_PORT, CLAMD_TIMEOUT)
 
     async def scan(self, guid, content, chain):
         """Scan an artifact with ClamAV
@@ -35,9 +33,10 @@ class Scanner(AbstractScanner):
             |   - **verdict** (*bool*): Whether this artifact is malicious or not
             |   - **metadata** (*str*): Optional metadata about this artifact
         """
-        result = self.clamd.instream(BytesIO(content)).get('stream')
-        if len(result) >= 2 and result[0] == 'FOUND':
-            return True, True, result[1]
+        result = await self.clamd.instream(BytesIO(content))
+        stream_result = result.get('stream', [])
+        if len(stream_result) >= 2 and stream_result[0] == 'FOUND':
+            return True, True, stream_result[1]
 
         return True, False, ''
 

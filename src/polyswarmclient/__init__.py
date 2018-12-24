@@ -147,6 +147,12 @@ class Client(object):
         if chains is None:
             chains = {'home', 'side'}
 
+        # Default event loop does not support pipes on Windows
+        if sys.platform == 'win32':
+            loop = asyncio.ProactorEventLoop()
+            asyncio.set_event_loop(loop)
+
+
         asyncio.get_event_loop().set_exception_handler(self.__exception_handler)
         asyncio.get_event_loop().create_task(self.run_task(chains))
         asyncio.get_event_loop().run_forever()
