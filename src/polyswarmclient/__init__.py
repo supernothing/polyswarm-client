@@ -150,7 +150,8 @@ class Client(object):
         # Default event loop does not support pipes on Windows
         if sys.platform == 'win32':
             loop = asyncio.ProactorEventLoop()
-            asyncio.set_event_loop(loop)
+            asyncio.get_event_loop_policy().set_event_loop(loop)
+            self.base_nonce_lock = {'home': asyncio.Lock(), 'side': asyncio.Lock()}
 
 
         asyncio.get_event_loop().set_exception_handler(self.__exception_handler)
