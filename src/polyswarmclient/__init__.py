@@ -242,15 +242,18 @@ class Client(object):
             while tries > 0:
                 tries -= 1
 
-                async with self.__session.request(method, uri, params=params, headers=headers,
-                                                  json=json) as raw_response:
-                    try:
-                        response = await raw_response.json()
-                    except (ValueError, aiohttp.ContentTypeError):
-                        response = await raw_response.read() if raw_response else 'None'
-                        logger.error('Received non-json response from polyswarmd: %s', response)
-                        response = {}
-                        continue
+                try:
+                    async with self.__session.request(method, uri, params=params, headers=headers,
+                                                      json=json) as raw_response:
+                        try:
+                            response = await raw_response.json()
+                        except (ValueError, aiohttp.ContentTypeError):
+                            response = await raw_response.read() if raw_response else 'None'
+                            logger.error('Received non-json response from polyswarmd: %s', response)
+                            response = {}
+                            continue
+                except OSError:
+                    logging.error('Connection to polyswarmd refused, retrying')
 
                 logger.debug('%s %s?%s', method, path, qs, extra={'extra': response})
 
@@ -398,13 +401,17 @@ class Client(object):
             api_key = self.api_key
         headers = {'Authorization': api_key} if api_key is not None else None
 
-        async with self.__session.get(uri, params=params, headers=headers) as raw_response:
-            try:
-                response = await raw_response.json()
-            except (ValueError, aiohttp.ContentTypeError):
-                response = await raw_response.read() if raw_response else 'None'
-                logger.error('Received non-json response from polyswarmd: %s', response)
-                return []
+        try:
+            async with self.__session.get(uri, params=params, headers=headers) as raw_response:
+                try:
+                    response = await raw_response.json()
+                except (ValueError, aiohttp.ContentTypeError):
+                    response = await raw_response.read() if raw_response else 'None'
+                    logger.error('Received non-json response from polyswarmd: %s', response)
+                    return []
+        except OSError:
+            logging.error('Connection to polyswarmd refused')
+            return []
 
         logger.debug('GET /artifacts/%s', ipfs_uri, extra={'extra': response})
 
@@ -434,10 +441,14 @@ class Client(object):
             api_key = self.api_key
         headers = {'Authorization': api_key} if api_key is not None else None
 
-        async with self.__session.get(uri, params=params, headers=headers) as raw_response:
-            if raw_response.status == 200:
-                return await raw_response.read()
+        try:
+            async with self.__session.get(uri, params=params, headers=headers) as raw_response:
+                if raw_response.status == 200:
+                    return await raw_response.read()
 
+                return None
+        except OSError:
+            logging.error('Connection to polyswarmd refused')
             return None
 
     @staticmethod
@@ -544,7 +555,7 @@ class Client(object):
 
                 return response.get('result')
             except OSError:
-                logger.error("Files could not be opened %s", files)
+                logger.error("Artifacts could not be posted, files: %s", files)
             finally:
                 for f in to_close:
                     f.close()
@@ -597,55 +608,75 @@ class Client(object):
         # http:// -> ws://, https:// -> wss://
         wsuri = '{0}/events?chain={1}'.format(self.polyswarmd_uri.replace('http', 'ws', 1), chain)
         last_block = 0
-        async with websockets.connect(wsuri) as ws:
-            while not ws.closed:
-                resp = None
-                try:
-                    resp = await ws.recv()
-                    resp = json.loads(resp)
-                    event = resp.get('event')
-                    data = resp.get('data')
-                    block_number = resp.get('block_number')
-                    txhash = resp.get('txhash')
-                except json.JSONDecodeError:
-                    logging.error('Invalid event response from polyswarmd: %s', resp)
-                    continue
+        retry = 0
+        while True:
+            try:
+                async with websockets.connect(wsuri) as ws:
+                    while not ws.closed:
+                        resp = None
+                        try:
+                            resp = await ws.recv()
+                            resp = json.loads(resp)
+                            event = resp.get('event')
+                            data = resp.get('data')
+                            block_number = resp.get('block_number')
+                            txhash = resp.get('txhash')
+                        except json.JSONDecodeError:
+                            logging.error('Invalid event response from polyswarmd: %s', resp)
+                            continue
+                        except websockets.exceptions.ConnectionClosed:
+                            # Trigger retry logic outside main loop
+                            break
 
-                logger.info('Received %s on chain %s', event, chain, extra={'extra': data})
+                        logger.info('Received %s on chain %s', event, chain, extra={'extra': data})
 
-                if event == 'connected':
-                    logging.info('Connected to event socket at: %s', data.get('start_time'))
-                elif event == 'block':
-                    number = data.get('number', 0)
+                        if event == 'connected':
+                            logging.info('Connected to event socket at: %s', data.get('start_time'))
+                        elif event == 'block':
+                            number = data.get('number', 0)
 
-                    if number <= last_block:
-                        continue
+                            if number <= last_block:
+                                continue
 
-                    if number % 100 == 0:
-                        logger.debug('Block %s on chain %s', number, chain)
+                            if number % 100 == 0:
+                                logger.debug('Block %s on chain %s', number, chain)
 
-                    asyncio.get_event_loop().create_task(self.on_new_block.run(number=number, chain=chain))
-                    asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number, chain=chain))
-                elif event == 'bounty':
-                    asyncio.get_event_loop().create_task(
-                        self.on_new_bounty.run(**data, block_number=block_number, txhash=txhash, chain=chain))
-                elif event == 'assertion':
-                    asyncio.get_event_loop().create_task(
-                        self.on_new_assertion.run(**data, block_number=block_number, txhash=txhash, chain=chain))
-                elif event == 'reveal':
-                    asyncio.get_event_loop().create_task(
-                        self.on_reveal_assertion.run(**data, block_number=block_number, txhash=txhash, chain=chain))
-                elif event == 'vote':
-                    asyncio.get_event_loop().create_task(
-                        self.on_new_vote.run(**data, block_number=block_number, txhash=txhash, chain=chain))
-                elif event == 'quorum':
-                    asyncio.get_event_loop().create_task(
-                        self.on_quorum_reached.run(**data, block_number=block_number, txhash=txhash, chain=chain))
-                elif event == 'settled_bounty':
-                    asyncio.get_event_loop().create_task(
-                        self.on_settled_bounty.run(**data, block_number=block_number, txhash=txhash, chain=chain))
-                elif event == 'initialized_channel':
-                    asyncio.get_event_loop().create_task(
-                        self.on_initialized_channel.run(**data, block_number=block_number, txhash=txhash))
-                else:
-                    logger.error('Invalid event type from polyswarmd: %s', resp)
+                            asyncio.get_event_loop().create_task(self.on_new_block.run(number=number, chain=chain))
+                            asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number, chain=chain))
+                        elif event == 'bounty':
+                            asyncio.get_event_loop().create_task(
+                                self.on_new_bounty.run(**data, block_number=block_number, txhash=txhash, chain=chain))
+                        elif event == 'assertion':
+                            asyncio.get_event_loop().create_task(
+                                self.on_new_assertion.run(**data, block_number=block_number, txhash=txhash,
+                                                          chain=chain))
+                        elif event == 'reveal':
+                            asyncio.get_event_loop().create_task(
+                                self.on_reveal_assertion.run(**data, block_number=block_number, txhash=txhash,
+                                                             chain=chain))
+                        elif event == 'vote':
+                            asyncio.get_event_loop().create_task(
+                                self.on_new_vote.run(**data, block_number=block_number, txhash=txhash, chain=chain))
+                        elif event == 'quorum':
+                            asyncio.get_event_loop().create_task(
+                                self.on_quorum_reached.run(**data, block_number=block_number, txhash=txhash,
+                                                           chain=chain))
+                        elif event == 'settled_bounty':
+                            asyncio.get_event_loop().create_task(
+                                self.on_settled_bounty.run(**data, block_number=block_number, txhash=txhash,
+                                                           chain=chain))
+                        elif event == 'initialized_channel':
+                            asyncio.get_event_loop().create_task(
+                                self.on_initialized_channel.run(**data, block_number=block_number, txhash=txhash))
+                        else:
+                            logger.error('Invalid event type from polyswarmd: %s', resp)
+
+            except OSError:
+                logger.error('Websocket connection to polyswarmd refused, retrying')
+
+            retry += 1
+            delay = retry * retry
+
+            logger.error('Websocket connection to polyswarmd closed, sleeping for %s then attempting to reconnect',
+                         delay)
+            await asyncio.sleep(retry * retry)
