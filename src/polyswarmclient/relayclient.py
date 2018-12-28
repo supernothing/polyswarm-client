@@ -1,4 +1,5 @@
 import logging
+from polyswarmclient.verify import RelayWithdrawDepositGroupVerifier
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -20,7 +21,8 @@ class RelayClient(object):
         deposit = {
             'amount': str(amount),
         }
-        success, results = await self.__client.make_request_with_transactions('POST', '/relay/deposit', 'home',
+        verifier = RelayWithdrawDepositGroupVerifier(amount, self.__client.account)
+        success, results = await self.__client.make_request_with_transactions('POST', '/relay/deposit', 'home', verifier,
                                                                               json=deposit, api_key=api_key)
         if not success or 'transfers' not in results:
             logger.error('Expected deposit to relay', extra={'extra': results})
@@ -39,7 +41,8 @@ class RelayClient(object):
         withdrawal = {
             'amount': str(amount),
         }
-        success, results = await self.__client.make_request_with_transactions('POST', '/relay/withdrawal', chain='side',
+        verifier = RelayWithdrawDepositGroupVerifier(amount, self.__client.account)
+        success, results = await self.__client.make_request_with_transactions('POST', '/relay/withdrawal', 'side', verifier,
                                                                               json=withdrawal, api_key=api_key)
         if not success or 'transfers' not in results:
             logger.error('Expected withdrawl from relay', extra={'extra': results})

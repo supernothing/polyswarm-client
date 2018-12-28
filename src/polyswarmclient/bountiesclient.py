@@ -1,6 +1,7 @@
 import logging
 
 from polyswarmclient import bloom
+from polyswarmclient.verify import PostVoteGroupVerifier, PostAssertionGroupVerifier, PostBountyGroupVerifier, RevealAssertionGroupVerifier, SettleBountyGroupVerifier
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -25,6 +26,18 @@ class BountiesClient(object):
             raise Exception('Error retrieving bounty parameters')
         self.parameters[chain] = result
 
+    async def get_artifact_count(self, ipfs_uri, api_key=None):
+        """Gets the number of artifacts at the ipfs uri
+
+        Args:
+            ipfs_uri (str): IPFS URI for the artifact set
+            api_key (str): Override default API key
+        Returns:
+            Number of artifacts at the uri
+        """
+        artifacts = await self.__client.list_artifacts(ipfs_uri, api_key=api_key)
+        return len(artifacts) if artifacts is not None and artifacts else 0
+
     async def calculate_bloom(self, ipfs_uri, api_key=None):
         """Calculate bloom filter for a set of artifacts.
 
@@ -43,7 +56,7 @@ class BountiesClient(object):
 
     async def get_bloom(self, bounty_guid, chain, api_key=None):
         """
-        Get a vote from polyswamrd
+        Get bloom from polyswamrd
 
         Args:
             bounty_guid (str): GUID of the bounty to retrieve the vote from
@@ -92,7 +105,11 @@ class BountiesClient(object):
             'uri': artifact_uri,
             'duration': duration,
         }
-        success, result = await self.__client.make_request_with_transactions('POST', '/bounties', chain, json=bounty,
+        bounty_fee = self.parameters[chain]['bounty_fee']
+        bloom = await self.calculate_bloom(artifact_uri)
+        num_artifacts = await self.get_artifact_count(artifact_uri)
+        verifier = PostBountyGroupVerifier(amount, bounty_fee, artifact_uri, num_artifacts, duration, bloom, self.__client.account)
+        success, result = await self.__client.make_request_with_transactions('POST', '/bounties', chain, verifier, json=bounty,
                                                                              api_key=api_key)
         if not success or 'bounties' not in result:
             logger.error('Expected bounty, received', extra={'response': result})
@@ -137,7 +154,9 @@ class BountiesClient(object):
             'mask': mask,
             'verdicts': verdicts,
         }
-        success, result = await self.__client.make_request_with_transactions('POST', path, chain, json=assertion,
+        fee = self.parameters[chain]['assertion_fee']
+        verifier = PostAssertionGroupVerifier(bounty_guid, bid, fee, mask, verdicts, self.__client.account)
+        success, result = await self.__client.make_request_with_transactions('POST', path, chain, verifier, json=assertion,
                                                                              api_key=api_key)
         if not success or 'nonce' not in result or 'assertions' not in result:
             logger.error('Expected nonce and assertions, received', extra={'response': result})
@@ -164,7 +183,8 @@ class BountiesClient(object):
             'verdicts': verdicts,
             'metadata': metadata,
         }
-        success, result = await self.__client.make_request_with_transactions('POST', path, chain, json=reveal,
+        verifier = RevealAssertionGroupVerifier(bounty_guid, index, nonce, verdicts, metadata, self.__client.account)
+        success, result = await self.__client.make_request_with_transactions('POST', path, chain, verifier, json=reveal,
                                                                              api_key=api_key)
         if not success or 'reveals' not in result:
             logger.error('Expected reveal, received', extra={'response': result})
@@ -206,7 +226,8 @@ class BountiesClient(object):
             'votes': votes,
             'valid_bloom': valid_bloom,
         }
-        success, result = await self.__client.make_request_with_transactions('POST', path, chain, json=vote,
+        verifier = PostVoteGroupVerifier(bounty_guid, votes, valid_bloom, self.__client.account)
+        success, result = await self.__client.make_request_with_transactions('POST', path, chain, verifier, json=vote,
                                                                              api_key=api_key)
         if not success or 'votes' not in result:
             logger.error('Expected vote, received', extra={'response': result})
@@ -224,7 +245,8 @@ class BountiesClient(object):
             Response JSON parsed from polyswarmd containing emitted events
         """
         path = '/bounties/{0}/settle'.format(bounty_guid)
-        success, result = await self.__client.make_request_with_transactions('POST', path, chain, api_key=api_key)
+        verifier = SettleBountyGroupVerifier(bounty_guid, self.__client.account)
+        success, result = await self.__client.make_request_with_transactions('POST', path, chain, verifier, api_key=api_key)
         if not success or 'transfers' not in result:
             logger.warning('No transfer event, received (maybe expected)', extra={'response': result})
 

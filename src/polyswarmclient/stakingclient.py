@@ -1,4 +1,5 @@
 import logging
+from polyswarmclient.verify import StakeDepositGroupVerifier, StakeWithdrawGroupVerifier
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -61,7 +62,8 @@ class StakingClient(object):
         deposit = {
             'amount': str(amount),
         }
-        success, results = await self.__client.make_request_with_transactions('POST', '/staking/deposit', chain,
+        verifier = StakeDepositGroupVerifier(amount, self.__client.account)
+        success, results = await self.__client.make_request_with_transactions('POST', '/staking/deposit', chain, verifier,
                                                                               json=deposit, api_key=api_key)
         if not success or 'deposits' not in results:
             logger.error('Expected deposit, received', extra={'extra': results})
@@ -81,7 +83,8 @@ class StakingClient(object):
         withdrawal = {
             'amount': str(amount),
         }
-        success, results = await self.__client.make_request_with_transactions('POST', '/staking/withdraw', chain,
+        verifier = StakeWithdrawGroupVerifier(amount, self.__client.account)
+        success, results = await self.__client.make_request_with_transactions('POST', '/staking/withdraw', chain, verifier,
                                                                               json=withdrawal, api_key=api_key)
         if not success or 'withdrawals' not in results:
             logger.error('Expected withdrawal, received', extra={'extra': results})

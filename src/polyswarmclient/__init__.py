@@ -313,7 +313,7 @@ class Client(object):
 
         return result
 
-    async def make_request_with_transactions(self, method, path, chain, json=None, api_key=None, tries=5):
+    async def make_request_with_transactions(self, method, path, chain, verifier, json=None, api_key=None, tries=5):
         """Make a transaction generating request to polyswarmd, then sign and post the transactions
 
         Args:
@@ -337,6 +337,13 @@ class Client(object):
 
             # Keep around any extra data from the first request, such as nonce for assertion
             transactions = result.get('transactions', [])
+            nonce = result.get('nonce', None)
+            if verifier is not None and not verifier.verify(transactions, assertion_nonce=nonce):
+                logger.error("Transactions did not match expectations for the given request.", extra={'extra': transactions})
+                if self.tx_error_fatal:
+                    sys.exit(1)
+                return False, {}
+
             if 'transactions' in result:
                 del result['transactions']
             tx_result = await self.post_transactions(transactions, chain, api_key=api_key)
