@@ -94,7 +94,7 @@ class Client(object):
             'side': 0,
         }
 
-        # Do not init locks here. Need to check our loop first during run().
+        # Do not init locks here. Need to wait until we can guarantee that our event loop is set.
         self.base_nonce_lock = {}
 
         self.__schedule = {
@@ -152,8 +152,6 @@ class Client(object):
             loop = asyncio.ProactorEventLoop()
             asyncio.set_event_loop(loop)
 
-        self.base_nonce_lock = {'home': asyncio.Lock(), 'side': asyncio.Lock()}
-
         asyncio.get_event_loop().set_exception_handler(self.__exception_handler)
         asyncio.get_event_loop().create_task(self.run_task(chains))
         asyncio.get_event_loop().run_forever()
@@ -180,6 +178,9 @@ class Client(object):
             raise Exception('Refusing to send API key over insecure transport')
 
         self.params = {'account': self.account}
+        # We can now create our locks, because we are assured that the event loop is set
+        self.base_nonce_lock = {'home': asyncio.Lock(), 'side': asyncio.Lock()}
+
         try:
             # XXX: Set the timeouts here to reasonable values, probably should
             # be configurable
