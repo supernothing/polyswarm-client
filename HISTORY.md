@@ -1,5 +1,42 @@
 # Release History
 
+### 1.0rc5 (2018-12-XX)
+
+* Fix - add clamav as an example arbiter
+* Fix - create asyncio locks after changing loop
+
+### 1.0rc4 (2018-12-24)
+
+* Fix - check transaction responses
+* Fix - return empty dict instead of None
+* Fix - better handling of polyswarmd responses
+* Fix - don't clobber API key
+* Fix - clamav example engine to use async socket
+* Fix - asyncio loop change detection for windows hosts
+
+### 1.0rc3 (2018-12-15)
+
+* Fix - function name corrections that were missed in rc2
+* Fix - remove awaits that don't belong
+
+### 1.0rc2 (2018-12-14)
+
+* Fix - duplicate bounty event handing
+* Fix - enhance log messages with more useful content
+* Feature - allow overriding API key per request
+* Fix - code cleanup and formatting; enhance events class to include block_number and txhash as function args
+
+### 1.0rc1 (2018-12-11)
+
+* Fix - corrected minimum python3 version
+
+### 1.0rc0 (2018-12-07)
+
+Leading up to our PolySwarm 1.0 release, we reset the numbering to 1.0 with release candidates.
+
+* Feature - This is the first release published to PyPi.
+
+
 ### 0.2.0 (2018-11-28)
 
 * **Feature**: Converted ambassador, arbiter, microengine, and scanner classes to be abstract classes. Updated sample engines to use new design patterns.
