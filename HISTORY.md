@@ -1,41 +1,42 @@
 # Release History
 
-### 1.0rc5 (2018-12-XX)
+### 1.0rc5 (2018-12-28)
 
-* Fix - add clamav as an example arbiter
-* Fix - create asyncio locks after changing loop
+* **Feature** - add clamav as an example arbiter
+* **Fix** - create asyncio locks after we change the event loop
+* **Fix** - attempt reconnect on connection errors
+* **Fix** - do not trust polyswarmd
 
 ### 1.0rc4 (2018-12-24)
 
-* Fix - check transaction responses
-* Fix - return empty dict instead of None
-* Fix - better handling of polyswarmd responses
-* Fix - don't clobber API key
-* Fix - clamav example engine to use async socket
-* Fix - asyncio loop change detection for windows hosts
+* **Fix** - check transaction responses
+* **Fix** - return empty dict instead of None on transaction error
+* **Fix** - better handling of polyswarmd responses
+* **Fix** - don't clobber API key if one is set
+* **Fix** - revise clamav example microengine to use async socket
+* **Fix** - asyncio loop change detection for windows hosts
 
 ### 1.0rc3 (2018-12-15)
 
-* Fix - function name corrections that were missed in rc2
-* Fix - remove awaits that don't belong
+* **Fix** - function name corrections that were missed in rc2
+* **Fix** - remove awaits added in rc2 that don't belong
 
 ### 1.0rc2 (2018-12-14)
 
-* Fix - duplicate bounty event handing
-* Fix - enhance log messages with more useful content
-* Feature - allow overriding API key per request
-* Fix - code cleanup and formatting; enhance events class to include block_number and txhash as function args
+* **Fix** - duplicate bounty event handing
+* **Fix** - enhance log messages with more useful content
+* **Feature** - allow overriding API key per request
+* **Fix** - code cleanup and formatting; enhance events class to include block_number and txhash as function args
 
 ### 1.0rc1 (2018-12-11)
 
-* Fix - corrected minimum python3 version
+* **Fix** - corrected minimum python3 version
 
 ### 1.0rc0 (2018-12-07)
 
 Leading up to our PolySwarm 1.0 release, we reset the numbering to 1.0 with release candidates.
 
-* Feature - This is the first release published to PyPi.
-
+* **Feature** - This is the first release published to PyPi.
 
 ### 0.2.0 (2018-11-28)
 
