@@ -117,7 +117,7 @@ class Maintainer(object):
         self.testing = testing
         self.transfers = 0
 
-    def _set_locks(self, chain):
+    async def _set_locks(self, chain):
         """
         Once the client starts the async loop, we can set the locks.
         :param chain: Chain value is ignored here.
