@@ -100,9 +100,10 @@ class Maintainer(object):
     """
 
     def __init__(self, client, confirmations, minimum, refill_amount, maximum, withdraw_target, testing=0):
-        self.deposit_lock = asyncio.Lock()
-        self.block_lock = asyncio.Lock()
+        self.deposit_lock = None
+        self.block_lock = None
         self.client = client
+        self.client.on_run.register(self._set_locks)
         self.client.on_new_block.register(self.watch_balance)
         self.last_relay = None
         self.latest_block = 0
@@ -115,6 +116,14 @@ class Maintainer(object):
         self.withdraw_target = None if withdraw_target < 0 else self.client.to_wei(withdraw_target)
         self.testing = testing
         self.transfers = 0
+
+    async def _set_locks(self, chain):
+        """
+        Once the client starts the async loop, we can set the locks.
+        :param chain: Chain value is ignored here.
+        """
+        self.deposit_lock = asyncio.Lock()
+        self.block_lock = asyncio.Lock()
 
     def run(self):
         """
