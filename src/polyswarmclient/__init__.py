@@ -254,6 +254,8 @@ class Client(object):
                             continue
                 except OSError:
                     logging.error('Connection to polyswarmd refused, retrying')
+                except asyncio.TimeoutError:
+                    logging.error('Connection to polyswarmd timed out, retrying')
 
                 logger.debug('%s %s?%s', method, path, qs, extra={'extra': response})
 
@@ -419,6 +421,9 @@ class Client(object):
         except OSError:
             logging.error('Connection to polyswarmd refused')
             return []
+        except asyncio.TimeoutError:
+            logging.error('Connection to polyswarmd timed out')
+            return []
 
         logger.debug('GET /artifacts/%s', ipfs_uri, extra={'extra': response})
 
@@ -456,6 +461,9 @@ class Client(object):
                 return None
         except OSError:
             logging.error('Connection to polyswarmd refused')
+            return None
+        except asyncio.TimeoutError:
+            logging.error('Connection to polyswarmd timed out')
             return None
 
     @staticmethod
@@ -561,7 +569,7 @@ class Client(object):
                     return None
 
                 return response.get('result')
-            except OSError:
+            except (OSError, asyncio.TimeoutError):
                 logger.error("Artifacts could not be posted, files: %s", files)
             finally:
                 for f in to_close:
@@ -680,6 +688,8 @@ class Client(object):
 
             except OSError:
                 logger.error('Websocket connection to polyswarmd refused, retrying')
+            except asyncio.TimeoutError:
+                logging.error('Websocket connection to polyswarmd timed out, retrying')
 
             retry += 1
             delay = retry * retry
