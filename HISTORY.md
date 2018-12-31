@@ -1,5 +1,9 @@
 # Release History
 
+### 1.0rc6 (2018-12-31)
+
+* **Fix** - catch timeouts during requests to polyswarmd
+
 ### 1.0rc5 (2018-12-28)
 
 * **Feature** - add clamav as an example arbiter
@@ -96,7 +100,7 @@ instead of `module_name:CustomMicroengine`.
 
 Additionally, as of `polyswarmclient >= 0.2.0`:
 
-* `AbstractArbiter.scan()` and `AbstractMicroengine.scan()` will now raise an exception if it 
+* `AbstractArbiter.scan()` and `AbstractMicroengine.scan()` will now raise an exception if it
 has not been overridden by a sub-class and the subclass did not provide a scanner to the constructor.
 * `AbstractAmbassador.next_bounty()` will now raise an exception if not overridden by sub-class.
 
