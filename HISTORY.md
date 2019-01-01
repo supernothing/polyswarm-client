@@ -1,5 +1,9 @@
 # Release History
 
+### 1.0 (2019-01-01)
+
+No change from rc6. Releasing 1.0.
+
 ### 1.0rc6 (2018-12-31)
 
 * **Fix** - catch timeouts during requests to polyswarmd
