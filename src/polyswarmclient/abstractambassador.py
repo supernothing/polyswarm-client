@@ -8,6 +8,10 @@ from polyswarmclient.events import SettleBounty
 logger = logging.getLogger(__name__)  # Initialize logger
 MAX_TRIES = 10
 
+class NextBountyError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
 
 class AbstractAmbassador(ABC):
     def __init__(self, client, testing=0, chains=None, watchdog=0):
@@ -99,9 +103,19 @@ class AbstractAmbassador(ABC):
             logger.info('Waiting for arbiter and microengine')
             await asyncio.sleep(5)
 
-        bounty = await self.next_bounty(chain)
         tries = 0
-        while bounty is not None:
+        while True:
+            # Only get a new bounty if tries has been reset
+            if tries == 0:
+                try:
+                    bounty = await self.next_bounty(chain)
+                except NextBountyError as e:
+                    logger.error("Failed to get next bounty", extra={'extra': e})
+                    await asyncio.sleep(10)
+                    continue
+
+            if bounty is None:
+                break
             # Exit if we are in testing mode
             if self.testing > 0 and self.bounties_posted >= self.testing:
                 logger.info('All testing bounties submitted')
@@ -112,7 +126,7 @@ class AbstractAmbassador(ABC):
             # If we don't have the balance, don't submit. Wait and try a few times, then skip
             if balance < amount + bounty_fee and tries >= MAX_TRIES:
                 # Skip to next bounty, so one ultra high value bounty doesn't DOS ambassador
-                if self.testing:
+                if self.client.tx_error_fatal:
                     logger.error('Failed %d attempts to post bounty due to low balance. Exiting', tries)
                     self.client.exit_code = 1
                     self.client.stop()
@@ -121,7 +135,6 @@ class AbstractAmbassador(ABC):
                     logger.warning('Failed %d attempts to post bounty due to low balance. Skipping', tries,
                                    extra={'extra': bounty})
                     tries = 0
-                    bounty = await self.next_bounty(chain)
                     continue
             elif balance < amount + bounty_fee:
                 tries += 1
@@ -148,7 +161,6 @@ class AbstractAmbassador(ABC):
                 self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
 
             tries = 0
-            bounty = await self.next_bounty(chain)
 
     async def handle_new_block(self, number, chain):
         if not self.watchdog:

@@ -2,7 +2,7 @@ import base64
 import logging
 import random
 
-from polyswarmclient.abstractambassador import AbstractAmbassador
+from polyswarmclient.abstractambassador import AbstractAmbassador, NextBountyError
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -36,9 +36,6 @@ class Ambassador(AbstractAmbassador):
         logger.info('Submitting %s', filename)
         ipfs_uri = await self.client.post_artifacts([(filename, content)])
         if not ipfs_uri:
-            logger.error('Could not submit artifact to IPFS')
-            self.client.exit_code = 1
-            self.client.stop()
-            return None
+            raise NextBountyError('Could not submit artifact to IPFS')
 
         return amount, ipfs_uri, duration
