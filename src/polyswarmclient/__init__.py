@@ -253,9 +253,9 @@ class Client(object):
                             response = {}
                             continue
                 except OSError:
-                    logging.error('Connection to polyswarmd refused, retrying')
+                    logger.error('Connection to polyswarmd refused, retrying')
                 except asyncio.TimeoutError:
-                    logging.error('Connection to polyswarmd timed out, retrying')
+                    logger.error('Connection to polyswarmd timed out, retrying')
 
                 logger.debug('%s %s?%s', method, path, qs, extra={'extra': response})
 
@@ -419,10 +419,10 @@ class Client(object):
                     logger.error('Received non-json response from polyswarmd: %s', response)
                     return []
         except OSError:
-            logging.error('Connection to polyswarmd refused')
+            logger.error('Connection to polyswarmd refused')
             return []
         except asyncio.TimeoutError:
-            logging.error('Connection to polyswarmd timed out')
+            logger.error('Connection to polyswarmd timed out')
             return []
 
         logger.debug('GET /artifacts/%s', ipfs_uri, extra={'extra': response})
@@ -460,10 +460,10 @@ class Client(object):
 
                 return None
         except OSError:
-            logging.error('Connection to polyswarmd refused')
+            logger.error('Connection to polyswarmd refused')
             return None
         except asyncio.TimeoutError:
-            logging.error('Connection to polyswarmd timed out')
+            logger.error('Connection to polyswarmd timed out')
             return None
 
     @staticmethod
@@ -637,7 +637,7 @@ class Client(object):
                             block_number = resp.get('block_number')
                             txhash = resp.get('txhash')
                         except json.JSONDecodeError:
-                            logging.error('Invalid event response from polyswarmd: %s', resp)
+                            logger.error('Invalid event response from polyswarmd: %s', resp)
                             continue
                         except websockets.exceptions.ConnectionClosed:
                             # Trigger retry logic outside main loop
@@ -646,7 +646,7 @@ class Client(object):
                         logger.info('Received %s on chain %s', event, chain, extra={'extra': data})
 
                         if event == 'connected':
-                            logging.info('Connected to event socket at: %s', data.get('start_time'))
+                            logger.info('Connected to event socket at: %s', data.get('start_time'))
                         elif event == 'block':
                             number = data.get('number', 0)
 
@@ -689,7 +689,7 @@ class Client(object):
             except OSError:
                 logger.error('Websocket connection to polyswarmd refused, retrying')
             except asyncio.TimeoutError:
-                logging.error('Websocket connection to polyswarmd timed out, retrying')
+                logger.error('Websocket connection to polyswarmd timed out, retrying')
 
             retry += 1
             delay = retry * retry
