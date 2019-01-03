@@ -134,7 +134,7 @@ class AbstractArbiter(object):
 
         bounty = await self.client.bounties.get_bounty(guid, chain)
         if bounty is None:
-            logging.error('Unable to get retrieve new bounty')
+            logger.error('Unable to get retrieve new bounty')
             return []
 
         bloom_parts = await self.client.bounties.get_bloom(guid, chain)
