@@ -163,7 +163,7 @@ class Client(object):
             logger.error('Detected unhandled exception, exiting with failure')
             if sys.platform == 'win32':
                 # XXX: v. hacky. We need to find out what is hanging sys.exit()
-                logger.error("Terminating with os._exit")
+                logger.critical("Terminating with os._exit")
                 os._exit(exit_status)
             else:
                 sys.exit(exit_status)
