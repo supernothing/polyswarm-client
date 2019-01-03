@@ -157,7 +157,13 @@ class Client(object):
         asyncio.get_event_loop().run_forever()
         if self.exit_code:
             logger.error('Detected unhandled exception, exiting with failure')
-            sys.exit(self.exit_code)
+            if sys.platform == 'win32':
+                # XXX: v. hacky. We need to find out what is hanging sys.exit()
+                logger.error("Terminating with os._exit")
+                os._exit(self.exit_code)
+            else:
+                sys.exit(self.exit_code)
+
 
     def stop(self):
         """
