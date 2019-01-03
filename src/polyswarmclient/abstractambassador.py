@@ -13,6 +13,17 @@ MAX_BOUNTIES_IN_FLIGHT = 10
 MAX_BOUNTIES_PER_BLOCK = 1
 
 
+class QueuedBounty(object):
+    def __init__(self, amount, ipfs_uri, duration, api_key=None):
+        self.amount = amount
+        self.ipfs_uri = ipfs_uri
+        self.duration = duration
+        self.api_key = api_key
+
+    def __repr__(self):
+        return '({0}, {1}, {2})'.format(self.amount, self.ipfs_uri, self.duration)
+
+
 class AbstractAmbassador(ABC):
     def __init__(self, client, testing=0, chains=None, watchdog=0):
         self.client = client
@@ -33,7 +44,6 @@ class AbstractAmbassador(ABC):
         self.testing = testing
         self.bounties_posted = 0
         self.settles_posted = 0
-        self.api_key = client.api_key
 
     @classmethod
     def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains=None,
@@ -57,31 +67,25 @@ class AbstractAmbassador(ABC):
 
     @abstractmethod
     async def generate_bounties(self, chain):
-        """Override this to submit bounties to the queue
+        """Override this to submit bounties to the queue (using the push_bounty method)
 
         Args:
             chain (str): Chain we are operating on.
-        Returns:
-            (int, str, int): Tuple of amount, ipfs_uri, duration, None to terminate submission
-
-        Note:
-            | The meaning of the return types are as follows:
-            |   - **amount** (*int*): Amount to place this bounty for
-            |   - **ipfs_uri** (*str*): IPFS URI of the artifact to post
-            |   - **duration** (*int*): Duration of the bounty in blocks
         """
         pass
 
-    async def push_bounty(self, amount, ipfs_uri, duration):
+    async def push_bounty(self, amount, ipfs_uri, duration, api_key=None):
         """Push a bounty onto the queue for submission
 
         Args:
             amount (int): Amount of NCT to place on the bounty
             ipfs_uri (str): URI for artifact(s) to be analyzed
             duration (int): Duration in blocks to accept assertions
+            api_key (str): API key to use to submit, if None use default from client
         """
-        logger.info('Queueing bounty %s', (amount, ipfs_uri, duration))
-        await self.bounty_queue.put((amount, ipfs_uri, duration))
+        bounty = QueuedBounty(amount, ipfs_uri, duration, api_key=api_key)
+        logger.info('Queueing bounty %s', bounty)
+        await self.bounty_queue.put(bounty)
 
     def run(self):
         """Run the Client on all of our chains."""
@@ -149,18 +153,12 @@ class AbstractAmbassador(ABC):
         arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
         bounty_fee = self.client.bounties.parameters[chain]['bounty_fee']
 
-        try:
-            amount, ipfs_uri, duration = bounty
-        except ValueError:
-            logger.error('Bounty should be a tuple of (amount, ipfs_uri, duration), instead got %s', bounty)
-            return
-
         tries = 0
         while tries < MAX_TRIES:
             balance = await self.client.balances.get_nct_balance(chain)
 
             # If we don't have the balance, don't submit. Wait and try a few times, then skip
-            if balance < amount + bounty_fee:
+            if balance < bounty.amount + bounty_fee:
                 # Skip to next bounty, so one ultra high value bounty doesn't DOS ambassador
                 if self.client.tx_error_fatal and tries >= MAX_TRIES:
                     logger.error('Failed %d attempts to post bounty due to low balance. Exiting', tries)
@@ -170,17 +168,18 @@ class AbstractAmbassador(ABC):
                 else:
                     tries += 1
                     logger.warning('Insufficient balance to post bounty on %s. Have %s NCT. Need %s NCT.', chain,
-                                   balance, amount + bounty_fee, extra={'extra': bounty})
+                                   balance, bounty.amount + bounty_fee, extra={'extra': bounty})
                     await asyncio.sleep(tries * tries)
                     continue
 
-            await self.on_before_bounty_posted(amount, ipfs_uri, duration, chain)
+            await self.on_before_bounty_posted(bounty.amount, bounty.ipfs_uri, bounty.duration, chain)
 
             logger.info('Submitting bounty %s', self.bounties_posted, extra={'extra': bounty})
-            bounties = await self.client.bounties.post_bounty(amount, ipfs_uri, duration, chain, api_key=self.api_key)
+            bounties = await self.client.bounties.post_bounty(bounty.amount, bounty.ipfs_uri, bounty.duration, chain,
+                                                              api_key=bounty.api_key)
 
             if not bounties:
-                await self.on_bounty_post_failed(amount, ipfs_uri, duration, chain)
+                await self.on_bounty_post_failed(bounty.amount, bounty.ipfs_uri, bounty.duration, chain)
             else:
                 self.bounties_posted += 1
 
@@ -189,7 +188,7 @@ class AbstractAmbassador(ABC):
                 expiration = int(b['expiration'])
 
                 # Handle any additional steps in derived implementations
-                await self.on_after_bounty_posted(guid, amount, ipfs_uri, expiration, chain)
+                await self.on_after_bounty_posted(guid, bounty.amount, bounty.ipfs_uri, expiration, chain)
 
                 sb = SettleBounty(guid)
                 self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
