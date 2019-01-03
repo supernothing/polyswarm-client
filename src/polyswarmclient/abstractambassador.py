@@ -28,9 +28,9 @@ class AbstractAmbassador(ABC):
     def __init__(self, client, testing=0, chains=None, watchdog=0):
         self.client = client
         self.chains = chains
-        self.client.on_run.register(self.handle_run)
-        self.client.on_new_block.register(self.handle_new_block)
-        self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
+        self.client.on_run.register(self.__handle_run)
+        self.client.on_new_block.register(self.__handle_new_block)
+        self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
 
         # Initialize in run_task to ensure we're on the right loop
         self.bounty_queue = None
@@ -91,7 +91,7 @@ class AbstractAmbassador(ABC):
         """Run the Client on all of our chains."""
         self.client.run(self.chains)
 
-    async def handle_run(self, chain: str) -> None:
+    async def __handle_run(self, chain: str) -> None:
         """Asynchronously run a task on a given chain.
 
         Args:
@@ -126,7 +126,6 @@ class AbstractAmbassador(ABC):
                 # Exit if we are in testing mode
                 if self.testing > 0 and self.bounties_posted >= self.testing:
                     logger.info('All testing bounties submitted')
-                    self.client.stop()
                     return
 
                 try:
@@ -199,7 +198,7 @@ class AbstractAmbassador(ABC):
 
         logger.warning('Failed %d attempts to post bounty due to low balance. Skipping', tries, extra={'extra': bounty})
 
-    async def handle_new_block(self, number, chain):
+    async def __handle_new_block(self, number, chain):
         if self.block_event is not None:
             self.block_event.set()
 
@@ -216,7 +215,7 @@ class AbstractAmbassador(ABC):
 
         self.last_bounty_count = self.bounties_posted
 
-    async def handle_settle_bounty(self, bounty_guid, chain):
+    async def __handle_settle_bounty(self, bounty_guid, chain):
         """
         When a bounty is scheduled to be settled, actually settle the bounty to the given chain.
 

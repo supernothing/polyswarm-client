@@ -13,10 +13,10 @@ class AbstractArbiter(object):
         self.client = client
         self.chains = chains
         self.scanner = scanner
-        self.client.on_run.register(self.handle_run)
-        self.client.on_new_bounty.register(self.handle_new_bounty)
-        self.client.on_vote_on_bounty_due.register(self.handle_vote_on_bounty)
-        self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
+        self.client.on_run.register(self.__handle_run)
+        self.client.on_new_bounty.register(self.__handle_new_bounty)
+        self.client.on_vote_on_bounty_due.register(self.__handle_vote_on_bounty)
+        self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
 
         self.testing = testing
         self.active_bounties = set()
@@ -71,7 +71,7 @@ class AbstractArbiter(object):
         """
         self.client.run(self.chains)
 
-    async def handle_run(self, chain):
+    async def __handle_run(self, chain):
         """
         If the Client's current balance is less than the minimum stake
         then deposit the difference between the two to the given chain.
@@ -100,7 +100,7 @@ class AbstractArbiter(object):
                 logger.info('Depositing stake: %s', deposits)
                 break
 
-    async def handle_new_bounty(self, guid, author, amount, uri, expiration, block_number, txhash, chain):
+    async def __handle_new_bounty(self, guid, author, amount, uri, expiration, block_number, txhash, chain):
         """Scan and assert on a posted bounty
 
         Args:
@@ -157,7 +157,7 @@ class AbstractArbiter(object):
 
         return []
 
-    async def handle_vote_on_bounty(self, bounty_guid, votes, valid_bloom, chain):
+    async def __handle_vote_on_bounty(self, bounty_guid, votes, valid_bloom, chain):
         """
         Submit votes on a given bounty GUID to a given chain.
 
@@ -177,7 +177,7 @@ class AbstractArbiter(object):
             logger.info('Testing mode, %s votes remaining', self.testing - self.votes_posted)
         return await self.client.bounties.post_vote(bounty_guid, votes, valid_bloom, chain)
 
-    async def handle_settle_bounty(self, bounty_guid, chain):
+    async def __handle_settle_bounty(self, bounty_guid, chain):
         """
         Settle the given bounty on the given chain.
 
