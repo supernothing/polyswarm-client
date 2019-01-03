@@ -2,7 +2,7 @@ import logging
 import random
 import os
 
-from polyswarmclient.abstractambassador import AbstractAmbassador, NextBountyError
+from polyswarmclient.abstractambassador import AbstractAmbassador
 from polyswarmclient.corpus import DownloadToFileSystemCorpus
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -40,27 +40,25 @@ class Ambassador(AbstractAmbassador):
                 for f in files:
                     self.artifacts.append(os.path.join(root, f))
 
-    async def next_bounty(self, chain):
-        """Submit either the EICAR test string or a benign sample
+    async def generate_bounties(self, chain):
+        """Submit bounty from the filesystem
 
         Args:
             chain (str): Chain sample is being requested from
-        Returns:
-            (int, str, int): Tuple of amount, ipfs_uri, duration, None to terminate submission
-
-        Note:
-            | The meaning of the return types are as follows:
-            |   - **amount** (*int*): Amount to place this bounty for
-            |   - **ipfs_uri** (*str*): IPFS URI of the artifact to post
-            |   - **duration** (*int*): Duration of the bounty in blocks
         """
         amount = self.client.bounties.parameters[chain]['bounty_amount_minimum']
-        filename = random.choice(self.artifacts)
-        duration = BOUNTY_TEST_DURATION_BLOCKS
 
-        logger.info('Submitting file %s', filename)
-        ipfs_uri = await self.client.post_artifacts([(filename, None)])
-        if not ipfs_uri:
-            raise NextBountyError('Could not submit artifact to IPFS')
+        while True:
+            try:
+                filename = random.choice(self.artifacts)
 
-        return amount, ipfs_uri, duration
+                logger.info('Submitting file %s', filename)
+                ipfs_uri = await self.client.post_artifacts([(filename, None)])
+                if not ipfs_uri:
+                    logger.error('Error uploading artifact to IPFS, continuing')
+                    continue
+
+                await self.push_bounty(amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS)
+            except Exception:
+                logger.exception('Exception in bounty generation task, continuing')
+                continue

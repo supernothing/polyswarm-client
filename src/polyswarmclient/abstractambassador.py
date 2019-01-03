@@ -6,11 +6,11 @@ from polyswarmclient import Client
 from polyswarmclient.events import SettleBounty
 
 logger = logging.getLogger(__name__)  # Initialize logger
-MAX_TRIES = 10
 
-class NextBountyError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
+MAX_TRIES = 10
+BOUNTY_QUEUE_SIZE = 10
+MAX_BOUNTIES_IN_FLIGHT = 10
+MAX_BOUNTIES_PER_BLOCK = 1
 
 
 class AbstractAmbassador(ABC):
@@ -18,13 +18,17 @@ class AbstractAmbassador(ABC):
         self.client = client
         self.chains = chains
         self.client.on_run.register(self.handle_run)
+        self.client.on_new_block.register(self.handle_new_block)
         self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
+
+        # Initialize in run_task to ensure we're on the right loop
+        self.bounty_queue = None
+        self.bounty_semaphore = None
+        self.block_event = None
 
         self.watchdog = watchdog
         self.first_block = 0
         self.last_bounty_count = 0
-        if self.watchdog:
-            self.client.on_new_block.register(self.handle_new_block)
 
         self.testing = testing
         self.bounties_posted = 0
@@ -52,8 +56,8 @@ class AbstractAmbassador(ABC):
         return cls(client, testing, chains, watchdog)
 
     @abstractmethod
-    async def next_bounty(self, chain):
-        """Override this to implement different bounty submission queues
+    async def generate_bounties(self, chain):
+        """Override this to submit bounties to the queue
 
         Args:
             chain (str): Chain we are operating on.
@@ -68,13 +72,23 @@ class AbstractAmbassador(ABC):
         """
         pass
 
+    async def push_bounty(self, amount, ipfs_uri, duration):
+        """Push a bounty onto the queue for submission
+
+        Args:
+            amount (int): Amount of NCT to place on the bounty
+            ipfs_uri (str): URI for artifact(s) to be analyzed
+            duration (int): Duration in blocks to accept assertions
+        """
+        logger.info('Queueing bounty %s', (amount, ipfs_uri, duration))
+        await self.bounty_queue.put((amount, ipfs_uri, duration))
+
     def run(self):
         """Run the Client on all of our chains."""
         self.client.run(self.chains)
 
     async def handle_run(self, chain: str) -> None:
-        """
-        Asynchronously run a task on a given chain.
+        """Asynchronously run a task on a given chain.
 
         Args:
             chain (str): Name of the chain to run.
@@ -82,73 +96,93 @@ class AbstractAmbassador(ABC):
         asyncio.get_event_loop().create_task(self.run_task(chain))
 
     async def run_task(self, chain):
-        """
-            Iterate through the bounties an Ambassador wants to post on a given chain.
-            Post each bounty to polyswarmd and schedule the bounty to be settled.
+        """Iterate through the bounties an Ambassador wants to post on a given chain.
+
+        Post each bounty to polyswarmd and schedule the bounty to be settled.
 
         Args:
             chain (str): Name of the chain to post bounties to.
 
         """
+        self.bounty_queue = asyncio.Queue(maxsize=BOUNTY_QUEUE_SIZE)
+        self.bounty_semaphore = asyncio.BoundedSemaphore(value=MAX_BOUNTIES_IN_FLIGHT)
+        self.block_event = asyncio.Event()
+
+        # Producer task
+        asyncio.get_event_loop().create_task(self.generate_bounties(chain))
+
+        # Consumer
+        while True:
+            # Wait for a block
+            await self.block_event.wait()
+            self.block_event.clear()
+
+            bounties_this_block = 0
+            while bounties_this_block < MAX_BOUNTIES_PER_BLOCK:
+                # Exit if we are in testing mode
+                if self.testing > 0 and self.bounties_posted >= self.testing:
+                    logger.info('All testing bounties submitted')
+                    self.client.stop()
+                    return
+
+                try:
+                    bounty = self.bounty_queue.get_nowait()
+                except asyncio.queues.QueueEmpty:
+                    logger.info('Queue empty, waiting for next block')
+                    break
+
+                if bounty is None:
+                    logger.info('Got None for bounty value, moving on to next block')
+                    break
+
+                await self.bounty_semaphore.acquire()
+                asyncio.get_event_loop().create_task(self.submit_bounty(bounty, chain))
+
+    async def submit_bounty(self, bounty, chain):
+        """Submit a bounty in a new task
+
+        Args:
+            bounty ((int, str, int)): Bounty to submit
+            chain: Name of the chain to post to
+        """
         assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
         arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
         bounty_fee = self.client.bounties.parameters[chain]['bounty_fee']
 
-        # HACK: In testing mode we start up ambassador/arbiter/microengine
-        # immediately and start submitting bounties, however arbiter has to wait
-        # a block for its staking tx to be mined before it starts respoonding.
-        # Add in a sleep for now, this will be addressed properly in
-        # polyswarm-client#5
-        if self.testing > 0:
-            logger.info('Waiting for arbiter and microengine')
-            await asyncio.sleep(5)
+        try:
+            amount, ipfs_uri, duration = bounty
+        except ValueError:
+            logger.error('Bounty should be a tuple of (amount, ipfs_uri, duration), instead got %s', bounty)
+            return
 
         tries = 0
-        while True:
-            # Only get a new bounty if tries has been reset
-            if tries == 0:
-                try:
-                    bounty = await self.next_bounty(chain)
-                except NextBountyError as e:
-                    logger.error("Failed to get next bounty", extra={'extra': e})
-                    await asyncio.sleep(10)
-                    continue
-
-            if bounty is None:
-                break
-            # Exit if we are in testing mode
-            if self.testing > 0 and self.bounties_posted >= self.testing:
-                logger.info('All testing bounties submitted')
-                break
-
-            amount, ipfs_uri, duration = bounty
+        while tries < MAX_TRIES:
             balance = await self.client.balances.get_nct_balance(chain)
+
             # If we don't have the balance, don't submit. Wait and try a few times, then skip
-            if balance < amount + bounty_fee and tries >= MAX_TRIES:
+            if balance < amount + bounty_fee:
                 # Skip to next bounty, so one ultra high value bounty doesn't DOS ambassador
-                if self.client.tx_error_fatal:
+                if self.client.tx_error_fatal and tries >= MAX_TRIES:
                     logger.error('Failed %d attempts to post bounty due to low balance. Exiting', tries)
                     self.client.exit_code = 1
                     self.client.stop()
                     return
                 else:
-                    logger.warning('Failed %d attempts to post bounty due to low balance. Skipping', tries,
-                                   extra={'extra': bounty})
-                    tries = 0
+                    tries += 1
+                    logger.warning('Insufficient balance to post bounty on %s. Have %s NCT. Need %s NCT.', chain,
+                                   balance, amount + bounty_fee, extra={'extra': bounty})
+                    await asyncio.sleep(tries * tries)
                     continue
-            elif balance < amount + bounty_fee:
-                tries += 1
-                logger.warning('Insufficient balance to post bounty on %s. Have %s NCT. Need %s NCT.', chain, balance,
-                               amount + bounty_fee, extra={'extra': bounty})
-                await asyncio.sleep(tries * tries)
-                continue
 
-            self.bounties_posted += 1
             await self.on_before_bounty_posted(amount, ipfs_uri, duration, chain)
+
             logger.info('Submitting bounty %s', self.bounties_posted, extra={'extra': bounty})
-            bounties = await self.on_post_bounty(amount, ipfs_uri, duration, chain)
+            bounties = await self.client.bounties.post_bounty(amount, ipfs_uri, duration, chain, api_key=self.api_key)
+
             if not bounties:
                 await self.on_bounty_post_failed(amount, ipfs_uri, duration, chain)
+            else:
+                self.bounties_posted += 1
 
             for b in bounties:
                 guid = b['guid']
@@ -160,9 +194,16 @@ class AbstractAmbassador(ABC):
                 sb = SettleBounty(guid)
                 self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
 
-            tries = 0
+            self.bounty_queue.task_done()
+            self.bounty_semaphore.release()
+            return
+
+        logger.warning('Failed %d attempts to post bounty due to low balance. Skipping', tries, extra={'extra': bounty})
 
     async def handle_new_block(self, number, chain):
+        if self.block_event is not None:
+            self.block_event.set()
+
         if not self.watchdog:
             return
 
@@ -232,19 +273,3 @@ class AbstractAmbassador(ABC):
             chain (str): Chain we are operating on
         """
         pass
-
-    async def on_post_bounty(self, amount, ipfs_uri, duration, chain):
-        """
-        Called when ambassador is going to post a bounty.
-        This implements the logic to reach out and call polyswarmd.
-        Override this to implement additional when posting the bounty
-
-        Args:
-            amount (int): Amount to place this bounty for
-            ipfs_uri (str): IPFS URI of the artifact to post
-            duration (int): Duration of the bounty in blocks
-            chain (str): Chain we are operating on
-        Returns:
-            Response JSON parsed from polyswarmd containing emitted events
-        """
-        return await self.client.bounties.post_bounty(amount, ipfs_uri, duration, chain, api_key=self.api_key)
