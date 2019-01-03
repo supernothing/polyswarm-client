@@ -20,6 +20,9 @@ def choose_backend(backend):
     Raises:
         (Exception): If backend is not found
     """
+    if not backend:
+        raise Exception("No ambassador backend provided")
+
     backend_list = backend.split(":")
     module_name_string = backend_list[0]
 
@@ -54,7 +57,7 @@ def choose_backend(backend):
               help='Password to decrypt the keyfile with')
 @click.option('--api-key', envvar='API_KEY', default='',
               help='API key to use with polyswarmd')
-@click.option('--backend', envvar='BACKEND', default='scratch',
+@click.option('--backend', envvar='BACKEND',
               help='Backend to use')
 @click.option('--testing', default=0,
               help='Activate testing mode for integration testing, respond to N bounties and N offers then exit')
