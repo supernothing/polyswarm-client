@@ -159,7 +159,7 @@ class Client(object):
         if self.exit_code:
             self.exit_loop(self.exit_code)
 
-    def exit_loop(exit_status):
+    def exit_loop(self, exit_status):
         """
         Exit the program entirely.
         """
