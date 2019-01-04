@@ -1,5 +1,9 @@
 # Release History
 
+### 1.0.1 (2019-01-03)
+
+* **Fix** - Client should exit with `os._exit` when running under Windows
+
 ### 1.0 (2019-01-01)
 
 No change from rc6. Releasing 1.0.
