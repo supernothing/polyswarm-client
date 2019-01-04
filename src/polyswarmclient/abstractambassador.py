@@ -11,6 +11,7 @@ MAX_TRIES = 10
 BOUNTY_QUEUE_SIZE = 10
 MAX_BOUNTIES_IN_FLIGHT = 10
 MAX_BOUNTIES_PER_BLOCK = 1
+BLOCK_DIVISOR = 1
 
 
 class QueuedBounty(object):
@@ -39,6 +40,7 @@ class AbstractAmbassador(ABC):
 
         self.watchdog = watchdog
         self.first_block = 0
+        self.last_block = 0
         self.last_bounty_count = 0
 
         self.testing = testing
@@ -138,6 +140,7 @@ class AbstractAmbassador(ABC):
                     logger.info('Got None for bounty value, moving on to next block')
                     break
 
+                bounties_this_block += 1
                 await self.bounty_semaphore.acquire()
                 asyncio.get_event_loop().create_task(self.submit_bounty(bounty, chain))
 
@@ -199,7 +202,12 @@ class AbstractAmbassador(ABC):
         logger.warning('Failed %d attempts to post bounty due to low balance. Skipping', tries, extra={'extra': bounty})
 
     async def __handle_new_block(self, number, chain):
-        if self.block_event is not None:
+        if number <= self.last_block:
+            return
+
+        self.last_block = number
+
+        if self.block_event is not None and number % BLOCK_DIVISOR == 0:
             self.block_event.set()
 
         if not self.watchdog:
