@@ -15,7 +15,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='polyswarm-client',
-    version='1.0',
+    version='1.0.1',
     description='Client library to simplify interacting with a polyswarmd instance',
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -39,7 +39,6 @@ setup(
         ],
     },
     classifiers=[
-        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
