@@ -156,20 +156,20 @@ class Client(object):
         asyncio.get_event_loop().create_task(self.run_task(chains))
         asyncio.get_event_loop().run_forever()
 
-        # NOTE: Refactored the exit handling code here to a new fn to make
-        # codeclimate happy.
-        # If you can find a better way to do this then by all means.
-        def exit_loop(exit_status):
-            logger.error('Detected unhandled exception, exiting with failure')
-            if sys.platform == 'win32':
-                # XXX: v. hacky. We need to find out what is hanging sys.exit()
-                logger.critical("Terminating with os._exit")
-                os._exit(exit_status)
-            else:
-                sys.exit(exit_status)
-
         if self.exit_code:
-            exit_loop(self.exit_code)
+            self.exit_loop(self.exit_code)
+
+    def exit_loop(exit_status):
+        """
+        Exit the program entirely.
+        """
+        logger.error('Detected unhandled exception, exiting with failure')
+        if sys.platform == 'win32':
+            # XXX: v. hacky. We need to find out what is hanging sys.exit()
+            logger.critical("Terminating with os._exit")
+            os._exit(exit_status)
+        else:
+            sys.exit(exit_status)
 
     def stop(self):
         """
