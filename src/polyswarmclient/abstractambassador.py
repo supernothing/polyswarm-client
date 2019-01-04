@@ -241,9 +241,10 @@ class AbstractAmbassador(ABC):
             logger.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
-        if self.testing > 0 and self.settles_posted == self.testing:
+        if self.testing > 0 and self.settles_posted >= self.testing:
             logger.info("All testing bounties complete, exiting")
             self.client.stop()
+
         return ret
 
     async def on_before_bounty_posted(self, amount, ipfs_uri, duration, chain):
