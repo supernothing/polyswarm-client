@@ -17,7 +17,7 @@ BOUNTY_TEST_DURATION_BLOCKS = int(os.getenv('BOUNTY_TEST_DURATION_BLOCKS', 5))
 class Ambassador(AbstractAmbassador):
     """Ambassador which submits the EICAR test file"""
 
-    async def generate_bounty(self, chain):
+    async def generate_bounties(self, chain):
         """Submit either the EICAR test string or a benign sample
 
         Args:
