@@ -40,6 +40,7 @@ class BalanceManager(object):
                 await self.handle_transfer(chain)
         else:
             await self.handle_transfer(chain)
+
         self.client.stop()
 
     async def handle_transfer(self, chain):
@@ -71,7 +72,6 @@ class BalanceManager(object):
                             self.client.from_wei(balance), self.client.from_wei(amount_wei))
 
             self.exit_code = 1
-            self.client.stop()
 
 
 class Deposit(BalanceManager):

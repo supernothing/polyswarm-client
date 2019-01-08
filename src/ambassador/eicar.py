@@ -3,6 +3,7 @@ import logging
 import random
 import os
 
+from concurrent.futures import CancelledError
 from polyswarmclient.abstractambassador import AbstractAmbassador
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -36,6 +37,9 @@ class Ambassador(AbstractAmbassador):
                     continue
 
                 await self.push_bounty(amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS)
+            except CancelledError:
+                logger.warning('Cancel requested')
+                break
             except Exception:
                 logger.exception('Exception in bounty generation task, continuing')
                 continue

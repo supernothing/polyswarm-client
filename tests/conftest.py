@@ -140,7 +140,7 @@ class MockClient(Client):
         self.http_mock.get(self.url_with_parameters('/staking/parameters', chain='side'),
                            body=success(staking_parameters))
 
-        asyncio.ensure_future(self.run_task())
+        asyncio.get_event_loop().create_task(self.run_task())
         asyncio.get_event_loop().run_until_complete(self.wait_for_running())
 
         self.home_ws_mock = self.__ws_mock_manager.open_sockets['ws://localhost/events?chain=home']
@@ -150,12 +150,7 @@ class MockClient(Client):
         self.http_mock.stop()
         self.__ws_mock_manager.stop()
 
-        pending = asyncio.Task.all_tasks()
-
-        for task in pending:
-            task.cancel()
-
-        asyncio.get_event_loop().run_until_complete(asyncio.wait(pending))
+        super().stop()
 
     def __enter__(self):
         self.start()

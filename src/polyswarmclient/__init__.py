@@ -5,6 +5,8 @@ import json
 import logging
 import os
 import sys
+import threading
+import time
 import websockets
 
 from polyswarmclient import events
@@ -20,6 +22,9 @@ from web3 import Web3
 w3 = Web3()
 
 logger = logging.getLogger(__name__)  # Initialize logger
+
+TASK_TIMEOUT = 1.0
+REQUEST_TIMEOUT = 300.0
 
 
 def check_response(response):
@@ -102,7 +107,7 @@ class Client(object):
             'side': events.Schedule(),
         }
 
-        self.exit_code = 0
+        self.tries = 0
 
         self.bounties = None
         self.staking = None
@@ -128,15 +133,6 @@ class Client(object):
         self.on_vote_on_bounty_due = events.OnVoteOnBountyDueCallback()
         self.on_settle_bounty_due = events.OnSettleBountyDueCallback()
 
-    def __exception_handler(self, loop, context):
-        """
-        See _Python docs: https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.call_exception_handler
-        for more information.
-        """
-        self.exit_code = -1
-        self.stop()
-        loop.default_exception_handler(context)
-
     def run(self, chains=None):
         """
         Run the main event loop
@@ -147,35 +143,57 @@ class Client(object):
         if chains is None:
             chains = {'home', 'side'}
 
-        # Default event loop does not support pipes on Windows
-        if sys.platform == 'win32':
-            loop = asyncio.ProactorEventLoop()
+        while True:
+            loop = asyncio.SelectorEventLoop()
+
+            # Default event loop does not support pipes on Windows
+            if sys.platform == 'win32':
+                loop = asyncio.ProactorEventLoop()
+
             asyncio.set_event_loop(loop)
 
-        asyncio.get_event_loop().set_exception_handler(self.__exception_handler)
-        asyncio.get_event_loop().create_task(self.run_task(chains))
-        asyncio.get_event_loop().run_forever()
+            try:
+                asyncio.get_event_loop().run_until_complete(self.run_task(chains))
+            except asyncio.CancelledError:
+                logger.info('Clean exit requested, exiting')
 
-        if self.exit_code:
-            self.exit_loop(self.exit_code)
+                self.join()
+                self.exit(0)
+            except Exception:
+                logger.exception('Unhandled exception at top level')
+                self.stop()
+                self.join()
 
-    def exit_loop(self, exit_status):
-        """
-        Exit the program entirely.
-        """
-        logger.error('Detected unhandled exception, exiting with failure')
+                self.tries += 1
+                wait = self.tries * self.tries
+
+                logger.critical('Detected unhandled exception, sleeping for %s seconds then resetting task', wait)
+                time.sleep(wait)
+                continue
+
+    def join(self):
+        """Gather all remaining tasks, assumes loop is not running"""
+        loop = asyncio.get_event_loop()
+        pending = asyncio.Task.all_tasks(loop)
+
+        loop.run_until_complete(asyncio.wait(pending, loop=loop, timeout=TASK_TIMEOUT))
+
+    def stop(self):
+        """Stop the main event loop"""
+        loop = asyncio.get_event_loop()
+        pending = asyncio.Task.all_tasks(loop)
+
+        for task in pending:
+            task.cancel()
+
+    def exit(self, exit_status):
+        """Exit the program entirely."""
         if sys.platform == 'win32':
             # XXX: v. hacky. We need to find out what is hanging sys.exit()
             logger.critical("Terminating with os._exit")
             os._exit(exit_status)
         else:
             sys.exit(exit_status)
-
-    def stop(self):
-        """
-        Stop the main event loop.
-        """
-        asyncio.get_event_loop().stop()
 
     async def run_task(self, chains=None):
         """
@@ -196,7 +214,8 @@ class Client(object):
         try:
             # XXX: Set the timeouts here to reasonable values, probably should
             # be configurable
-            async with aiohttp.ClientSession(conn_timeout=300.0, read_timeout=300.0) as self.__session:
+            async with aiohttp.ClientSession(conn_timeout=REQUEST_TIMEOUT,
+                                             read_timeout=REQUEST_TIMEOUT) as self.__session:
                 self.bounties = BountiesClient(self)
                 self.staking = StakingClient(self)
                 self.offers = OffersClient(self)
@@ -209,6 +228,8 @@ class Client(object):
                     await self.staking.get_parameters(chain)
                     await self.on_run.run(chain)
 
+                # At this point we're initialized, reset our failure counter and listen for events
+                self.tries = 0
                 await asyncio.wait([self.listen_for_events(chain) for chain in chains])
         finally:
             self.__session = None
@@ -353,7 +374,8 @@ class Client(object):
             transactions = result.get('transactions', [])
             nonce = result.get('nonce', None)
             if verifier is not None and not verifier.verify(transactions, assertion_nonce=nonce):
-                logger.error("Transactions did not match expectations for the given request.", extra={'extra': transactions})
+                logger.error("Transactions did not match expectations for the given request.",
+                             extra={'extra': transactions})
                 if self.tx_error_fatal:
                     sys.exit(1)
                 return False, {}
@@ -639,6 +661,8 @@ class Client(object):
         while True:
             try:
                 async with websockets.connect(wsuri) as ws:
+                    retry = 0
+
                     while not ws.closed:
                         resp = None
                         try:
@@ -698,14 +722,13 @@ class Client(object):
                         else:
                             logger.error('Invalid event type from polyswarmd: %s', resp)
 
-            except OSError:
+            except (OSError, websockets.exceptions.InvalidHandshake):
                 logger.error('Websocket connection to polyswarmd refused, retrying')
             except asyncio.TimeoutError:
                 logger.error('Websocket connection to polyswarmd timed out, retrying')
 
             retry += 1
-            delay = retry * retry
+            wait = retry * retry
 
-            logger.error('Websocket connection to polyswarmd closed, sleeping for %s then attempting to reconnect',
-                         delay)
-            await asyncio.sleep(retry * retry)
+            logger.error('Websocket connection to polyswarmd closed, sleeping for %s seconds then reconnecting', wait)
+            await asyncio.sleep(wait)
