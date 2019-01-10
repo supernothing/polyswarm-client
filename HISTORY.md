@@ -3,6 +3,9 @@
 ### 1.0.1 (2019-01-03)
 
 * **Fix** - Client should exit with `os._exit` when running under Windows
+* **Fix** - Make default handler methods private
+* **Feature** - Submit bounties via a queue with backpressure
+* **Fix** - Remove default backend of 'scratch'
 
 ### 1.0 (2019-01-01)
 
