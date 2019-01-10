@@ -679,7 +679,8 @@ class Client(object):
                             # Trigger retry logic outside main loop
                             break
 
-                        logger.info('Received %s on chain %s', event, chain, extra={'extra': data})
+                        if event != 'block':
+                            logger.info('Received %s on chain %s', event, chain, extra={'extra': data})
 
                         if event == 'connected':
                             logger.info('Connected to event socket at: %s', data.get('start_time'))
