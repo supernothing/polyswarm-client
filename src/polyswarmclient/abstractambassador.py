@@ -200,6 +200,7 @@ class AbstractAmbassador(ABC):
             return
 
         logger.warning('Failed %d attempts to post bounty due to low balance. Skipping', tries, extra={'extra': bounty})
+        await self.on_bounty_post_failed(bounty.amount, bounty.ipfs_uri, bounty.duration, chain)
 
     async def __handle_new_block(self, number, chain):
         if number <= self.last_block:
