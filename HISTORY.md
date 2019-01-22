@@ -1,5 +1,14 @@
 # Release History
 
+### 1.0.2 (2019-01-22)
+
+* **Feature** - Change nonce handling for less lock time and faster throughput
+* **Fix** - Notify on bounty post failure due to low balance
+* **Feature** - Pass mask, verdicts, metadata to bid
+* **Fix** - Remove block event logs
+* **Fix** - Recover from unhandled exception
+* **Fix** - Fix eicar ambassador bad method name
+
 ### 1.0.1 (2019-01-03)
 
 * **Fix** - Client should exit with `os._exit` when running under Windows
