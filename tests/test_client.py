@@ -29,12 +29,20 @@ def test_is_valid_ipfs_uri():
 @pytest.mark.asyncio
 async def test_update_base_nonce(mock_client):
     mock_client.http_mock.get(mock_client.url_with_parameters('/nonce', chain='home'), body=success(42))
-    await mock_client.update_base_nonce(chain='home')
-    assert mock_client.base_nonce['home'] == 42
+    home = polyswarmclient.NonceManager(mock_client, 'home')
+    home.mark_update_nonce()
+    async with home:
+        pass
+
+    assert home.base_nonce == 42
 
     mock_client.http_mock.get(mock_client.url_with_parameters('/nonce', chain='side'), body=success(1337))
-    await mock_client.update_base_nonce(chain='side')
-    assert mock_client.base_nonce['side'] == 1337
+    side = polyswarmclient.NonceManager(mock_client, 'side')
+    side.mark_update_nonce()
+    async with side:
+        pass
+
+    assert side.base_nonce == 1337
 
 
 @pytest.mark.asyncio

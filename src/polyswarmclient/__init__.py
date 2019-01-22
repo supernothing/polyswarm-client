@@ -27,6 +27,83 @@ TASK_TIMEOUT = 1.0
 REQUEST_TIMEOUT = 300.0
 
 
+class NonceManager:
+    """
+    Manages the nonce for some ethereum chain
+    """
+    def __init__(self, client, chain):
+        self.base_nonce = 0
+        self.client = client
+        self.chain = chain
+        self.needs_update = False
+        self.nonce_lock = asyncio.Lock()
+        self.in_progress = 0
+        self.in_progress_condition = asyncio.Condition()
+
+    async def acquire(self):
+        """
+        Acquires the nonce lock.
+        Updates base_nonce if needs_update is set
+        """
+        await self.nonce_lock.acquire()
+        if self.needs_update:
+            async with self.in_progress_condition:
+                # The wait inside here will release this lock, allowing finished() to work
+                await self.in_progress_condition.wait_for(self.all_finished)
+            nonce = await self.client.update_base_nonce(self.chain)
+            logger.info('Updated to %s', nonce)
+            self.needs_update = False
+            if nonce is not None:
+                self.base_nonce = nonce
+
+    def all_finished(self):
+        """
+        Check that all tasks have finished
+        """
+        return self.in_progress == 0
+
+    async def finished(self):
+        """
+        Mark that some in-progress transaction finished on polyswarmd
+        """
+        async with self.in_progress_condition:
+            self.in_progress -= 1
+            self.in_progress_condition.notify()
+
+    async def next(self, amount=1):
+        """
+        Grab the next amount nonces.
+
+        Args:
+            amount (int): amount of sequential nonces to be claimed
+        Returns
+            (list[int]): a list of nonces to use
+        """
+        results = []
+        async with self:
+            for x in range(0, amount):
+                results.append(self.base_nonce + x)
+            self.base_nonce += amount
+            # Inside nonce_lock so that there is no way the next acquire could miss an in progress
+            async with self.in_progress_condition:
+                # note that a set of nonces is being used
+                self.in_progress += 1
+        return results
+
+    def mark_update_nonce(self):
+        """
+        Call this when the nonce is out of sync.
+        This sets the update flag to true.
+        The next acquire after being set will trigger an update
+        """
+        self.needs_update = True
+
+    async def __aenter__(self):
+        await self.acquire()
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self.nonce_lock.release()
+
 def check_response(response):
     """Check the status of responses from polyswarmd
 
@@ -94,13 +171,9 @@ class Client(object):
         logger.info('Using account: %s', self.account)
 
         self.__session = None
-        self.base_nonce = {
-            'home': 0,
-            'side': 0,
-        }
 
-        # Do not init locks here. Need to wait until we can guarantee that our event loop is set.
-        self.base_nonce_lock = {}
+        # Do not init nonce manager here. Need to wait until we can guarantee that our event loop is set.
+        self.nonce_manager = {}
 
         self.__schedule = {
             'home': events.Schedule(),
@@ -209,12 +282,14 @@ class Client(object):
 
         self.params = {'account': self.account}
         # We can now create our locks, because we are assured that the event loop is set
-        self.base_nonce_lock = {'home': asyncio.Lock(), 'side': asyncio.Lock()}
-
+        self.nonce_manager = {'home': NonceManager(self, 'home'), 'side': NonceManager(self, 'side')}
         try:
             # XXX: Set the timeouts here to reasonable values, probably should
             # be configurable
-            async with aiohttp.ClientSession(conn_timeout=REQUEST_TIMEOUT,
+            # no limits on connections
+            loop = asyncio.get_event_loop()
+            conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
+            async with aiohttp.ClientSession(connector=conn, conn_timeout=REQUEST_TIMEOUT,
                                              read_timeout=REQUEST_TIMEOUT) as self.__session:
                 self.bounties = BountiesClient(self)
                 self.staking = StakingClient(self)
@@ -223,7 +298,9 @@ class Client(object):
                 self.balances = BalanceClient(self)
 
                 for chain in chains:
-                    await self.update_base_nonce(chain)
+                    nonce_manager = self.nonce_manager[chain]
+                    async with nonce_manager:
+                        nonce_manager.base_nonce = await self.update_base_nonce(chain)
                     await self.bounties.get_parameters(chain)
                     await self.staking.get_parameters(chain)
                     await self.on_run.run(chain)
@@ -237,7 +314,7 @@ class Client(object):
             self.staking = None
             self.offers = None
 
-    async def make_request(self, method, path, chain, json=None, track_nonce=False, api_key=None, tries=2):
+    async def make_request(self, method, path, chain, json=None, send_nonce=False, api_key=None, tries=2):
         """Make a request to polyswarmd, expecting a json response
 
         Args:
@@ -260,9 +337,10 @@ class Client(object):
 
         params = dict(self.params)
         params['chain'] = chain
-        if track_nonce:
-            await self.base_nonce_lock[chain].acquire()
-            params['base_nonce'] = self.base_nonce[chain]
+
+        if send_nonce:
+            # Set to 0 because I will replace it later
+            params['base_nonce'] = 0
 
         # Allow overriding API key per request
         if api_key is None:
@@ -271,40 +349,31 @@ class Client(object):
 
         qs = '&'.join([a + '=' + str(b) for (a, b) in params.items()])
         response = {}
-        try:
-            while tries > 0:
-                tries -= 1
+        while tries > 0:
+            tries -= 1
 
-                try:
-                    async with self.__session.request(method, uri, params=params, headers=headers,
-                                                      json=json) as raw_response:
-                        try:
-                            response = await raw_response.json()
-                        except (ValueError, aiohttp.ContentTypeError):
-                            response = await raw_response.read() if raw_response else 'None'
-                            logger.error('Received non-json response from polyswarmd: %s', response)
-                            response = {}
-                            continue
-                except OSError:
-                    logger.error('Connection to polyswarmd refused, retrying')
-                except asyncio.TimeoutError:
-                    logger.error('Connection to polyswarmd timed out, retrying')
+            try:
+                async with self.__session.request(method, uri, params=params, headers=headers,
+                                                  json=json) as raw_response:
+                    try:
+                        response = await raw_response.json()
+                    except (ValueError, aiohttp.ContentTypeError):
+                        response = await raw_response.read() if raw_response else 'None'
+                        logger.error('Received non-json response from polyswarmd: %s', response)
+                        response = {}
+                        continue
+            except OSError:
+                logger.error('Connection to polyswarmd refused, retrying')
+            except asyncio.TimeoutError:
+                logger.error('Connection to polyswarmd timed out, retrying')
 
-                logger.debug('%s %s?%s', method, path, qs, extra={'extra': response})
+            logger.debug('%s %s?%s', method, path, qs, extra={'extra': response})
 
-                if not check_response(response):
-                    logger.warning('Request %s %s?%s failed, retrying...', method, path, qs)
-                    continue
-                else:
-                    break
-        finally:
-            if track_nonce:
-                result = response.get('result', {})
-                transactions = result.get('transactions', []) if isinstance(result, dict) else []
-                if transactions:
-                    self.base_nonce[chain] += len(transactions)
-                self.base_nonce_lock[chain].release()
-
+            if not check_response(response):
+                logger.warning('Request %s %s?%s failed, retrying...', method, path, qs)
+                continue
+            else:
+                break
         if not check_response(response):
             logger.warning('Request %s %s?%s failed, giving up', method, path, qs)
             return False, response.get('errors')
@@ -364,7 +433,7 @@ class Client(object):
         while tries > 0:
             tries -= 1
 
-            success, result = await self.make_request(method, path, chain, json=json, track_nonce=True, api_key=api_key,
+            success, result = await self.make_request(method, path, chain, json=json, send_nonce=True, api_key=api_key,
                                                       tries=1)
             if not success or 'transactions' not in result:
                 logger.error('Expected transactions, received', extra={'extra': result})
@@ -372,8 +441,9 @@ class Client(object):
 
             # Keep around any extra data from the first request, such as nonce for assertion
             transactions = result.get('transactions', [])
-            nonce = result.get('nonce', None)
-            if verifier is not None and not verifier.verify(transactions, assertion_nonce=nonce):
+            assertion_nonce = result.get('nonce', None)
+
+            if verifier is not None and not verifier.verify(transactions, assertion_nonce=assertion_nonce):
                 logger.error("Transactions did not match expectations for the given request.",
                              extra={'extra': transactions})
                 if self.tx_error_fatal:
@@ -382,7 +452,12 @@ class Client(object):
 
             if 'transactions' in result:
                 del result['transactions']
+
+            nonce_manager = self.nonce_manager[chain]
+            nonces = await nonce_manager.next(amount=len(transactions))
+            transactions = [self.replace_nonce(nonces[i], transaction) for i, transaction in enumerate(transactions)]
             tx_result = await self.post_transactions(transactions, chain, api_key=api_key)
+            await nonce_manager.finished()
             errors = tx_result.get('errors', [])
             nonce_error = False
             for e in errors:
@@ -396,27 +471,42 @@ class Client(object):
 
             if nonce_error:
                 logger.error('Nonce desync detected, resyncing nonce and retrying')
-                await self.update_base_nonce(chain)
+                nonce_manager.mark_update_nonce()
                 continue
 
             return True, {**result, **tx_result}
 
         return False, {}
 
+    def replace_nonce(self, base_nonce, transaction):
+        """
+        Replaces the nonce in a transaction with the existing nonce value
+
+        Args:
+            base_nonce (int): nonce for the wallet being used
+            transaction (obj): transaction object from polyswarmd
+        Returns
+            (list): transactions to be signed and sent
+        """
+        original = transaction.get('nonce')
+        if original is not None:
+            transaction['nonce'] = base_nonce
+            return transaction
+
     async def update_base_nonce(self, chain, api_key=None):
-        """Update account's nonce from polyswarmd
+        """
+        Update account's nonce from polyswarmd
 
         Args:
             chain (str): Which chain to operate on
             api_key (str): Override default API key
         """
-        async with self.base_nonce_lock[chain]:
-            success, base_nonce = await self.make_request('GET', '/nonce', chain, api_key=api_key)
+        success, base_nonce = await self.make_request('GET', '/nonce', chain, api_key=api_key)
 
-            if success:
-                self.base_nonce[chain] = base_nonce
-            else:
-                logger.error('Failed to fetch base nonce')
+        if success:
+            return base_nonce
+        else:
+            logger.error('Failed to fetch base nonce')
 
     async def list_artifacts(self, ipfs_uri, api_key=None):
         """
