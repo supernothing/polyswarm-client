@@ -13,7 +13,7 @@ It includes:
 * exemplar ambassador, arbiter, and microengine implementations
 * helper classes
 
-For important changes releases, see the [Release History](https://github.com/polyswarm/polyswarm-client/HISTORY.md).
+For important changes releases, see the [Release History](https://github.com/polyswarm/polyswarm-client/blob/master/HISTORY.md).
 
 ## Installation
 
