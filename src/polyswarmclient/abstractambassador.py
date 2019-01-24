@@ -26,7 +26,7 @@ class QueuedBounty(object):
 
 
 class AbstractAmbassador(ABC):
-    def __init__(self, client, testing=0, chains=None, watchdog=0, submission_rate=30):
+    def __init__(self, client, testing=0, chains=None, watchdog=0, submission_rate=0):
         self.client = client
         self.chains = chains
         self.client.on_run.register(self.__handle_run)

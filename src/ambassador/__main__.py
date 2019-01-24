@@ -66,7 +66,7 @@ def choose_backend(backend):
               help='Number of blocks to check if bounties are being processed')
 @click.option('--log-format', default='text',
               help='Log format. Can be `json` or `text` (default)')
-@click.option('--submission-rate', default=30, type=click.FLOAT,
+@click.option('--submission-rate', default=0, type=click.FLOAT,
               help='How often to submit a new sample in seconds. Default: 30 seconds')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')
