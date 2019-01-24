@@ -1,6 +1,7 @@
 import logging
 import random
 import os
+import asyncio
 
 from concurrent.futures import CancelledError
 from polyswarmclient.abstractambassador import AbstractAmbassador
@@ -16,7 +17,7 @@ BOUNTY_TEST_DURATION_BLOCKS = int(os.getenv('BOUNTY_TEST_DURATION_BLOCKS', 5))
 class Ambassador(AbstractAmbassador):
     """Ambassador which submits artifacts from a directory"""
 
-    def __init__(self, client, testing=0, chains=None, watchdog=0):
+    def __init__(self, client, testing=0, chains=None, watchdog=0, submission_rate=30):
         """Initialize a filesystem ambassador
 
         Args:
@@ -24,7 +25,7 @@ class Ambassador(AbstractAmbassador):
             testing (int): How many test bounties to respond to
             chains (set[str]): Chain(s) to operate on
         """
-        super().__init__(client, testing, chains, watchdog)
+        super().__init__(client, testing, chains, watchdog, submission_rate)
 
         self.artifacts = []
         u = os.getenv("MALICIOUS_BOOTSTRAP_URL")
@@ -60,6 +61,7 @@ class Ambassador(AbstractAmbassador):
                     continue
 
                 await self.push_bounty(amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS)
+                await asyncio.sleep(self.submission_rate)
             except CancelledError:
                 logger.warning('Cancel requested')
                 break
