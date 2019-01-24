@@ -67,7 +67,7 @@ def choose_backend(backend):
 @click.option('--log-format', default='text',
               help='Log format. Can be `json` or `text` (default)')
 @click.option('--submission-rate', default=0, type=click.FLOAT,
-              help='How often to submit a new sample in seconds. Default: 30 seconds')
+              help='How often to submit a new sample in seconds. Default: No delay between submissions.')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')
 def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, watchdog,
