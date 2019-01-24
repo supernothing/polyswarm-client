@@ -26,7 +26,7 @@ class QueuedBounty(object):
 
 
 class AbstractAmbassador(ABC):
-    def __init__(self, client, testing=0, chains=None, watchdog=0):
+    def __init__(self, client, testing=0, chains=None, watchdog=0, submission_rate=0):
         self.client = client
         self.chains = chains
         self.client.on_run.register(self.__handle_run)
@@ -46,10 +46,11 @@ class AbstractAmbassador(ABC):
         self.testing = testing
         self.bounties_posted = 0
         self.settles_posted = 0
+        self.submission_rate = submission_rate
 
     @classmethod
     def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains=None,
-                watchdog=0):
+                watchdog=0, submission_rate=0):
         """Connect the Ambassador to a Client.
 
         Args:
@@ -65,7 +66,7 @@ class AbstractAmbassador(ABC):
             AbstractAmbassador: Ambassador instantiated with a Client.
         """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
-        return cls(client, testing, chains, watchdog)
+        return cls(client, testing, chains, watchdog, submission_rate)
 
     @abstractmethod
     async def generate_bounties(self, chain):

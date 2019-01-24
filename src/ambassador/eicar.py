@@ -2,6 +2,7 @@ import base64
 import logging
 import random
 import os
+import asyncio
 
 from concurrent.futures import CancelledError
 from polyswarmclient.abstractambassador import AbstractAmbassador
@@ -37,6 +38,7 @@ class Ambassador(AbstractAmbassador):
                     continue
 
                 await self.push_bounty(amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS)
+                await asyncio.sleep(self.submission_rate)
             except CancelledError:
                 logger.warning('Cancel requested')
                 break

@@ -66,10 +66,12 @@ def choose_backend(backend):
               help='Number of blocks to check if bounties are being processed')
 @click.option('--log-format', default='text',
               help='Log format. Can be `json` or `text` (default)')
+@click.option('--submission-rate', default=0, type=click.FLOAT,
+              help='How often to submit a new sample in seconds. Default: No delay between submissions.')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')
 def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, watchdog,
-         log_format):
+         log_format, submission_rate):
     """Entrypoint for the ambassador driver
 
     Args:
@@ -95,7 +97,8 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
     ambassador_class.connect(polyswarmd_addr, keyfile, password,
                              api_key=api_key, testing=testing,
                              insecure_transport=insecure_transport,
-                             chains=set(chains), watchdog=watchdog).run()
+                             chains=set(chains), watchdog=watchdog,
+                             submission_rate=submission_rate).run()
 
 
 if __name__ == '__main__':
