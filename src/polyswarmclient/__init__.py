@@ -21,8 +21,7 @@ from web3 import Web3
 
 w3 = Web3()
 
-logger = logging.getLogger(__name__)  # Initialize logger
-
+logger = logging.getLogger(__name__) # Initialize logger
 TASK_TIMEOUT = 1.0
 REQUEST_TIMEOUT = 300.0
 

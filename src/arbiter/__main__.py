@@ -3,12 +3,12 @@ import importlib.util
 import logging
 import sys
 
-from polyswarmclient.config import init_logging
+from polyswarmclient.config import init_logging, LoggerConfig
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
-def choose_backend(backend):
+def choose_backend(backend, logger_config):
     """Resolves arbiter name string to implementation
 
     Args:
@@ -31,6 +31,7 @@ def choose_backend(backend):
 
     # have valid module that can be imported, so import it.
     arbiter_module = importlib.import_module(mod_spec.name)
+    logger_config.configure(arbiter_module.__name__)
 
     # find Arbiter class in this module
     if hasattr(arbiter_module, "Arbiter"):
@@ -83,9 +84,13 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
     if not isinstance(loglevel, int):
         logging.error('invalid log level')
         sys.exit(-1)
+    # setup polyswarm-client logs
     init_logging(log_format, loglevel)
+    # setup microengine logs
+    config = LoggerConfig(log_format, loglevel)
+    config.configure('arbiter')
 
-    arbiter_class = choose_backend(backend)
+    arbiter_class = choose_backend(backend, config)
     arbiter_class.connect(polyswarmd_addr, keyfile, password,
                           api_key=api_key, testing=testing,
                           insecure_transport=insecure_transport,

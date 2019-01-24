@@ -4,7 +4,7 @@ import sys
 import functools
 
 from balancemanager import Deposit, Withdraw, Maintainer
-from polyswarmclient.config import init_logging
+from polyswarmclient.config import init_logging, LoggerConfig
 from polyswarmclient import Client
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -58,7 +58,11 @@ def cli(ctx, log, log_format):
     if not isinstance(loglevel, int):
         logging.error('invalid log level')
         sys.exit(-1)
+    # setup polyswarm-client logs
     init_logging(log_format, loglevel)
+    # setup balancemanager logs
+    config = LoggerConfig(log_format, loglevel)
+    config.configure('balancemanager')
 
 
 @cli.command()
