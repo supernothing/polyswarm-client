@@ -50,7 +50,7 @@ class AbstractAmbassador(ABC):
 
     @classmethod
     def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains=None,
-                watchdog=0):
+                watchdog=0, submission_rate=0):
         """Connect the Ambassador to a Client.
 
         Args:
@@ -66,7 +66,7 @@ class AbstractAmbassador(ABC):
             AbstractAmbassador: Ambassador instantiated with a Client.
         """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
-        return cls(client, testing, chains, watchdog)
+        return cls(client, testing, chains, watchdog, submission_rate)
 
     @abstractmethod
     async def generate_bounties(self, chain):
