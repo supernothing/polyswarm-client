@@ -288,8 +288,9 @@ class Client(object):
             # be configurable
             # no limits on connections
             conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
+            timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
             async with aiohttp.ClientSession(connector=conn,
-                                             timeout=REQUEST_TIMEOUT) as self.__session:
+                                             timeout=timeout) as self.__session:
                 self.bounties = BountiesClient(self)
                 self.staking = StakingClient(self)
                 self.offers = OffersClient(self)
