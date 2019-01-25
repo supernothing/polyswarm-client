@@ -45,7 +45,7 @@ def choose_backend(backend, logger_config):
 
 
 @click.command()
-@click.option('--log', default='INFO', help='Logging level')
+@click.option('--log', default='WARNING', help='Logging level')
 @click.option('--polyswarmd-addr', envvar='POLYSWARMD_ADDR', default='localhost:31337',
               help='Address (host:port) of polyswarmd instance')
 @click.option('--keyfile', envvar='KEYFILE', type=click.Path(exists=True), default='keyfile',

@@ -5,7 +5,7 @@ from pythonjsonlogger import jsonlogger
 
 logger = logging.getLogger(__name__)
 
-def init_logging(log_format, loglevel=logging.INFO):
+def init_logging(log_format, loglevel=logging.WARNING):
     """
     Logic to support JSON logging.
     """
@@ -14,7 +14,7 @@ def init_logging(log_format, loglevel=logging.INFO):
     logger_config.configure('polyswarmclient')
 
 class LoggerConfig:
-    def __init__(self, log_format, log_level=logging.INFO):
+    def __init__(self, log_format, log_level=logging.WARNING):
         self.log_format = log_format
         self.log_level = log_level
 

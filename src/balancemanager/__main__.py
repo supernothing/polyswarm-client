@@ -45,7 +45,7 @@ def polyswarm_client(func):
 
 
 @click.group()
-@click.option('--log', default='INFO',
+@click.option('--log', default='WARNING',
               help='Logging level')
 @click.option('--log-format', default='text',
               help='Log format. Can be `json` or `text` (default)')
