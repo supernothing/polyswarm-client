@@ -286,10 +286,10 @@ class Client(object):
             # XXX: Set the timeouts here to reasonable values, probably should
             # be configurable
             # no limits on connections
-            loop = asyncio.get_event_loop()
             conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
-            async with aiohttp.ClientSession(connector=conn, conn_timeout=REQUEST_TIMEOUT,
-                                             read_timeout=REQUEST_TIMEOUT) as self.__session:
+            timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
+            async with aiohttp.ClientSession(connector=conn,
+                                             timeout=timeout) as self.__session:
                 self.bounties = BountiesClient(self)
                 self.staking = StakingClient(self)
                 self.offers = OffersClient(self)
