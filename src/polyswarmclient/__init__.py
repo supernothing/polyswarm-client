@@ -665,7 +665,7 @@ class Client(object):
 
                     if filename:
                         filename = os.path.basename(filename)
-                    else filename:
+                    else:
                         filename = "file"
 
                     payload = aiohttp.payload.get_payload(f, content_type='application/octet-stream')
