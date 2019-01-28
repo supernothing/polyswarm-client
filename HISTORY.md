@@ -1,5 +1,13 @@
 # Release History
 
+### 1.0.3 (2019-01-25)
+
+* **Feature** - Increase default log level to WARNING
+* **Fix** - Add filename when one isn't provided for artifact uploads
+* **Fix** - Bump aiohttp to 3.5.1 for python 3.7 support
+* **Feature** - Separate polyswarm-client logger from root logger
+* **Feature** - Add a submission rate option to slow ambassador bounty submissions
+
 ### 1.0.2 (2019-01-22)
 
 * **Feature** - Change nonce handling for less lock time and faster throughput
