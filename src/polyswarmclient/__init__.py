@@ -438,11 +438,8 @@ class Client(object):
                 logger.error('Expected transactions, received', extra={'extra': result})
                 continue
 
-            # Keep around any extra data from the first request, such as nonce for assertion
             transactions = result.get('transactions', [])
-            assertion_nonce = result.get('nonce', None)
-
-            if verifier is not None and not verifier.verify(transactions, assertion_nonce=assertion_nonce):
+            if verifier is not None and not verifier.verify(transactions):
                 logger.error("Transactions did not match expectations for the given request.",
                              extra={'extra': transactions})
                 if self.tx_error_fatal:

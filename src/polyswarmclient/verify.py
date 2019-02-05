@@ -1,11 +1,13 @@
 import logging
-import rlp
 import uuid
 from abc import ABCMeta, abstractmethod
+
 from eth_abi import decode_abi, decode_single
 from eth_abi.exceptions import InsufficientDataBytes
-from web3 import Web3
 from hexbytes import HexBytes
+from web3 import Web3
+
+from polyswarmclient.utils import bool_list_to_int, int_to_bool_list, calculate_commitment
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -19,11 +21,13 @@ SETTLE_SIG_HASH = '5592d687'
 STAKE_DEPOSIT_SIG_HASH = 'b6b55f25'
 STAKE_WITHDRAWAL_SIG_HASH = '2e1a7d4d'
 
+
 class SimplifiedTransaction():
     """
     This is a simplification of the transaction object returned by polyswarmd.
     The signature hash (first 4 bytes of input data) has been separated from the rest of the data.
     """
+
     def __init__(self, to, value, signature_hash, data):
         self.to = to
         self.value = value
@@ -52,6 +56,7 @@ class SimplifiedTransaction():
         to = w3.toChecksumAddress(transaction_to)
         return cls(to, value, sig, data)
 
+
 class AbstractTransactionVerifier(metaclass=ABCMeta):
     """
     This verifier is used to verify the details of a single transaction.
@@ -59,36 +64,13 @@ class AbstractTransactionVerifier(metaclass=ABCMeta):
 
     Call verify with a transaction to compare it against a known definition
     """
+
     def __init__(self, account):
         self.w3 = Web3()
         self.account = account
 
-    def bool_list_to_int(self, bool_list):
-        retval = 0
-        for b in bool_list:
-            retval << 1
-            retval += 1 if b else 0
-
-        return retval
-
-    def bytes_to_int(self, value):
-        return int.from_bytes(value, byteorder='big')
-
-    def calculate_commitment(self, nonce, verdicts):
-        account = int(self.account, 16)
-        nonce_hash = self.w3.sha3(int(nonce))
-        commitment = self.w3.sha3(self.int_to_bytes(verdicts ^ self.bytes_to_int(nonce_hash) ^ account))
-        return self.bytes_to_int(commitment)
-
     def guid_as_string(self, guid):
         return str(uuid.UUID(int=int(guid), version=4))
-
-    def int_to_bool_list(self, value, length):
-        return [value >> i & 1 == 1 for i in range(0, length)]
-
-    def int_to_bytes(self, value):
-        h = hex(value)[2:]
-        return bytes.fromhex('0' * (64 - len(h)) + h)
 
     def verify(self, transaction):
         abi = self.get_abi()
@@ -104,13 +86,16 @@ class AbstractTransactionVerifier(metaclass=ABCMeta):
         return self.verify_transaction(transaction.to, transaction.value, transaction.signature_hash, data)
 
     @abstractmethod
-    def verify_transaction(self, data_tuple, transaction):
+    def verify_transaction(self, to, value, signature_hash, decoded_data):
         """
         Called when a list of transactions were returned from polyswarmd.
         This function will verify the transactions, and determines if the transactions are expected.
 
         Args:
-            transactions (list): Transactions to be verified before signing and returning to polyswarmd
+            to (str): Address of recipient
+            value (int): Value of transaction (Eth)
+            signature_hash (bytes): First four bytes of hash of function signature
+            decoded_data: Arguments decoded from transaction
         Returns:
             True if valid and expected
         """
@@ -126,6 +111,7 @@ class AbstractTransactionVerifier(metaclass=ABCMeta):
         """
         raise NotImplementedError('Get abi is not implemented')
 
+
 class TransactionGroupVerifier():
     """
     Used to verify groups of transactions that make up a specific action.
@@ -133,6 +119,7 @@ class TransactionGroupVerifier():
 
     Call verify to compare a list of transactions.
     """
+
     def __init__(self, verifiers):
         """
         Initialize a group verifier
@@ -142,40 +129,20 @@ class TransactionGroupVerifier():
         """
         self.verifiers = verifiers
 
-    def verify(self, transactions, assertion_nonce=None):
-        simplified = self.simplify_transactions(transactions)
-        if simplified is None or not simplified:
-            return False
-
-        return self.verify_transactions(simplified, assertion_nonce)
-
-    def simplify_transactions(self, transactions):
-        simplified = []
-        for transaction in transactions:
-            simple = SimplifiedTransaction.simplify(transaction)
-            if simple is None:
-                return None
-
-            simplified.append(simple)
-        return simplified
-
-    def verify_transactions(self, transactions, assertion_nonce):
+    def verify(self, transactions):
         """Check the given transactions against known expectations
 
         Args:
             transactions (list) - A list of transactions from polyswarmd
-            assertion_nonce (string) - The nonce returned after making a request against the assertion route in polyswarmd.
         Returns:
             (bool): True if transactions match expectations. False otherwise
         """
         if len(transactions) != len(self.verifiers):
             return False
 
-        for i, transaction in enumerate(transactions):
-            if not self.verifiers[i].verify(transaction):
-                return False
+        simplified = [SimplifiedTransaction.simplify(tx) for tx in transactions]
+        return all([v.verify(tx) for v, tx in zip(self.verifiers, simplified)])
 
-        return True
 
 class NctApproveVerifier(AbstractTransactionVerifier):
     def __init__(self, amount, account):
@@ -185,13 +152,14 @@ class NctApproveVerifier(AbstractTransactionVerifier):
     def get_abi(self):
         return ['address', 'uint256']
 
-    def verify_transaction(self, to, value, signature_hash, data_tuple):
-        address, approve_amount = data_tuple
-        logger.info('Approve Address: %s, Amount: %s', address, approve_amount)
+    def verify_transaction(self, to, value, signature_hash, decoded_data):
+        address, approve_amount = decoded_data
+        logger.info('Approve address: %s, amount: %s', address, approve_amount)
 
         return (signature_hash == HexBytes(NCT_APPROVE_SIG_HASH)
                 and value == 0
                 and approve_amount == self.amount)
+
 
 class NctTransferVerifier(AbstractTransactionVerifier):
     def __init__(self, amount, account):
@@ -201,13 +169,14 @@ class NctTransferVerifier(AbstractTransactionVerifier):
     def get_abi(self):
         return ['address', 'uint256']
 
-    def verify_transaction(self, to, value, signature_hash, data_tuple):
-        address, transfer_amount = data_tuple
+    def verify_transaction(self, to, value, signature_hash, decoded_data):
+        address, transfer_amount = decoded_data
         logger.info('Transfer Address: %s, Amount: %s', address, transfer_amount)
 
         return (signature_hash == HexBytes(NCT_TRANSFER_SIG_HASH)
                 and value == 0
                 and transfer_amount == self.amount)
+
 
 class PostBountyVerifier(AbstractTransactionVerifier):
     def __init__(self, amount, artifact_uri, num_artifacts, duration, bloom, account):
@@ -228,7 +197,9 @@ class PostBountyVerifier(AbstractTransactionVerifier):
         for b in bloom:
             bounty_bloom = bounty_bloom << 256 | int(b)
 
-        logger.info('Post Bounty guid: %s amount: %s, artifact uri: %s, number of artifacts: %s, duration: %s, bloom: %s', self.guid_as_string(guid), amount, artifact_uri.decode('utf-8'), num_artifacts, duration, bounty_bloom)
+        logger.info(
+            'Post Bounty guid: %s amount: %s, artifact uri: %s, number of artifacts: %s, duration: %s, bloom: %s',
+            self.guid_as_string(guid), amount, artifact_uri.decode('utf-8'), num_artifacts, duration, bounty_bloom)
         return (signature_hash == HexBytes(POST_BOUNTY_SIG_HASH)
                 and value == 0
                 and artifact_uri.decode('utf8') == self.artifact_uri
@@ -236,6 +207,7 @@ class PostBountyVerifier(AbstractTransactionVerifier):
                 and duration == self.duration
                 and bounty_bloom == self.bloom
                 and amount == self.amount)
+
 
 class PostAssertionVerifier(AbstractTransactionVerifier):
     def __init__(self, guid, bid, mask, verdicts, nonce, account):
@@ -252,21 +224,18 @@ class PostAssertionVerifier(AbstractTransactionVerifier):
     def verify_transaction(self, to, value, signature_hash, data):
         guid, bid, mask, commitment = data
 
-        if self.nonce is None:
-            return False
-        given_commitment = self.calculate_commitment(self.nonce, self.bool_list_to_int(self.verdicts))
+        _, expected_commitment = calculate_commitment(self.account, bool_list_to_int(self.verdicts), nonce=self.nonce)
 
-        # If there is a 1 anywhere beyond the length of items we expect, fail it
-        if mask >> len(self.mask) > 0:
-            return False
+        logger.info('Post Assertion guid: %s bid: %s, mask: %s, commitment: %s', self.guid_as_string(guid), bid, mask,
+                    commitment)
 
-        logger.info('Post Assertion guid: %s bid: %s, mask: %s, commitment: %s', self.guid_as_string(guid), bid, mask, commitment)
         return (signature_hash == HexBytes(POST_ASSERTION_SIG_HASH)
                 and value == 0
                 and self.guid_as_string(guid) == self.guid
                 and bid == self.bid
-                and commitment == given_commitment
-                and self.int_to_bool_list(mask, len(self.mask)) == self.mask)
+                and commitment == expected_commitment
+                and int_to_bool_list(mask) == self.mask)
+
 
 class RevealAssertionVerifier(AbstractTransactionVerifier):
     def __init__(self, guid, index, nonce, verdicts, metadata, account):
@@ -287,14 +256,16 @@ class RevealAssertionVerifier(AbstractTransactionVerifier):
         if verdicts >> len(self.verdicts) > 0:
             return False
 
-        logger.info('Reveal Assertion guid: %s assertion_id: %s, verdicts: %s, metadata: %s', self.guid_as_string(guid), assertion_id, self.int_to_bool_list(verdicts, len(self.verdicts)), metadata.decode('utf-8'))
+        logger.info('Reveal Assertion guid: %s assertion_id: %s, verdicts: %s, metadata: %s', self.guid_as_string(guid),
+                    assertion_id, int_to_bool_list(verdicts), metadata.decode('utf-8'))
         return (signature_hash == HexBytes(REVEAL_ASSERTION_SIG_HASH)
                 and value == 0
                 and self.guid_as_string(guid) == self.guid
                 and assertion_id == self.index
-                and self.int_to_bool_list(verdicts, len(self.verdicts)) == self.verdicts
+                and int_to_bool_list(verdicts) == self.verdicts
                 and metadata.decode('utf-8') == self.metadata
                 and nonce == int(self.nonce))
+
 
 class PostVoteVerifier(AbstractTransactionVerifier):
     def __init__(self, guid, votes, valid_bloom, account):
@@ -308,12 +279,14 @@ class PostVoteVerifier(AbstractTransactionVerifier):
 
     def verify_transaction(self, to, value, signature_hash, data):
         guid, votes, valid_bloom = data
-        logger.info('Post Vote guid: %s, votes: %s, valid_bloom: %s', self.guid_as_string(guid), self.int_to_bool_list(votes, len(self.votes)), valid_bloom)
+        logger.info('Post Vote guid: %s, votes: %s, valid_bloom: %s', self.guid_as_string(guid),
+                    int_to_bool_list(votes), valid_bloom)
         return (signature_hash == HexBytes(VOTE_SIG_HASH)
                 and value == 0
                 and self.guid_as_string(guid) == self.guid
-                and self.int_to_bool_list(votes, len(self.votes)) == self.votes
+                and int_to_bool_list(votes) == self.votes
                 and valid_bloom == self.valid_bloom)
+
 
 class SettleBountyVerifier(AbstractTransactionVerifier):
     def __init__(self, guid, account):
@@ -330,6 +303,7 @@ class SettleBountyVerifier(AbstractTransactionVerifier):
                 and value == 0
                 and self.guid_as_string(guid) == self.guid)
 
+
 class StakingDepositVerifier(AbstractTransactionVerifier):
     def __init__(self, amount, account):
         super().__init__(account)
@@ -344,6 +318,7 @@ class StakingDepositVerifier(AbstractTransactionVerifier):
         return (signature_hash == HexBytes(STAKE_DEPOSIT_SIG_HASH)
                 and value == 0
                 and amount == self.amount)
+
 
 class StakingWithdrawVerifier(AbstractTransactionVerifier):
     def __init__(self, amount, account):
@@ -360,54 +335,51 @@ class StakingWithdrawVerifier(AbstractTransactionVerifier):
                 and value == 0
                 and amount == self.amount)
 
+
 class PostBountyGroupVerifier(TransactionGroupVerifier):
     def __init__(self, amount, bounty_fee, artifact_uri, num_artifacts, duration, bloom, account):
         approve = NctApproveVerifier(amount + bounty_fee, account)
         bounty = PostBountyVerifier(amount, artifact_uri, num_artifacts, duration, bloom, account)
         super().__init__([approve, bounty])
 
+
 class PostAssertionGroupVerifier(TransactionGroupVerifier):
-    def __init__(self, guid, bid, assertion_fee, mask, verdicts, account):
-        self.guid = guid
-        self.bid = bid
-        self.assertion_fee = assertion_fee
-        self.mask = mask
-        self.verdicts = verdicts
-        self.account = account
+    def __init__(self, guid, bid, assertion_fee, mask, verdicts, nonce, account):
+        approve = NctApproveVerifier(bid + assertion_fee, account)
+        assertion = PostAssertionVerifier(guid, bid, mask, verdicts, nonce, account)
+        super().__init__([approve, assertion])
 
-    def verify_transactions(self, transactions, assertion_nonce=None):
-        if len(transactions) != 2:
-            return False
-
-        approve = NctApproveVerifier(self.bid + self.assertion_fee, self.account)
-        assertion = PostAssertionVerifier(self.guid, self.bid, self.mask, self.verdicts, assertion_nonce, self.account)
-        return approve.verify(transactions[0]) and assertion.verify(transactions[1])
 
 class RevealAssertionGroupVerifier(TransactionGroupVerifier):
     def __init__(self, guid, index, nonce, verdicts, metadata, account):
         reveal = RevealAssertionVerifier(guid, index, nonce, verdicts, metadata, account)
         super().__init__([reveal])
 
+
 class PostVoteGroupVerifier(TransactionGroupVerifier):
     def __init__(self, guid, votes, valid_bloom, account):
         vote = PostVoteVerifier(guid, votes, valid_bloom, account)
         super().__init__([vote])
+
 
 class SettleBountyGroupVerifier(TransactionGroupVerifier):
     def __init__(self, guid, account):
         settle = SettleBountyVerifier(guid, account)
         super().__init__([settle])
 
+
 class RelayWithdrawDepositGroupVerifier(TransactionGroupVerifier):
     def __init__(self, amount, account):
         transfer = NctTransferVerifier(amount, account)
         super().__init__([transfer])
+
 
 class StakeDepositGroupVerifier(TransactionGroupVerifier):
     def __init__(self, amount, account):
         approve = NctApproveVerifier(amount, account)
         deposit = StakingDepositVerifier(amount, account)
         super().__init__([approve, deposit])
+
 
 class StakeWithdrawGroupVerifier(TransactionGroupVerifier):
     def __init__(self, amount, account):
