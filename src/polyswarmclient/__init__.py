@@ -9,6 +9,7 @@ import threading
 import time
 import websockets
 
+from collections import defaultdict
 from polyswarmclient import events
 from polyswarmclient.bountiesclient import BountiesClient
 from polyswarmclient.stakingclient import StakingClient
@@ -396,12 +397,38 @@ class Client(object):
             raise Exception('Not running')
 
         signed = []
+        txhashes = []
         for tx in transactions:
             s = w3.eth.account.signTransaction(tx, self.priv_key)
+            txhash = s.get('hash', None)
+            if txhash is not None:
+                txhashes.append(txhash.hex())
             raw = bytes(s['rawTransaction']).hex()
             signed.append(raw)
 
-        success, result = await self.make_request('POST', '/transactions', chain, json={'transactions': signed},
+        success, results = await self.make_request('POST', '/transactions',
+                                                   chain,
+                                                   json={'transactions': signed},
+                                                   api_key=api_key, tries=1)
+
+        if len(results) != len(txhashes):
+            logger.warning("transaction result length mistmatch")
+        errors = []
+        if not success:
+            # Some tx failed to be created
+            for i, result in enumerate(results):
+                message = result.get('message', None)
+                is_error = result.get('is_error', False)
+                if is_error and (message is None or 'known transaction' not in message.lower()):
+                    if len(txhashes) > i:
+                        del txhashes[i]
+                    errors.append(message)
+
+        route = '/transactions'
+        json = {
+            'transactions': txhashes
+        }
+        success, result = await self.make_request('GET', route, chain, json=json,
                                                   api_key=api_key, tries=1)
         if not success:
             if self.tx_error_fatal:
@@ -411,68 +438,12 @@ class Client(object):
                 logger.error('Received transaction error', extra={'extra': result})
 
         if not result:
-            logger.warning('Received no events for transaction')
-            return {}
+            errors.append('Failed to retrieve transaction results for {}'.format(txhash))
 
+        if not result.get("errors", []):
+            result["errors"] = []
+        result["errors"].extend(errors)
         return result
-
-    async def make_request_with_transactions(self, method, path, chain, verifier, json=None, api_key=None, tries=5):
-        """Make a transaction generating request to polyswarmd, then sign and post the transactions
-
-        Args:
-            method (str): HTTP method to use
-            path (str): Path portion of URI to send request to
-            chain (str): Which chain to operate on
-            json (obj): JSON payload to send with request
-            api_key (str): Override default API key
-            tries (int): Number of times to retry before giving up
-        Returns:
-            (bool, obj): Tuple of boolean representing success, and response JSON parsed from polyswarmd
-        """
-        while tries > 0:
-            tries -= 1
-
-            success, result = await self.make_request(method, path, chain, json=json, send_nonce=True, api_key=api_key,
-                                                      tries=1)
-            if not success or 'transactions' not in result:
-                logger.error('Expected transactions, received', extra={'extra': result})
-                continue
-
-            transactions = result.get('transactions', [])
-            if verifier is not None and not verifier.verify(transactions):
-                logger.error("Transactions did not match expectations for the given request.",
-                             extra={'extra': transactions})
-                if self.tx_error_fatal:
-                    sys.exit(1)
-                return False, {}
-
-            if 'transactions' in result:
-                del result['transactions']
-
-            nonce_manager = self.nonce_manager[chain]
-            nonces = await nonce_manager.next(amount=len(transactions))
-            transactions = [self.replace_nonce(nonces[i], transaction) for i, transaction in enumerate(transactions)]
-            tx_result = await self.post_transactions(transactions, chain, api_key=api_key)
-            await nonce_manager.finished()
-            errors = tx_result.get('errors', [])
-            nonce_error = False
-            for e in errors:
-                if 'invalid transaction error' in e.lower():
-                    nonce_error = True
-                    break
-
-                if 'transaction failed at block' in e.lower():
-                    logger.error('Transaction failed due to incorrect parameters or missed window, not retrying')
-                    return False, {}
-
-            if nonce_error:
-                logger.error('Nonce desync detected, resyncing nonce and retrying')
-                nonce_manager.mark_update_nonce()
-                continue
-
-            return True, {**result, **tx_result}
-
-        return False, {}
 
     def replace_nonce(self, base_nonce, transaction):
         """

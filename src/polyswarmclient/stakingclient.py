@@ -1,7 +1,54 @@
 import logging
-from polyswarmclient.verify import StakeDepositGroupVerifier, StakeWithdrawGroupVerifier
+from polyswarmclient.transaction import AbstractTransaction, StakingDepositVerifier, StakingWithdrawVerifier, NctApproveVerifier
 
 logger = logging.getLogger(__name__)  # Initialize logger
+
+
+class StakeDepositTransaction(AbstractTransaction):
+    def __init__(self, client, amount):
+        self.amount = amount
+        approve = NctApproveVerifier(amount, client.account)
+        deposit = StakingDepositVerifier(amount, client.account)
+        super().__init__(client, [approve, deposit])
+
+    def get_path(self):
+        return '/staking/deposit'
+
+    def get_body(self):
+        return {
+            'amount': str(self.amount),
+        }
+
+    def has_required_event(self, transaction_events):
+        deposits = transaction_events.get('deposits', [])
+        for deposit in deposits:
+            if deposit.get('amount', 0) == self.amount:
+                return True
+
+        return False
+
+
+class StakeWithdrawTransaction(AbstractTransaction):
+    def __init__(self, amount):
+        self.amount = amount
+        withdraw = StakingWithdrawVerifier(amount, client.account)
+        super().__init__(client, [withdraw])
+
+    def get_path(self):
+        return '/staking/withdraw'
+
+    def get_body(self):
+        return {
+            'amount': str(self.amount),
+        }
+
+    def has_required_event(self, transaction_events):
+        withdrawals = transaction_events.get('withdrawals', [])
+        for withdrawal in withdrawals:
+            if withdrawal.get('amount', 0) == self.amount:
+                return True
+
+        return False
 
 
 class StakingClient(object):
@@ -59,12 +106,8 @@ class StakingClient(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        deposit = {
-            'amount': str(amount),
-        }
-        verifier = StakeDepositGroupVerifier(amount, self.__client.account)
-        success, results = await self.__client.make_request_with_transactions('POST', '/staking/deposit', chain, verifier,
-                                                                              json=deposit, api_key=api_key)
+        transaction = StakeDepositTransaction(self.__client, amount)
+        success, results = await transaction.send(chain, api_key=api_key)
         if not success or 'deposits' not in results:
             logger.error('Expected deposit, received', extra={'extra': results})
 
@@ -80,12 +123,8 @@ class StakingClient(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        withdrawal = {
-            'amount': str(amount),
-        }
-        verifier = StakeWithdrawGroupVerifier(amount, self.__client.account)
-        success, results = await self.__client.make_request_with_transactions('POST', '/staking/withdraw', chain, verifier,
-                                                                              json=withdrawal, api_key=api_key)
+        transaction = StakeWithdrawTransaction(self.__client, amount)
+        success, results = await transaction.send(chain, api_key=api_key)
         if not success or 'withdrawals' not in results:
             logger.error('Expected withdrawal, received', extra={'extra': results})
 

@@ -112,22 +112,121 @@ class AbstractTransactionVerifier(metaclass=ABCMeta):
         raise NotImplementedError('Get abi is not implemented')
 
 
-class TransactionGroupVerifier():
+class AbstractTransaction(metaclass=ABCMeta):
     """
     Used to verify groups of transactions that make up a specific action.
     For instance, when approving some funds to move, and calling a contract function that will consumer them.
 
     Call verify to compare a list of transactions.
     """
-
-    def __init__(self, verifiers):
+    def __init__(self, client, verifiers):
         """
         Initialize a group verifier
 
         Args:
             verifiers (list): Ordered verifiers for each transaction
         """
+        self.client = client
         self.verifiers = verifiers
+
+    async def send(self, chain, tries=5, api_key=None):
+        """Make a transaction generating request to polyswarmd, then sign and post the transactions
+
+        Args:
+            chain (str): Which chain to operate on
+            api_key (str): Override default API key
+            tries (int): Number of times to retry before giving up
+        Returns:
+            (bool, obj): Tuple of boolean representing success, and response JSON parsed from polyswarmd
+        """
+        if api_key is None:
+            api_key = self.client.api_key
+
+        while tries > 0:
+            tries -= 1
+
+            success, result = await self.client.make_request('POST',
+                                                             self.get_path(),
+                                                             chain,
+                                                             json=self.get_body(),
+                                                             send_nonce=True,
+                                                             api_key=api_key,
+                                                             tries=1)
+            if not success or 'transactions' not in result:
+                logger.error('Expected transactions, received', extra={'extra': result})
+                continue
+
+            # Keep around any extra data from the first request, such as nonce for assertion
+            transactions = result.get('transactions', [])
+
+            if not self.verify(transactions):
+                logger.error("Transactions did not match expectations for the given request.",
+                             extra={'extra': transactions})
+                if self.client.tx_error_fatal:
+                    sys.exit(1)
+                return False, {}
+
+            if 'transactions' in result:
+                del result['transactions']
+
+            nonce_manager = self.client.nonce_manager[chain]
+            nonces = await nonce_manager.next(amount=len(transactions))
+            transactions = [self.client.replace_nonce(nonces[i], transaction) for i, transaction in enumerate(transactions)]
+            tx_result = await self.client.post_transactions(transactions, chain, api_key=api_key)
+            await nonce_manager.finished()
+            has_required = self.has_required_event(tx_result)
+            errors = tx_result.get('errors', [])
+            nonce_error = False
+            for e in errors:
+                if 'invalid transaction error' in e.lower():
+                    nonce_error = True
+                    break
+
+                if 'transaction failed at block' in e.lower():
+                    logger.error('Transaction failed due to incorrect parameters or missed window, not retrying')
+                    if not has_required:
+                        return False, {}
+
+            if nonce_error:
+                logger.error('Nonce desync detected, resyncing nonce and retrying')
+                nonce_manager.mark_update_nonce()
+                if not has_required:
+                    continue
+
+            return True, {**result, **tx_result}
+
+        return False, {}
+
+    @abstractmethod
+    def has_required_event(self, transaction_events):
+        """
+        Checks the list for a given transaction.
+        Useful for many transactions, as they are actually multiple transactions
+        In the event one fails, but the needed one succeeds, this will return True
+
+        Returns:
+            True if the required event was in the list, false otherwise
+        """
+        raise NotImplementedError('has_required_event not implemented')
+
+    @abstractmethod
+    def get_path(self):
+        """
+        Get the path to build this transaction
+
+        Returns:
+            Polyswarmd path to get the transaction data
+        """
+        raise NotImplementedError('get path is not implemented')
+
+    @abstractmethod
+    def get_body(self):
+        """
+        Build the payload to send to polyswarmd
+        Returns:
+            Dict payload
+        """
+        raise NotImplementedError('get body is not implemented')
 
     def verify(self, transactions):
         """Check the given transactions against known expectations
@@ -236,7 +335,6 @@ class PostAssertionVerifier(AbstractTransactionVerifier):
                 and commitment == expected_commitment
                 and int_to_bool_list(mask) == self.mask)
 
-
 class RevealAssertionVerifier(AbstractTransactionVerifier):
     def __init__(self, guid, index, nonce, verdicts, metadata, account):
         super().__init__(account)
@@ -334,54 +432,3 @@ class StakingWithdrawVerifier(AbstractTransactionVerifier):
         return (signature_hash == HexBytes(STAKE_WITHDRAWAL_SIG_HASH)
                 and value == 0
                 and amount == self.amount)
-
-
-class PostBountyGroupVerifier(TransactionGroupVerifier):
-    def __init__(self, amount, bounty_fee, artifact_uri, num_artifacts, duration, bloom, account):
-        approve = NctApproveVerifier(amount + bounty_fee, account)
-        bounty = PostBountyVerifier(amount, artifact_uri, num_artifacts, duration, bloom, account)
-        super().__init__([approve, bounty])
-
-
-class PostAssertionGroupVerifier(TransactionGroupVerifier):
-    def __init__(self, guid, bid, assertion_fee, mask, verdicts, nonce, account):
-        approve = NctApproveVerifier(bid + assertion_fee, account)
-        assertion = PostAssertionVerifier(guid, bid, mask, verdicts, nonce, account)
-        super().__init__([approve, assertion])
-
-
-class RevealAssertionGroupVerifier(TransactionGroupVerifier):
-    def __init__(self, guid, index, nonce, verdicts, metadata, account):
-        reveal = RevealAssertionVerifier(guid, index, nonce, verdicts, metadata, account)
-        super().__init__([reveal])
-
-
-class PostVoteGroupVerifier(TransactionGroupVerifier):
-    def __init__(self, guid, votes, valid_bloom, account):
-        vote = PostVoteVerifier(guid, votes, valid_bloom, account)
-        super().__init__([vote])
-
-
-class SettleBountyGroupVerifier(TransactionGroupVerifier):
-    def __init__(self, guid, account):
-        settle = SettleBountyVerifier(guid, account)
-        super().__init__([settle])
-
-
-class RelayWithdrawDepositGroupVerifier(TransactionGroupVerifier):
-    def __init__(self, amount, account):
-        transfer = NctTransferVerifier(amount, account)
-        super().__init__([transfer])
-
-
-class StakeDepositGroupVerifier(TransactionGroupVerifier):
-    def __init__(self, amount, account):
-        approve = NctApproveVerifier(amount, account)
-        deposit = StakingDepositVerifier(amount, account)
-        super().__init__([approve, deposit])
-
-
-class StakeWithdrawGroupVerifier(TransactionGroupVerifier):
-    def __init__(self, amount, account):
-        withdraw = StakingWithdrawVerifier(amount, account)
-        super().__init__([withdraw])

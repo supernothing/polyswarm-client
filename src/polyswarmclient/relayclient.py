@@ -1,7 +1,53 @@
 import logging
-from polyswarmclient.verify import RelayWithdrawDepositGroupVerifier
+from polyswarmclient.transaction import AbstractTransaction, NctTransferVerifier
 
 logger = logging.getLogger(__name__)  # Initialize logger
+
+
+class RelayDepositTransaction(AbstractTransaction):
+    def __init__(self, client, amount):
+        self.amount = amount
+        transfer = NctTransferVerifier(amount, client.account)
+        super().__init__(client, [transfer])
+
+    def get_path(self):
+        return '/relay/deposit'
+
+    def get_body(self):
+        return {
+            'amount': str(self.amount),
+        }
+
+    def has_required_event(self, transaction_events):
+        transfers = transaction_events.get('transfers', [])
+        for transfer in transfers:
+            if transfer.get('amount', 0) == self.amount:
+                return True
+
+        return False
+
+
+class RelayWithdrawTransaction(AbstractTransaction):
+    def __init__(self, client, amount):
+        self.amount = amount
+        transfer = NctTransferVerifier(amount, client.account)
+        super().__init__(client, [transfer])
+
+    def get_path(self):
+        return '/relay/withdrawal'
+
+    def get_body(self):
+        return {
+            'amount': str(self.amount),
+        }
+
+    def has_required_event(self, transaction_events):
+        transfers = transaction_events.get('transfers', [])
+        for transfer in transfers:
+            if transfer.get('amount', 0) == self.amount:
+                return True
+
+        return False
 
 
 class RelayClient(object):
@@ -18,12 +64,8 @@ class RelayClient(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        deposit = {
-            'amount': str(amount),
-        }
-        verifier = RelayWithdrawDepositGroupVerifier(amount, self.__client.account)
-        success, results = await self.__client.make_request_with_transactions('POST', '/relay/deposit', 'home', verifier,
-                                                                              json=deposit, api_key=api_key)
+        transaction = RelayDepositTransaction(self.__client, amount)
+        success, results = await transaction.send('home', api_key=api_key)
         if not success or 'transfers' not in results:
             logger.error('Expected deposit to relay', extra={'extra': results})
 
@@ -38,12 +80,8 @@ class RelayClient(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        withdrawal = {
-            'amount': str(amount),
-        }
-        verifier = RelayWithdrawDepositGroupVerifier(amount, self.__client.account)
-        success, results = await self.__client.make_request_with_transactions('POST', '/relay/withdrawal', 'side', verifier,
-                                                                              json=withdrawal, api_key=api_key)
+        transaction = RelayWithdrawTransaction(self.__client, amount)
+        success, results = await transaction.send('side', api_key=api_key)
         if not success or 'transfers' not in results:
             logger.error('Expected withdrawl from relay', extra={'extra': results})
             return {}
