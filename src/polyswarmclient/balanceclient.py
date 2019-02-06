@@ -6,7 +6,6 @@ logger = logging.getLogger(__name__)  # Initialize logger
 class BalanceClient(object):
     def __init__(self, client):
         self.__client = client
-        self.parameters = {}
 
     async def get_nct_balance(self, chain, api_key=None):
         """Get nectar balance from polyswarmd

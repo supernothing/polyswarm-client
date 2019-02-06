@@ -128,9 +128,9 @@ class Reporter(object):
             chain (str): Chain to operate on
         """
         if not self.submitted:
-            bounty_amount_minimum = self.client.bounties.parameters[chain]['bounty_amount_minimum']
-            assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
-            arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
+            bounty_amount_minimum = await self.client.bounties.parameters[chain].get('bounty_amount_minimum')
+            assertion_reveal_window = await self.client.bounties.parameters[chain].get('assertion_reveal_window')
+            arbiter_vote_window = await self.client.bounties.parameters[chain].get('arbiter_vote_window')
 
             ipfs_uri = await self.client.post_artifacts([('eicar.com.txt', EICAR)])
             if not ipfs_uri:

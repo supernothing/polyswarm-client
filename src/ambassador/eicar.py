@@ -25,7 +25,7 @@ class Ambassador(AbstractAmbassador):
         Args:
             chain (str): Chain sample is being requested from
         """
-        amount = self.client.bounties.parameters[chain]['bounty_amount_minimum']
+        amount = await self.client.bounties.parameters[chain].get('bounty_amount_minimum')
 
         while True:
             try:

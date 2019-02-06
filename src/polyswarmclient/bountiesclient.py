@@ -4,6 +4,7 @@ from polyswarmclient import bloom
 from polyswarmclient.transaction import AbstractTransaction, NctApproveVerifier, \
     PostBountyVerifier, PostAssertionVerifier, RevealAssertionVerifier, \
     PostVoteVerifier, SettleBountyVerifier
+from polyswarmclient.parameters import Parameters
 from polyswarmclient.utils import bool_list_to_int, calculate_commitment
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ class PostAssertionTransaction(AbstractTransaction):
         for assertion in assertions:
             if (assertion.get('bid', 0) == self.bid and
                     assertion.get('mask', []) == self.mask and
-                    assertion.get('nonce', '') == self.nonce and
+                    assertion.get('commitment', '') == self.commitment and
                     assertion.get('guid', '') == self.guid):
                 return True
 
@@ -159,7 +160,7 @@ class BountiesClient(object):
         self.__client = client
         self.parameters = {}
 
-    async def get_parameters(self, chain, api_key=None):
+    async def fetch_parameters(self, chain, api_key=None):
         """Get bounty parameters from polyswarmd.
 
         Args:
@@ -172,7 +173,8 @@ class BountiesClient(object):
         success, result = await self.__client.make_request('GET', '/bounties/parameters', chain, api_key=api_key)
         if not success:
             raise Exception('Error retrieving bounty parameters')
-        self.parameters[chain] = result
+
+        self.parameters[chain] = Parameters(result)
 
     async def get_artifact_count(self, ipfs_uri, api_key=None):
         """Gets the number of artifacts at the ipfs uri
@@ -253,10 +255,11 @@ class BountiesClient(object):
             'uri': artifact_uri,
             'duration': duration,
         }
-        bounty_fee = self.parameters[chain]['bounty_fee']
+        bounty_fee = await self.parameters[chain].get('bounty_fee')
         bloom = await self.calculate_bloom(artifact_uri)
         num_artifacts = await self.get_artifact_count(artifact_uri)
-        transaction = PostBountyTransaction(self.__client, amount, bounty_fee, artifact_uri, num_artifacts, duration, bloom)
+        transaction = PostBountyTransaction(self.__client, amount, bounty_fee, artifact_uri, num_artifacts, duration,
+                                            bloom)
         success, result = await transaction.send(chain, api_key=api_key)
 
         if not success or 'bounties' not in result:
@@ -296,7 +299,7 @@ class BountiesClient(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        fee = self.parameters[chain]['assertion_fee']
+        fee = await self.parameters[chain].get('assertion_fee')
         nonce, commitment = calculate_commitment(self.__client.account, bool_list_to_int(verdicts))
 
         transaction = PostAssertionTransaction(self.__client, bounty_guid, bid, fee, mask, verdicts, commitment, nonce)

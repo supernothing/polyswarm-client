@@ -1,4 +1,6 @@
 import logging
+
+from polyswarmclient.parameters import Parameters
 from polyswarmclient.transaction import AbstractTransaction, StakingDepositVerifier, StakingWithdrawVerifier, NctApproveVerifier
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -56,7 +58,7 @@ class StakingClient(object):
         self.__client = client
         self.parameters = {}
 
-    async def get_parameters(self, chain, api_key=None):
+    async def fetch_parameters(self, chain, api_key=None):
         """Get staking parameters from polyswarmd
 
         Args:
@@ -68,7 +70,8 @@ class StakingClient(object):
         success, result = await self.__client.make_request('GET', '/staking/parameters', chain, api_key=api_key)
         if not success:
             raise Exception('Error retrieving staking parameters')
-        self.parameters[chain] = result
+
+        self.parameters[chain] = Parameters(result)
 
     async def get_total_balance(self, chain, api_key=None):
         """Get total staking balance from polyswarmd

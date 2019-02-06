@@ -22,7 +22,7 @@ from web3 import Web3
 
 w3 = Web3()
 
-logger = logging.getLogger(__name__) # Initialize logger
+logger = logging.getLogger(__name__)  # Initialize logger
 TASK_TIMEOUT = 1.0
 REQUEST_TIMEOUT = 300.0
 
@@ -31,6 +31,7 @@ class NonceManager:
     """
     Manages the nonce for some ethereum chain
     """
+
     def __init__(self, client, chain):
         self.base_nonce = 0
         self.client = client
@@ -103,6 +104,7 @@ class NonceManager:
 
     async def __aexit__(self, exc_type, exc, tb):
         self.nonce_lock.release()
+
 
 def check_response(response):
     """Check the status of responses from polyswarmd
@@ -301,8 +303,8 @@ class Client(object):
                     nonce_manager = self.nonce_manager[chain]
                     async with nonce_manager:
                         nonce_manager.base_nonce = await self.update_base_nonce(chain)
-                    await self.bounties.get_parameters(chain)
-                    await self.staking.get_parameters(chain)
+                    await self.bounties.fetch_parameters(chain)
+                    await self.staking.fetch_parameters(chain)
                     await self.on_run.run(chain)
 
                 # At this point we're initialized, reset our failure counter and listen for events
@@ -412,7 +414,7 @@ class Client(object):
                                                    api_key=api_key, tries=1)
 
         if len(results) != len(txhashes):
-            logger.warning("transaction result length mistmatch")
+            logger.warning('Transaction result length mismatch')
         errors = []
         if not success:
             # Some tx failed to be created
@@ -439,10 +441,9 @@ class Client(object):
 
         if not result:
             errors.append('Failed to retrieve transaction results for {}'.format(txhash))
+            return {}
 
-        if not result.get("errors", []):
-            result["errors"] = []
-        result["errors"].extend(errors)
+        result['errors'] = result.get('errors', []) + errors
         return result
 
     def replace_nonce(self, base_nonce, transaction):
@@ -720,8 +721,11 @@ class Client(object):
         while True:
             try:
                 async with websockets.connect(wsuri) as ws:
-                    retry = 0
+                    # Fetch parameters again here so we don't miss update events
+                    await self.bounties.fetch_parameters(chain)
+                    await self.staking.fetch_parameters(chain)
 
+                    retry = 0
                     while not ws.closed:
                         resp = None
                         try:
@@ -754,6 +758,9 @@ class Client(object):
 
                             asyncio.get_event_loop().create_task(self.on_new_block.run(number=number, chain=chain))
                             asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number, chain=chain))
+                        elif event == 'fee_update':
+                            d = {'bounty_fee': data.get('bounty_fee'), 'assertion_fee': data.get('assertion_fee')}
+                            await self.bounties.parameters[chain].update({k: v for k, v in d.items() if v is not None})
                         elif event == 'bounty':
                             asyncio.get_event_loop().create_task(
                                 self.on_new_bounty.run(**data, block_number=block_number, txhash=txhash, chain=chain))

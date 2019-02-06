@@ -79,7 +79,7 @@ class AbstractArbiter(object):
         Args:
             chain (str): Chain we are operating on.
         """
-        min_stake = self.client.staking.parameters[chain]['minimum_stake']
+        min_stake = await self.client.staking.parameters[chain].get('minimum_stake')
         staking_balance = await self.client.staking.get_total_balance(chain)
         tries = 0
         if staking_balance < min_stake:
@@ -146,8 +146,8 @@ class AbstractArbiter(object):
         valid_bloom = bounty and bounty_bloom == calculated_bloom
 
         expiration = int(expiration)
-        assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
-        arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
+        assertion_reveal_window = await self.client.bounties.parameters[chain].get('assertion_reveal_window')
+        arbiter_vote_window = await self.client.bounties.parameters[chain].get('arbiter_vote_window')
 
         vb = VoteOnBounty(guid, votes, valid_bloom)
         self.client.schedule(expiration + assertion_reveal_window, vb, chain)

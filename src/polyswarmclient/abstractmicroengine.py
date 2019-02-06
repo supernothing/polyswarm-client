@@ -64,7 +64,7 @@ class AbstractMicroengine(object):
         raise NotImplementedError(
             "You must 1) override this scan method OR 2) provide a scanner to your Microengine constructor")
 
-    def bid(self, guid, mask, verdicts, metadatas, chain):
+    async def bid(self, guid, mask, verdicts, metadatas, chain):
         """Override this to implement custom bid calculation logic
 
         Args:
@@ -76,7 +76,7 @@ class AbstractMicroengine(object):
         Returns:
             (int): Amount of NCT to bid in base NCT units (10 ^ -18)
         """
-        return self.client.bounties.parameters[chain]['assertion_bid_minimum']
+        return await self.client.bounties.parameters[chain].get('assertion_bid_minimum')
 
     def run(self):
         """
@@ -124,12 +124,12 @@ class AbstractMicroengine(object):
             return []
 
         expiration = int(expiration)
-        assertion_fee = self.client.bounties.parameters[chain]['assertion_fee']
-        assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
-        arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
+        assertion_fee = await self.client.bounties.parameters[chain].get('assertion_fee')
+        assertion_reveal_window = await self.client.bounties.parameters[chain].get('assertion_reveal_window')
+        arbiter_vote_window = await self.client.bounties.parameters[chain].get('arbiter_vote_window')
 
         # Check that microengine has sufficient balance to handle the assertion
-        bid = self.bid(guid, mask, verdicts, metadatas, chain)
+        bid = await self.bid(guid, mask, verdicts, metadatas, chain)
         balance = await self.client.balances.get_nct_balance(chain)
         if balance < assertion_fee + bid:
             logger.warning('Insufficient balance to post assertion for bounty on %s. Have %s NCT. Need %s NCT', chain,

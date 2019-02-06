@@ -124,10 +124,12 @@ class MockClient(Client):
             "bounty_fee": 62500000000000000,
             "max_duration": 100
         }
-        self.http_mock.get(self.url_with_parameters('/bounties/parameters', chain='home'),
-                           body=success(bounty_parameters))
-        self.http_mock.get(self.url_with_parameters('/bounties/parameters', chain='side'),
-                           body=success(bounty_parameters))
+
+        for _ in range(2):
+            self.http_mock.get(self.url_with_parameters('/bounties/parameters', chain='home'),
+                               body=success(bounty_parameters))
+            self.http_mock.get(self.url_with_parameters('/bounties/parameters', chain='side'),
+                               body=success(bounty_parameters))
 
         staking_parameters = {
             "maximum_stake": 100000000000000000000000000,
@@ -135,10 +137,12 @@ class MockClient(Client):
             "vote_ratio_denominator": 10,
             "vote_ratio_numerator": 9
         }
-        self.http_mock.get(self.url_with_parameters('/staking/parameters', chain='home'),
-                           body=success(staking_parameters))
-        self.http_mock.get(self.url_with_parameters('/staking/parameters', chain='side'),
-                           body=success(staking_parameters))
+
+        for _ in range(2):
+            self.http_mock.get(self.url_with_parameters('/staking/parameters', chain='home'),
+                               body=success(staking_parameters))
+            self.http_mock.get(self.url_with_parameters('/staking/parameters', chain='side'),
+                               body=success(staking_parameters))
 
         asyncio.get_event_loop().create_task(self.run_task())
         asyncio.get_event_loop().run_until_complete(self.wait_for_running())

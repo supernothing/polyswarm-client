@@ -1,4 +1,5 @@
 import logging
+
 from polyswarmclient.transaction import AbstractTransaction, NctTransferVerifier
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -53,7 +54,6 @@ class RelayWithdrawTransaction(AbstractTransaction):
 class RelayClient(object):
     def __init__(self, client):
         self.__client = client
-        self.parameters = {}
 
     async def post_deposit(self, amount, api_key=None):
         """Post a deposit to the relay contract
@@ -83,7 +83,7 @@ class RelayClient(object):
         transaction = RelayWithdrawTransaction(self.__client, amount)
         success, results = await transaction.send('side', api_key=api_key)
         if not success or 'transfers' not in results:
-            logger.error('Expected withdrawl from relay', extra={'extra': results})
+            logger.error('Expected withdrawal from relay', extra={'extra': results})
             return {}
 
         return results.get('transfers', [])

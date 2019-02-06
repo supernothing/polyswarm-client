@@ -152,9 +152,9 @@ class AbstractAmbassador(ABC):
             bounty ((int, str, int)): Bounty to submit
             chain: Name of the chain to post to
         """
-        assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
-        arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
-        bounty_fee = self.client.bounties.parameters[chain]['bounty_fee']
+        assertion_reveal_window = await self.client.bounties.parameters[chain].get('assertion_reveal_window')
+        arbiter_vote_window = await self.client.bounties.parameters[chain].get('arbiter_vote_window')
+        bounty_fee = await self.client.bounties.parameters[chain].get('bounty_fee')
 
         tries = 0
         while tries < MAX_TRIES:
