@@ -1,5 +1,11 @@
 # Release History
 
+### 1.1.0 (2019-02-06)
+
+* **Feature** - Support parameter object changes
+* **Fix** - Use separated `/transactions` routes to recover from known transaction errors
+* **Feature** - Calculate commitment hash locally.
+
 ### 1.0.3 (2019-01-25)
 
 * **Feature** - Increase default log level to WARNING
