@@ -36,6 +36,7 @@ setup(
             'verbatimdbgen=arbiter.verbatimdb.__main__:main',
             'balancemanager=balancemanager.__main__:cli',
             'reporter=polyswarmclient.reporter:main',
+            'worker=worker.__main__:main',
         ],
     },
     classifiers=[

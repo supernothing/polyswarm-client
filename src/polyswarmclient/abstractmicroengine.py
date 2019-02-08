@@ -1,7 +1,9 @@
+import asyncio
 import logging
 
 from polyswarmclient import Client
 from polyswarmclient.events import RevealAssertion, SettleBounty
+from polyswarmclient.utils import asyncio_stop
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -73,10 +75,38 @@ class AbstractMicroengine(object):
             verdicts (list[bool]): scan verdicts from scanning the bounty files
             metadatas (list[str]): metadata blurbs from scanning the bounty files
             chain (str): Chain we are operating on
+
         Returns:
-            (int): Amount of NCT to bid in base NCT units (10 ^ -18)
+            int: Amount of NCT to bid in base NCT units (10 ^ -18)
         """
         return await self.client.bounties.parameters[chain].get('assertion_bid_minimum')
+
+    async def fetch_and_scan_all(self, guid, uri, duration, chain):
+        """Fetch and scan all artifacts concurrently
+
+        Args:
+            guid (str): GUID of the associated bounty
+            uri (str):  Base artifact URI
+            duration (int): Max number of blocks to take
+            chain (str): Chain we are operating on
+
+        Returns:
+            (list(bool), list(bool), list(str)): Tuple of mask bits, verdicts, and metadatas
+        """
+
+        async def fetch_and_scan(index):
+            content = await self.client.get_artifact(uri, index)
+            if content is not None:
+                return await self.scan(guid, content, chain)
+
+            return None
+
+        artifacts = await self.client.list_artifacts(uri)
+        results = await asyncio.gather(*[fetch_and_scan(i) for i in range(len(artifacts))])
+        results = [r if r is not None else (False, False, '') for r in results]
+        mask, verdicts, metadatas = tuple(list(x) for x in zip(*results))
+
+        return mask, verdicts, metadatas
 
     def run(self):
         """
@@ -93,9 +123,10 @@ class AbstractMicroengine(object):
             amount (str): Amount of the bounty in base NCT units (10 ^ -18)
             uri (str): IPFS hash of the root artifact
             expiration (str): Block number of the bounty's expiration
-            block_number (int): Block number the vote was placed on
+            block_number (int): Block number the bounty was placed on
             txhash (str): Transaction hash which caused the event
             chain (str): Is this on the home or side chain?
+
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
@@ -111,19 +142,13 @@ class AbstractMicroengine(object):
                 return []
             logger.info('Testing mode, %s bounties remaining', self.testing - self.bounties_seen)
 
-        mask = []
-        verdicts = []
-        metadatas = []
-        async for content in self.client.get_artifacts(uri):
-            bit, verdict, metadata = await self.scan(guid, content, chain)
-            mask.append(bit)
-            verdicts.append(verdict)
-            metadatas.append(metadata)
+        expiration = int(expiration)
+        duration = expiration - block_number
 
+        mask, verdicts, metadatas = await self.fetch_and_scan_all(guid, uri, duration, chain)
         if not any(mask):
             return []
 
-        expiration = int(expiration)
         assertion_fee = await self.client.bounties.parameters[chain].get('assertion_fee')
         assertion_reveal_window = await self.client.bounties.parameters[chain].get('assertion_reveal_window')
         arbiter_vote_window = await self.client.bounties.parameters[chain].get('arbiter_vote_window')
@@ -136,7 +161,7 @@ class AbstractMicroengine(object):
                            balance, assertion_fee + bid, extra={'extra': guid})
             if self.testing > 0:
                 self.client.exit_code = 1
-                self.client.stop()
+                asyncio_stop()
             return []
 
         logger.info('Responding to bounty: %s', guid)
@@ -196,5 +221,5 @@ class AbstractMicroengine(object):
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
         if self.testing > 0 and self.settles_posted >= self.testing:
             logger.info("All testing bounties complete, exiting")
-            self.client.stop()
+            asyncio_stop()
         return ret

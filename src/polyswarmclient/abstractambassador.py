@@ -1,9 +1,10 @@
 import asyncio
 import logging
-
 from abc import ABC, abstractmethod
+
 from polyswarmclient import Client
 from polyswarmclient.events import SettleBounty
+from polyswarmclient.utils import asyncio_stop
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -166,7 +167,7 @@ class AbstractAmbassador(ABC):
                 if self.client.tx_error_fatal and tries >= MAX_TRIES:
                     logger.error('Failed %d attempts to post bounty due to low balance. Exiting', tries)
                     self.client.exit_code = 1
-                    self.client.stop()
+                    asyncio_stop()
                     return
                 else:
                     tries += 1
@@ -245,7 +246,7 @@ class AbstractAmbassador(ABC):
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
         if self.testing > 0 and self.settles_posted >= self.testing:
             logger.info("All testing bounties complete, exiting")
-            self.client.stop()
+            asyncio_stop()
 
         return ret
 

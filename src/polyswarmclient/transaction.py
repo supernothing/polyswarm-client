@@ -7,7 +7,7 @@ from eth_abi.exceptions import InsufficientDataBytes
 from hexbytes import HexBytes
 from web3 import Web3
 
-from polyswarmclient.utils import bool_list_to_int, int_to_bool_list, calculate_commitment
+from polyswarmclient.utils import bool_list_to_int, int_to_bool_list, calculate_commitment, exit
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -163,7 +163,7 @@ class AbstractTransaction(metaclass=ABCMeta):
                 logger.error("Transactions did not match expectations for the given request.",
                              extra={'extra': transactions})
                 if self.client.tx_error_fatal:
-                    sys.exit(1)
+                    exit(1)
                 return False, {}
 
             if 'transactions' in result:

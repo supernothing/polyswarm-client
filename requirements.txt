@@ -1,5 +1,6 @@
 aiodns==1.1.1
 aiohttp==3.5.1
+aioredis==1.2.0
 aioresponses==0.6.0
 aiorwlock==0.6.0
 asynctest==0.12.2

@@ -1,6 +1,8 @@
 import asyncio
 import logging
 
+from polyswarmclient.utils import asyncio_stop
+
 logger = logging.getLogger(__name__)
 
 # Extra blocks for the relay to process. Includes multiple relay transactions.
@@ -41,7 +43,7 @@ class BalanceManager(object):
         else:
             await self.handle_transfer(chain)
 
-        self.client.stop()
+        asyncio_stop()
 
     async def handle_transfer(self, chain):
         """
@@ -191,7 +193,7 @@ class Maintainer(object):
             side_balance = await self.client.balances.get_nct_balance(chain='side')
             if self.testing > 0 and self.testing <= self.transfers:
                 logger.info('Finished text runs')
-                self.client.stop()
+                asyncio_stop()
 
             if self.last_relay is not None and (self.last_relay + self.confirmations) >= block:
                 more_blocks = self.last_relay + self.confirmations - block

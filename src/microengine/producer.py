@@ -1,0 +1,77 @@
+import asyncio
+import json
+import logging
+import os
+
+import aioredis
+
+from polyswarmclient.abstractmicroengine import AbstractMicroengine
+
+logger = logging.getLogger(__name__)
+
+REDIS_ADDR = os.getenv('REDIS_ADDR', 'localhost:6379')
+QUEUE = os.getenv('QUEUE')
+
+TIME_TO_POST_ASSERTION = 4
+KEY_TIMEOUT = 20
+
+
+class Microengine(AbstractMicroengine):
+    def __init__(self, client, testing=0, scanner=None, chains=None):
+        super().__init__(client, testing, None, chains)
+
+        if QUEUE is None:
+            raise ValueError('No queue configured, set the QUEUE environment variable')
+        if QUEUE.endswith('_results'):
+            raise ValueError('Queue name cannot end with "_results"')
+
+        self.client.on_run.register(self.__handle_run)
+        self.redis = None
+
+    async def __handle_run(self, chain):
+        if self.redis is None:
+            redis_uri = 'redis://' + REDIS_ADDR
+            self.redis = await aioredis.create_redis(redis_uri)
+
+    async def fetch_and_scan_all(self, guid, uri, duration, chain):
+        """Overrides the default fetch logic to embed the URI and index rather than downloading on producer side
+
+        Args:
+            guid (str): GUID of the associated bounty
+            uri (str):  Base artifact URI
+            chain (str): Chain we are operating on
+
+        Returns:
+            (list(bool), list(bool), list(str)): Tuple of mask bits, verdicts, and metadatas
+        """
+
+        # Ensure we don't wait past the bounty duration for one long artifact
+        timeout = duration - TIME_TO_POST_ASSERTION
+
+        async def wait_for_result(key):
+            try:
+                result = await self.redis.blpop(key, timeout=timeout)
+                if result is None:
+                    logger.warning('Timeout waiting for result in bounty %s', guid)
+                    return None
+
+                j = json.loads(result[1].decode('utf-8'))
+                return j['index'], j['bit'], j['verdict'], j['metadata']
+            except (AttributeError, ValueError):
+                logger.error('Received invalid response from worker')
+                return None
+
+        num_artifacts = len(await self.client.list_artifacts(uri))
+        jobs = [json.dumps({'guid': guid, 'uri': uri, 'index': i, 'chain': chain}) for i in range(num_artifacts)]
+        await self.redis.rpush(QUEUE, *jobs)
+
+        key = '{}_{}_results'.format(guid, chain)
+        results = await asyncio.gather(*[wait_for_result(key) for _ in jobs])
+        results = {r[0]: r[1:] for r in results if r is not None}
+        results = [results.get(i, (False, False, '')) for i in range(num_artifacts)]
+        mask, verdicts, metadatas = tuple(list(x) for x in zip(*results))
+
+        # Age off old result keys
+        await self.redis.expire(key, KEY_TIMEOUT)
+
+        return mask, verdicts, metadatas

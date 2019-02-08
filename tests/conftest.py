@@ -7,6 +7,7 @@ from . import success
 from aioresponses import aioresponses
 from asynctest.mock import patch
 from polyswarmclient import Client
+from polyswarmclient.utils import asyncio_stop
 
 # THE FOLLOWING KEY IS FOR TESTING PURPOSES ONLY
 TESTKEY = base64.b64decode(
@@ -154,7 +155,7 @@ class MockClient(Client):
         self.http_mock.stop()
         self.__ws_mock_manager.stop()
 
-        super().stop()
+        asyncio_stop()
 
     def __enter__(self):
         self.start()

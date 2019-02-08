@@ -5,17 +5,16 @@ import json
 import logging
 import os
 import sys
-import threading
 import time
 import websockets
 
-from collections import defaultdict
 from polyswarmclient import events
+from polyswarmclient.balanceclient import BalanceClient
 from polyswarmclient.bountiesclient import BountiesClient
 from polyswarmclient.stakingclient import StakingClient
 from polyswarmclient.offersclient import OffersClient
 from polyswarmclient.relayclient import RelayClient
-from polyswarmclient.balanceclient import BalanceClient
+from polyswarmclient.utils import asyncio_join, asyncio_stop, exit, MAX_WAIT
 from urllib.parse import urljoin
 
 from web3 import Web3
@@ -23,8 +22,8 @@ from web3 import Web3
 w3 = Web3()
 
 logger = logging.getLogger(__name__)  # Initialize logger
-TASK_TIMEOUT = 1.0
 REQUEST_TIMEOUT = 300.0
+MAX_ARTIFACTS = 256
 
 
 class NonceManager:
@@ -232,43 +231,19 @@ class Client(object):
             except asyncio.CancelledError:
                 logger.info('Clean exit requested, exiting')
 
-                self.join()
-                self.exit(0)
+                asyncio_join()
+                exit(0)
             except Exception:
                 logger.exception('Unhandled exception at top level')
-                self.stop()
-                self.join()
+                asyncio_stop()
+                asyncio_join()
 
                 self.tries += 1
-                wait = self.tries * self.tries
+                wait = min(MAX_WAIT, self.tries * self.tries)
 
                 logger.critical('Detected unhandled exception, sleeping for %s seconds then resetting task', wait)
                 time.sleep(wait)
                 continue
-
-    def join(self):
-        """Gather all remaining tasks, assumes loop is not running"""
-        loop = asyncio.get_event_loop()
-        pending = asyncio.Task.all_tasks(loop)
-
-        loop.run_until_complete(asyncio.wait(pending, loop=loop, timeout=TASK_TIMEOUT))
-
-    def stop(self):
-        """Stop the main event loop"""
-        loop = asyncio.get_event_loop()
-        pending = asyncio.Task.all_tasks(loop)
-
-        for task in pending:
-            task.cancel()
-
-    def exit(self, exit_status):
-        """Exit the program entirely."""
-        if sys.platform == 'win32':
-            # XXX: v. hacky. We need to find out what is hanging sys.exit()
-            logger.critical("Terminating with os._exit")
-            os._exit(exit_status)
-        else:
-            sys.exit(exit_status)
 
     async def run_task(self, chains=None):
         """
@@ -286,13 +261,11 @@ class Client(object):
         # We can now create our locks, because we are assured that the event loop is set
         self.nonce_manager = {'home': NonceManager(self, 'home'), 'side': NonceManager(self, 'side')}
         try:
-            # XXX: Set the timeouts here to reasonable values, probably should
-            # be configurable
-            # no limits on connections
+            # XXX: Set the timeouts here to reasonable values, probably should be configurable
+            # No limits on connections
             conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
             timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
-            async with aiohttp.ClientSession(connector=conn,
-                                             timeout=timeout) as self.__session:
+            async with aiohttp.ClientSession(connector=conn, timeout=timeout) as self.__session:
                 self.bounties = BountiesClient(self)
                 self.staking = StakingClient(self)
                 self.offers = OffersClient(self)
@@ -584,7 +557,7 @@ class Client(object):
             i = self.i
             self.i += 1
 
-            if i < 256:
+            if i < MAX_ARTIFACTS:
                 content = await self.client.get_artifact(self.ipfs_uri, i, api_key=self.api_key)
                 if content:
                     return content

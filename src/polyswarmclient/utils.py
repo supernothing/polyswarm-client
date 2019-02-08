@@ -1,6 +1,11 @@
+import asyncio
 import os
+import sys
 
 from ethereum.utils import sha3
+
+TASK_TIMEOUT = 1.0
+MAX_WAIT = 600
 
 
 def int_to_bytes(i):
@@ -31,3 +36,29 @@ def calculate_commitment(account, verdicts, nonce=None):
     account = int(account, 16)
     commitment = sha3(int_to_bytes(verdicts ^ int_from_bytes(sha3(nonce)) ^ account))
     return int_from_bytes(nonce), int_from_bytes(commitment)
+
+
+def asyncio_join():
+    """Gather all remaining tasks, assumes loop is not running"""
+    loop = asyncio.get_event_loop()
+    pending = asyncio.Task.all_tasks(loop)
+
+    loop.run_until_complete(asyncio.wait(pending, loop=loop, timeout=TASK_TIMEOUT))
+
+
+def asyncio_stop():
+    """Stop the main event loop"""
+    loop = asyncio.get_event_loop()
+    pending = asyncio.Task.all_tasks(loop)
+
+    for task in pending:
+        task.cancel()
+
+
+def exit(exit_status):
+    """Exit the program entirely."""
+    if sys.platform == 'win32':
+        # XXX: v. hacky. We need to find out what is hanging sys.exit()
+        os._exit(exit_status)
+    else:
+        sys.exit(exit_status)

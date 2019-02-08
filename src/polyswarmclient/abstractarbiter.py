@@ -3,6 +3,7 @@ import logging
 
 from polyswarmclient import Client
 from polyswarmclient.events import VoteOnBounty, SettleBounty
+from polyswarmclient.utils import asyncio_stop
 
 logger = logging.getLogger(__name__)  # Initialize logger
 MAX_STAKE_RETRIES = 10
@@ -88,7 +89,7 @@ class AbstractArbiter(object):
                 if self.testing > 0 and nct_balance < min_stake - staking_balance and tries >= MAX_STAKE_RETRIES:
                     logger.error('Failed %d attempts to deposit due to low balance. Exiting', tries)
                     self.client.exit_code = 1
-                    self.client.stop()
+                    asyncio_stop()
                 elif nct_balance < min_stake - staking_balance:
                     logger.warning('Insufficient balance to deposit stake on %s. Have %s NCT. Need %s NCT', chain,
                                    nct_balance, min_stake - staking_balance)
@@ -201,5 +202,5 @@ class AbstractArbiter(object):
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
         if self.testing > 0 and self.settles_posted >= self.testing:
             logger.info("All testing bounties complete, exiting")
-            self.client.stop()
+            asyncio_stop()
         return ret
