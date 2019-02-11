@@ -286,6 +286,24 @@ class BountiesClient(object):
 
         return result
 
+    async def get_all_assertions(self, bounty_guid, chain, api_key=None):
+        """Get an assertion from polyswarmd.
+
+        Args:
+            bounty_guid (str): GUID of the bounty to retrieve the assertion from
+            chain (str): Which chain to operate on
+            api_key (str): Override default API key
+        Returns:
+            Response JSON parsed from polyswarmd containing assertion details
+        """
+        path = '/bounties/{0}/assertions'.format(bounty_guid)
+        success, result = await self.__client.make_request('GET', path, chain, api_key=api_key)
+        if not success:
+            logger.error('Expected assertion, received', extra={'response': result})
+            return None
+
+        return result
+
     async def post_assertion(self, bounty_guid, bid, mask, verdicts, chain, api_key=None):
         """Post an assertion to polyswarmd.
 
@@ -343,6 +361,23 @@ class BountiesClient(object):
             api_key (str): Override default API key
         """
         path = '/bounties/{0}/votes/{1}'.format(bounty_guid, index)
+        success, result = await self.__client.make_request('GET', path, chain, api_key=api_key)
+        if not success:
+            logger.error('Expected vote, received', extra={'response': result})
+            return None
+
+        return result
+
+    async def get_all_votes(self, bounty_guid, chain, api_key=None):
+        """
+        Get a vote from polyswamrd
+
+        Args:
+            bounty_guid (str): GUID of the bounty to retrieve the vote from
+            chain (str): Which chain to operate on
+            api_key (str): Override default API key
+        """
+        path = '/bounties/{0}/votes'.format(bounty_guid)
         success, result = await self.__client.make_request('GET', path, chain, api_key=api_key)
         if not success:
             logger.error('Expected vote, received', extra={'response': result})
