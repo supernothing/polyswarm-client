@@ -333,7 +333,7 @@ class PostAssertionVerifier(AbstractTransactionVerifier):
                 and self.guid_as_string(guid) == self.guid
                 and bid == self.bid
                 and commitment == expected_commitment
-                and int_to_bool_list(mask) == self.mask)
+                and int_to_bool_list(mask, len(self.mask)) == self.mask)
 
 class RevealAssertionVerifier(AbstractTransactionVerifier):
     def __init__(self, guid, index, nonce, verdicts, metadata, account):
@@ -355,12 +355,12 @@ class RevealAssertionVerifier(AbstractTransactionVerifier):
             return False
 
         logger.info('Reveal Assertion guid: %s assertion_id: %s, verdicts: %s, metadata: %s', self.guid_as_string(guid),
-                    assertion_id, int_to_bool_list(verdicts), metadata.decode('utf-8'))
+                    assertion_id, int_to_bool_list(verdicts, len(self.verdicts)), metadata.decode('utf-8'))
         return (signature_hash == HexBytes(REVEAL_ASSERTION_SIG_HASH)
                 and value == 0
                 and self.guid_as_string(guid) == self.guid
                 and assertion_id == self.index
-                and int_to_bool_list(verdicts) == self.verdicts
+                and int_to_bool_list(verdicts, len(self.verdicts)) == self.verdicts
                 and metadata.decode('utf-8') == self.metadata
                 and nonce == int(self.nonce))
 
@@ -378,11 +378,11 @@ class PostVoteVerifier(AbstractTransactionVerifier):
     def verify_transaction(self, to, value, signature_hash, data):
         guid, votes, valid_bloom = data
         logger.info('Post Vote guid: %s, votes: %s, valid_bloom: %s', self.guid_as_string(guid),
-                    int_to_bool_list(votes), valid_bloom)
+                    int_to_bool_list(votes, len(self.votes)), valid_bloom)
         return (signature_hash == HexBytes(VOTE_SIG_HASH)
                 and value == 0
                 and self.guid_as_string(guid) == self.guid
-                and int_to_bool_list(votes) == self.votes
+                and int_to_bool_list(votes, len(self.votes)) == self.votes
                 and valid_bloom == self.valid_bloom)
 
 

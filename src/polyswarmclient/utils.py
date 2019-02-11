@@ -1,9 +1,11 @@
+import logging
 import asyncio
 import os
 import sys
 
 from ethereum.utils import sha3
 
+logger = logging.getLogger(__name__)
 TASK_TIMEOUT = 1.0
 MAX_WAIT = 600
 
@@ -21,9 +23,18 @@ def bool_list_to_int(bs):
     return sum([1 << n if b else 0 for n, b in enumerate(bs)])
 
 
-def int_to_bool_list(i):
+def int_to_bool_list(i, expected_size):
+    # return empty list when 0 and no items expected (Return actual value if > 0)
+    if expected_size == 0 and i == 0:
+        return []
+
     s = format(i, 'b')
-    return [x == '1' for x in s[::-1]]
+    bool_list = [x == '1' for x in s[::-1]]
+    diff = expected_size - len(bool_list)
+    bool_list.extend([False] * diff)
+    if diff < 0:
+        logger.warning('expected %s bool values when converting %s, found %s in %s', expected_size, i, len(bool_list), bool_list)
+    return bool_list
 
 
 def calculate_commitment(account, verdicts, nonce=None):
