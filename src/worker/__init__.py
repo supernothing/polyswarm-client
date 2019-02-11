@@ -97,5 +97,5 @@ class Worker(object):
 
                 logger.info('Scan results: %s', j)
 
-                key = '{}_{}_results'.format(guid, chain)
+                key = '{}_{}_{}_results'.format(self.queue, guid, chain)
                 await redis.rpush(key, j)

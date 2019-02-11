@@ -65,7 +65,7 @@ class Microengine(AbstractMicroengine):
         jobs = [json.dumps({'guid': guid, 'uri': uri, 'index': i, 'chain': chain}) for i in range(num_artifacts)]
         await self.redis.rpush(QUEUE, *jobs)
 
-        key = '{}_{}_results'.format(guid, chain)
+        key = '{}_{}_{}_results'.format(QUEUE, guid, chain)
         results = await asyncio.gather(*[wait_for_result(key) for _ in jobs])
         results = {r[0]: r[1:] for r in results if r is not None}
         results = [results.get(i, (False, False, '')) for i in range(num_artifacts)]
