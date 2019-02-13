@@ -1,11 +1,9 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import logging
 import os
 import yara
 
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
-from polyswarmclient.abstractscanner import AbstractScanner
+from polyswarmclient.abstractscanner import AbstractScanner, ScanResult
 
 logger = logging.getLogger(__name__)  # Initialize logger
 RULES_DIR = os.getenv('RULES_DIR', 'docker/yara-rules')
@@ -24,19 +22,13 @@ class Scanner(AbstractScanner):
             chain (str): Chain we are operating on
 
         Returns:
-            (bool, bool, str): Tuple of bit, verdict, metadata
-
-        Note:
-            | The meaning of the return types are as follows:
-            |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
-            |   - **verdict** (*bool*): Whether this artifact is malicious or not
-            |   - **metadata** (*str*): Optional metadata about this artifact
+            ScanResult: Result of this scan
         """
         matches = self.rules.match(data=content)
         if matches:
-            return True, True, ''
+            return ScanResult(bit=True, verdict=True)
 
-        return True, False, ''
+        return ScanResult(bit=True, verdict=False)
 
 
 class Microengine(AbstractMicroengine):

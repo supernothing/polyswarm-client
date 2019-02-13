@@ -53,13 +53,7 @@ class AbstractArbiter(object):
             content (bytes): Content of the artifact to be scan
             chain (str): Chain we are operating on
         Returns:
-            (bool, bool, str): Tuple of bit, vote, metadata
-
-        Note:
-            | The meaning of the return types are as follows:
-            |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
-            |   - **vote** (*bool*): Whether this artifact is malicious or not
-            |   - **metadata** (*str*): Optional metadata about this artifact
+            ScanResult: Result of this scan
         """
         if self.scanner:
             return await self.scanner.scan(guid, content, chain)
@@ -130,8 +124,8 @@ class AbstractArbiter(object):
 
         votes = []
         async for content in self.client.get_artifacts(uri):
-            bit, vote, metadata = await self.scan(guid, content, chain)
-            votes.append(vote)
+            result = await self.scan(guid, content, chain)
+            votes.append(result.verdict)
 
         bounty = await self.client.bounties.get_bounty(guid, chain)
         if bounty is None:

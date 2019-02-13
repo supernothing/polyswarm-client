@@ -2,10 +2,11 @@ import asyncio
 import logging
 
 from polyswarmclient import Client
+from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.events import RevealAssertion, SettleBounty
 from polyswarmclient.utils import asyncio_stop
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 
 class AbstractMicroengine(object):
@@ -16,6 +17,10 @@ class AbstractMicroengine(object):
         self.client.on_new_bounty.register(self.__handle_new_bounty)
         self.client.on_reveal_assertion_due.register(self.__handle_reveal_assertion)
         self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
+
+        # Limits used by default bidding logic
+        self.min_bid = 0
+        self.max_bid = 0
 
         self.testing = testing
         self.active_bounties = set()
@@ -52,13 +57,7 @@ class AbstractMicroengine(object):
             content (bytes): Content of the artifact to be scan
             chain (str): Chain we are operating on
         Returns:
-            (bool, bool, str): Tuple of bit, verdict, metadata
-
-        Note:
-            | The meaning of the return types are as follows:
-            |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
-            |   - **verdict** (*bool*): Whether this artifact is malicious or not
-            |   - **metadata** (*str*): Optional metadata about this artifact
+            ScanResult: Result of this scan
         """
         if self.scanner:
             return await self.scanner.scan(guid, content, chain)
@@ -66,20 +65,30 @@ class AbstractMicroengine(object):
         raise NotImplementedError(
             "You must 1) override this scan method OR 2) provide a scanner to your Microengine constructor")
 
-    async def bid(self, guid, mask, verdicts, metadatas, chain):
+    async def bid(self, guid, mask, verdicts, confidences, metadatas, chain):
         """Override this to implement custom bid calculation logic
 
         Args:
             guid (str): GUID of the bounty under analysis, use to correlate with artifacts in the same bounty
             masks (list[bool]): mask for the from scanning the bounty files
             verdicts (list[bool]): scan verdicts from scanning the bounty files
+            confidences (list[float]): Measure of confidence of verdict per artifact ranging from 0.0 to 1.0
             metadatas (list[str]): metadata blurbs from scanning the bounty files
             chain (str): Chain we are operating on
 
         Returns:
             int: Amount of NCT to bid in base NCT units (10 ^ -18)
         """
-        return await self.client.bounties.parameters[chain].get('assertion_bid_minimum')
+        min_allowed_bid = await self.client.bounties.parameters[chain].get('assertion_bid_minimum')
+        min_bid = max(self.min_bid, min_allowed_bid)
+        max_bid = max(self.max_bid, min_allowed_bid)
+
+        asserted_confidences = [c for b, c in zip(mask, confidences) if b]
+        avg_confidence = sum(asserted_confidences) / len(asserted_confidences)
+        bid = int(min_bid + ((max_bid - min_bid) * avg_confidence))
+
+        # Clamp bid between min_bid and max_bid
+        return max(min_bid, min(bid, max_bid))
 
     async def fetch_and_scan_all(self, guid, uri, duration, chain):
         """Fetch and scan all artifacts concurrently
@@ -99,14 +108,10 @@ class AbstractMicroengine(object):
             if content is not None:
                 return await self.scan(guid, content, chain)
 
-            return None
+            return ScanResult()
 
         artifacts = await self.client.list_artifacts(uri)
-        results = await asyncio.gather(*[fetch_and_scan(i) for i in range(len(artifacts))])
-        results = [r if r is not None else (False, False, '') for r in results]
-        mask, verdicts, metadatas = tuple(list(x) for x in zip(*results))
-
-        return mask, verdicts, metadatas
+        return await asyncio.gather(*[fetch_and_scan(i) for i in range(len(artifacts))])
 
     def run(self):
         """
@@ -145,7 +150,12 @@ class AbstractMicroengine(object):
         expiration = int(expiration)
         duration = expiration - block_number
 
-        mask, verdicts, metadatas = await self.fetch_and_scan_all(guid, uri, duration, chain)
+        results = await self.fetch_and_scan_all(guid, uri, duration, chain)
+        mask = [r.bit for r in results]
+        verdicts = [r.verdict for r in results]
+        confidences = [r.confidence for r in results]
+        metadatas = [r.metadata for r in results]
+
         if not any(mask):
             return []
 
@@ -154,7 +164,7 @@ class AbstractMicroengine(object):
         arbiter_vote_window = await self.client.bounties.parameters[chain].get('arbiter_vote_window')
 
         # Check that microengine has sufficient balance to handle the assertion
-        bid = await self.bid(guid, mask, verdicts, metadatas, chain)
+        bid = await self.bid(guid, mask, verdicts, confidences, metadatas, chain)
         balance = await self.client.balances.get_nct_balance(chain)
         if balance < assertion_fee + bid:
             logger.warning('Insufficient balance to post assertion for bounty on %s. Have %s NCT. Need %s NCT', chain,

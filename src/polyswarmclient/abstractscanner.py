@@ -4,6 +4,24 @@ from abc import ABC, abstractmethod
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
+class ScanResult(object):
+    """Results from scanning one artifact"""
+
+    def __init__(self, bit=False, verdict=False, confidence=1.0, metadata=''):
+        """Report the results from scanning one artifact
+
+        Args:
+            bit (bool): Are we asserting on this artifact
+            verdict (bool): Is this artifact malicious (True) or benign (False)
+            confidence (float): How confident are we in our verdict ranging from 0.0 to 1.0
+            metadata (str): Optional metadata from the scan
+        """
+        self.bit = bit
+        self.verdict = verdict
+        self.confidence = confidence
+        self.metadata = metadata
+
+
 class AbstractScanner(ABC):
     """
     Base `Scanner` class. To be overwritten with other scanning logic.
@@ -15,14 +33,9 @@ class AbstractScanner(ABC):
 
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
-            content (bytes): Content of the artifact to be scan
+            content (bytes): Content of the artifact to scan
+            chain (str): What chain are we operating on
         Returns:
-            Tuple(bool, bool, str): Tuple of bit, verdict, metadata
-
-        Note:
-            | The meaning of the return types are as follows:
-            |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
-            |   - **verdict** (*bool*): Whether this artifact is malicious or not
-            |   - **metadata** (*str*): Optional metadata about this artifact
+            ScanResult: Result of this scan
         """
         pass

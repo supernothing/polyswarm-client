@@ -6,6 +6,7 @@ import os
 import aioredis
 
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
+from polyswarmclient.abstractscanner import ScanResult
 
 logger = logging.getLogger(__name__)
 
@@ -53,13 +54,14 @@ class Microengine(AbstractMicroengine):
                 result = await self.redis.blpop(key, timeout=timeout)
                 if result is None:
                     logger.warning('Timeout waiting for result in bounty %s', guid)
-                    return None
+                    return ScanResult()
 
                 j = json.loads(result[1].decode('utf-8'))
-                return j['index'], j['bit'], j['verdict'], j['metadata']
+                return j['index'], ScanResult(bit=j['bit'], verdict=j['verdict'], confidence=j['confidence'],
+                                              metadata=j['metadata'])
             except (AttributeError, ValueError):
                 logger.error('Received invalid response from worker')
-                return None
+                return ScanResult()
 
         num_artifacts = len(await self.client.list_artifacts(uri))
         jobs = [json.dumps({'guid': guid, 'uri': uri, 'index': i, 'chain': chain}) for i in range(num_artifacts)]
@@ -67,11 +69,9 @@ class Microengine(AbstractMicroengine):
 
         key = '{}_{}_{}_results'.format(QUEUE, guid, chain)
         results = await asyncio.gather(*[wait_for_result(key) for _ in jobs])
-        results = {r[0]: r[1:] for r in results if r is not None}
-        results = [results.get(i, (False, False, '')) for i in range(num_artifacts)]
-        mask, verdicts, metadatas = tuple(list(x) for x in zip(*results))
+        results = {r[0]: r[1] for r in results if r is not None}
 
         # Age off old result keys
         await self.redis.expire(key, KEY_TIMEOUT)
 
-        return mask, verdicts, metadatas
+        return [results.get(i, ScanResult()) for i in range(num_artifacts)]

@@ -1,14 +1,12 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import asyncio
 import logging
 
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
-from polyswarmclient.abstractscanner import AbstractScanner
+from polyswarmclient.abstractscanner import AbstractScanner, ScanResult
 from microengine.clamav import Scanner as ClamavScanner
 from microengine.yara import Scanner as YaraScanner
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 BACKENDS = [ClamavScanner, YaraScanner]
 
 
@@ -26,19 +24,20 @@ class Scanner(AbstractScanner):
             content (bytes): Content of the artifact to be scan
             chain (str): Chain we are operating on
         Returns:
-            (bool, bool, str): Tuple of bit, verdict, metadata
-
-        Note:
-            | The meaning of the return types are as follows:
-            |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
-            |   - **verdict** (*bool*): Whether this artifact is malicious or not
-            |   - **metadata** (*str*): Optional metadata about this artifact
+            ScanResult: Result of this scan
         """
         results = await asyncio.gather(*[backend.scan(guid, content, chain) for backend in self.backends])
 
-        # Unzip the result tuples
-        bits, verdicts, metadatas = tuple(zip(*results))
-        return any(bits), any(verdicts), ';'.join(metadatas)
+        # Unpack the results
+        bits = [r.bit for r in results]
+        verdicts = [r.verdict for r in results]
+        confidences = [r.confidence for r in results]
+        metadatas = [r.metadata for r in results]
+
+        asserted_confidences = [c for b, c in zip(bits, confidences) if b]
+        avg_confidence = sum(asserted_confidences) / len(asserted_confidences)
+
+        return ScanResult(bit=any(bits), verdict=any(verdicts), confidence=avg_confidence, metadata=';'.join(metadatas))
 
 
 class Microengine(AbstractMicroengine):
@@ -48,10 +47,9 @@ class Microengine(AbstractMicroengine):
         """Initialize a multi-backend microengine
 
         Args:
-            client (polyswwarmclient.Client): Client to use
+            client (polyswarmclient.Client): Client to use
             testing (int): How many test bounties to respond to
             chains (set[str]): Chain(s) to operate on
         """
         scanner = Scanner()
         super().__init__(client, testing, scanner, chains)
-

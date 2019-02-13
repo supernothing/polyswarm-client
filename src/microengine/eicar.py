@@ -1,12 +1,10 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import base64
 import logging
 
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
-from polyswarmclient.abstractscanner import AbstractScanner
+from polyswarmclient.abstractscanner import AbstractScanner, ScanResult
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 EICAR = base64.b64decode(
     b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=')
 
@@ -24,18 +22,12 @@ class Scanner(AbstractScanner):
             content (bytes): Content of the artifact to be scan
             chain (str): Chain we are operating on
         Returns:
-            (bool, bool, str): Tuple of bit, verdict, metadata
-
-        Note:
-            | The meaning of the return types are as follows:
-            |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
-            |   - **verdict** (*bool*): Whether this artifact is malicious or not
-            |   - **metadata** (*str*): Optional metadata about this artifact
+            ScanResult: Result of this scan
         """
         if content == EICAR:
-            return True, True, ''
+            return ScanResult(bit=True, verdict=True)
 
-        return True, False, ''
+        return ScanResult(bit=True, verdict=False)
 
 
 class Microengine(AbstractMicroengine):

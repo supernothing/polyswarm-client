@@ -4,9 +4,9 @@ import os
 from io import BytesIO
 
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
-from polyswarmclient.abstractscanner import AbstractScanner
+from polyswarmclient.abstractscanner import AbstractScanner, ScanResult
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 CLAMD_HOST = os.getenv('CLAMD_HOST', 'localhost')
 CLAMD_PORT = int(os.getenv('CLAMD_PORT', '3310'))
@@ -25,20 +25,14 @@ class Scanner(AbstractScanner):
             content (bytes): Content of the artifact to be scan
             chain (str): Chain we are operating on
         Returns:
-            (bool, bool, str): Tuple of bit, verdict, metadata
-
-        Note:
-            | The meaning of the return types are as follows:
-            |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
-            |   - **verdict** (*bool*): Whether this artifact is malicious or not
-            |   - **metadata** (*str*): Optional metadata about this artifact
+            ScanResult: Result of this scan
         """
         result = await self.clamd.instream(BytesIO(content))
         stream_result = result.get('stream', [])
         if len(stream_result) >= 2 and stream_result[0] == 'FOUND':
-            return True, True, stream_result[1]
+            return ScanResult(bit=True, verdict=True, confidence=1.0, metadata=stream_result[1])
 
-        return True, False, ''
+        return ScanResult(bit=True, verdict=False)
 
 
 class Microengine(AbstractMicroengine):

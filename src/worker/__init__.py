@@ -86,13 +86,14 @@ class Worker(object):
                 uri = '{}/artifacts/{}/{}'.format(self.polyswarmd_uri, uri, index)
                 response = await session.get(uri, headers=headers)
                 content = await response.read()
-                bit, verdict, metadata = await self.scanner.scan(guid, content, chain)
+                result = await self.scanner.scan(guid, content, chain)
 
                 j = json.dumps({
                     'index': index,
-                    'bit': bit,
-                    'verdict': verdict,
-                    'metadata': metadata,
+                    'bit': result.bit,
+                    'verdict': result.verdict,
+                    'confidence': result.confidence,
+                    'metadata': result.metadata,
                 })
 
                 logger.info('Scan results: %s', j)

@@ -5,6 +5,7 @@ import logging
 import os
 
 from polyswarmclient.abstractarbiter import AbstractArbiter
+from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.corpus import DownloadToFileSystemCorpus
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -43,13 +44,7 @@ class Arbiter(AbstractArbiter):
             content (bytes): Content of the artifact to be scan
             chain (str): Chain sample is being sent from
         Returns:
-            (bool, bool, str): Tuple of bit, vote, metadata
-
-        Note:
-            | The meaning of the return types are as follows:
-            |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
-            |   - **vote** (*bool*): Whether this artifact is malicious or not
-            |   - **metadata** (*str*): Optional metadata about this artifact
+            ScanResult: Result of this scan
         """
         h = hashlib.sha256(content).hexdigest()
 
@@ -61,4 +56,4 @@ class Arbiter(AbstractArbiter):
         vote = row is not None and row[1] == 1
         vote = vote or EICAR in content
 
-        return bit, vote, ''
+        return ScanResult(bit=bit, verdict=vote)
