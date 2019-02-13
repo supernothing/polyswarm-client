@@ -371,53 +371,55 @@ class Client(object):
         if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
-        signed = []
-        txhashes = []
-        for tx in transactions:
-            s = w3.eth.account.signTransaction(tx, self.priv_key)
-            txhash = s.get('hash', None)
-            if txhash is not None:
-                txhashes.append(txhash.hex())
-            raw = bytes(s['rawTransaction']).hex()
-            signed.append(raw)
-
+        signed_txs = [w3.eth.account.signTransaction(tx, self.priv_key) for tx in transactions]
+        raw_signed_txs = [bytes(tx['rawTransaction']).hex() for tx in signed_txs]
         success, results = await self.make_request('POST', '/transactions',
                                                    chain,
-                                                   json={'transactions': signed},
+                                                   json={'transactions': raw_signed_txs},
                                                    api_key=api_key, tries=1)
 
-        if len(results) != len(txhashes):
-            logger.warning('Transaction result length mismatch')
-        errors = []
         if not success:
-            # Some tx failed to be created
-            for i, result in enumerate(results):
-                message = result.get('message', None)
-                is_error = result.get('is_error', False)
-                if is_error and (message is None or 'known transaction' not in message.lower()):
-                    if len(txhashes) > i:
-                        del txhashes[i]
-                    errors.append(message)
+            if self.tx_error_fatal:
+                logger.error('Received fatal transaction error', extra={'extra': results})
+                sys.exit(1)
+            else:
+                logger.error('Received transaction error', extra={'extra': results})
+
+        if len(results) != len(signed_txs):
+            logger.warning('Transaction result length mismatch')
+
+        errors = []
+        txhashes = []
+        for tx, result in zip(signed_txs, results):
+            txhash = bytes(tx['hash']).hex()
+            message = result.get('message', '')
+            is_error = result.get('is_error', False)
+
+            if is_error and 'known transaction' not in message.lower():
+                errors.append(message)
+            else:
+                txhashes.append(txhash)
 
         route = '/transactions'
         json = {
             'transactions': txhashes
         }
-        success, result = await self.make_request('GET', route, chain, json=json,
-                                                  api_key=api_key, tries=1)
+        success, results = await self.make_request('GET', route, chain, json=json,
+                                                   api_key=api_key, tries=1)
         if not success:
             if self.tx_error_fatal:
-                logger.error('Received fatal transaction error', extra={'extra': result})
+                logger.error('Received fatal transaction error', extra={'extra': results})
                 sys.exit(1)
             else:
-                logger.error('Received transaction error', extra={'extra': result})
+                logger.error('Received transaction error', extra={'extra': results})
 
-        if not result:
-            errors.append('Failed to retrieve transaction results for {}'.format(txhash))
+        if not results:
+            errors.append('Failed to retrieve transaction results for {}'.format(txhashes))
             return {}
 
-        result['errors'] = result.get('errors', []) + errors
-        return result
+        # Combine errors from transaction post with errors after fetching events
+        results['errors'] = errors + results.get('errors', [])
+        return results
 
     def replace_nonce(self, base_nonce, transaction):
         """
