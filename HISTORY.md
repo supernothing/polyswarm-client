@@ -1,5 +1,12 @@
 # Release History
 
+### 1.2.0 (2019-02-06)
+
+* **Feature** - Support reporting confidence from scan used to weight bids
+* **Feature** - Redis backed producer/consumer microengine
+* **Feature** - Support assertion and vote retrieval methods
+* **Fix** - Pad boolean list representation of votes, verdicts and masks to an expected length
+
 ### 1.1.0 (2019-02-06)
 
 * **Feature** - Support parameter object changes

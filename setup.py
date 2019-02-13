@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 from setuptools import find_packages, setup
 
 
@@ -15,7 +13,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='polyswarm-client',
-    version='1.1.0',
+    version='1.2.0',
     description='Client library to simplify interacting with a polyswarmd instance',
     long_description=long_description,
     long_description_content_type="text/markdown",
