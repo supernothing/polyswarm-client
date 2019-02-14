@@ -1,9 +1,10 @@
 import logging
 
 from polyswarmclient import bloom
-from polyswarmclient.transaction import AbstractTransaction, NctApproveVerifier, \
+from polyswarmclient.verifiers import NctApproveVerifier, \
     PostBountyVerifier, PostAssertionVerifier, RevealAssertionVerifier, \
     PostVoteVerifier, SettleBountyVerifier
+from polyswarmclient.transaction import AbstractTransaction
 from polyswarmclient.parameters import Parameters
 from polyswarmclient.utils import bool_list_to_int, calculate_commitment
 
@@ -15,8 +16,10 @@ class PostBountyTransaction(AbstractTransaction):
         self.amount = amount
         self.artifact_uri = artifact_uri
         self.duration = duration
-        approve = NctApproveVerifier(amount + bounty_fee, client.account)
-        bounty = PostBountyVerifier(amount, artifact_uri, num_artifacts, duration, bloom, client.account)
+
+        approve = NctApproveVerifier(amount + bounty_fee)
+        bounty = PostBountyVerifier(amount, artifact_uri, num_artifacts, duration, bloom)
+
         super().__init__(client, [approve, bounty])
 
     def get_path(self):
@@ -32,57 +35,56 @@ class PostBountyTransaction(AbstractTransaction):
     def has_required_event(self, transaction_events):
         bounties = transaction_events.get('bounties', [])
         for bounty in bounties:
-            if (bounty.get('amount', 0) == self.amount and
-                    bounty.get('uri', '') == self.uri and
-                    bounty.get('duration', 0) == self.duration):
+            if (bounty.get('amount', '') == str(self.amount) and
+                    bounty.get('uri', '') == self.artifact_uri):
                 return True
 
         return False
 
 
 class PostAssertionTransaction(AbstractTransaction):
-    def __init__(self, client, guid, bid, assertion_fee, mask, verdicts, commitment, nonce):
-        self.guid = guid
+    def __init__(self, client, bounty_guid, bid, assertion_fee, mask, commitment):
+        self.bounty_guid = bounty_guid
         self.bid = bid
         self.assertion_fee = assertion_fee
         self.mask = mask
-        self.verdicts = verdicts
         self.commitment = commitment
-        self.nonce = nonce
-        approve = NctApproveVerifier(bid + assertion_fee, client.account)
-        assertion = PostAssertionVerifier(guid, bid, mask, verdicts, nonce, client.account)
+
+        approve = NctApproveVerifier(bid + assertion_fee)
+        assertion = PostAssertionVerifier(bounty_guid, bid, mask, commitment)
+
         super().__init__(client, [approve, assertion])
 
     def get_body(self):
         return {
             'bid': str(self.bid),
             'mask': self.mask,
-            'commitment': self.commitment,
+            'commitment': str(self.commitment),
         }
 
     def get_path(self):
-        return '/bounties/{0}/assertions'.format(self.guid)
+        return '/bounties/{0}/assertions'.format(self.bounty_guid)
 
     def has_required_event(self, transaction_events):
         assertions = transaction_events.get('assertions', [])
         for assertion in assertions:
-            if (assertion.get('bid', 0) == self.bid and
+            if (assertion.get('bid', '') == str(self.bid) and
                     assertion.get('mask', []) == self.mask and
-                    assertion.get('commitment', '') == self.commitment and
-                    assertion.get('guid', '') == self.guid):
+                    assertion.get('commitment', '') == str(self.commitment) and
+                    assertion.get('bounty_guid', '') == self.bounty_guid):
                 return True
 
         return False
 
 
 class RevealAssertionTransaction(AbstractTransaction):
-    def __init__(self, client, guid, index, nonce, verdicts, metadata):
+    def __init__(self, client, bounty_guid, index, nonce, verdicts, metadata):
         self.verdicts = verdicts
         self.metadata = metadata
         self.nonce = nonce
-        self.guid = guid
+        self.guid = bounty_guid
         self.index = index
-        reveal = RevealAssertionVerifier(guid, index, nonce, verdicts, metadata, client.account)
+        reveal = RevealAssertionVerifier(bounty_guid, index, nonce, verdicts, metadata)
         super().__init__(client, [reveal])
 
     def get_path(self):
@@ -100,18 +102,18 @@ class RevealAssertionTransaction(AbstractTransaction):
         for reveal in reveals:
             if (reveal.get('verdicts', []) == self.verdicts and
                     reveal.get('metadata', '') == self.metadata and
-                    reveal.get('guid', '') == self.guid):
+                    reveal.get('bounty_guid', '') == self.guid):
                 return True
 
         return False
 
 
 class PostVoteTransaction(AbstractTransaction):
-    def __init__(self, client, guid, votes, valid_bloom):
+    def __init__(self, client, bounty_guid, votes, valid_bloom):
         self.votes = votes
         self.valid_bloom = valid_bloom
-        self.guid = guid
-        vote = PostVoteVerifier(guid, votes, valid_bloom, client.account)
+        self.guid = bounty_guid
+        vote = PostVoteVerifier(bounty_guid, votes, valid_bloom)
         super().__init__(client, [vote])
 
     def get_path(self):
@@ -127,17 +129,16 @@ class PostVoteTransaction(AbstractTransaction):
         votes = transaction_events.get('votes', [])
         for vote in votes:
             if (vote.get('votes', []) == self.votes and
-                    vote.get('valid_bloom', '') == self.valid_bloom and
-                    vote.get('guid', '') == self.guid):
+                    vote.get('bounty_guid', '') == self.guid):
                 return True
 
         return False
 
 
 class SettleBountyTransaction(AbstractTransaction):
-    def __init__(self, client, guid):
-        self.guid = guid
-        settle = SettleBountyVerifier(guid, client.account)
+    def __init__(self, client, bounty_guid):
+        self.guid = bounty_guid
+        settle = SettleBountyVerifier(bounty_guid)
         super().__init__(client, [settle])
 
     def get_path(self):
@@ -147,12 +148,8 @@ class SettleBountyTransaction(AbstractTransaction):
         return None
 
     def has_required_event(self, transaction_events):
-        settles = transaction_events.get('settles', [])
-        for settle in settles:
-            if settle.get('guid', '') == self.guid:
-                return True
-
-        return False
+        # Settle events are not reported by polyswarmd, transfers are but are not guaranteed
+        return True
 
 
 class BountiesClient(object):
@@ -216,7 +213,7 @@ class BountiesClient(object):
         path = '/bounties/{0}/bloom'.format(bounty_guid)
         success, result = await self.__client.make_request('GET', path, chain, api_key=api_key)
         if not success:
-            logger.error('Expected bloom, received', extra={'response': result})
+            logger.error('Expected bloom, received', extra={'extra': result})
             return None
         return result.get('bloom')
 
@@ -233,7 +230,7 @@ class BountiesClient(object):
         path = '/bounties/{0}'.format(guid)
         success, result = await self.__client.make_request('GET', path, chain, api_key=api_key)
         if not success:
-            logger.error('Expected bounty, received', extra={'response': result})
+            logger.error('Expected bounty, received', extra={'extra': result})
             return None
 
         return result
@@ -250,11 +247,6 @@ class BountiesClient(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        bounty = {
-            'amount': str(amount),
-            'uri': artifact_uri,
-            'duration': duration,
-        }
         bounty_fee = await self.parameters[chain].get('bounty_fee')
         bloom = await self.calculate_bloom(artifact_uri)
         num_artifacts = await self.get_artifact_count(artifact_uri)
@@ -263,7 +255,7 @@ class BountiesClient(object):
         success, result = await transaction.send(chain, api_key=api_key)
 
         if not success or 'bounties' not in result:
-            logger.error('Expected bounty, received', extra={'response': result})
+            logger.error('Expected bounty, received', extra={'extra': result})
 
         return result.get('bounties', [])
 
@@ -281,7 +273,7 @@ class BountiesClient(object):
         path = '/bounties/{0}/assertions/{1}'.format(bounty_guid, index)
         success, result = await self.__client.make_request('GET', path, chain, api_key=api_key)
         if not success:
-            logger.error('Expected assertion, received', extra={'response': result})
+            logger.error('Expected assertion, received', extra={'extra': result})
             return None
 
         return result
@@ -299,7 +291,7 @@ class BountiesClient(object):
         path = '/bounties/{0}/assertions'.format(bounty_guid)
         success, result = await self.__client.make_request('GET', path, chain, api_key=api_key)
         if not success:
-            logger.error('Expected assertion, received', extra={'response': result})
+            logger.error('Expected assertion, received', extra={'extra': result})
             return None
 
         return result
@@ -320,10 +312,10 @@ class BountiesClient(object):
         fee = await self.parameters[chain].get('assertion_fee')
         nonce, commitment = calculate_commitment(self.__client.account, bool_list_to_int(verdicts))
 
-        transaction = PostAssertionTransaction(self.__client, bounty_guid, bid, fee, mask, verdicts, commitment, nonce)
+        transaction = PostAssertionTransaction(self.__client, bounty_guid, bid, fee, mask, commitment)
         success, result = await transaction.send(chain, api_key=api_key)
         if not success or 'assertions' not in result:
-            logger.error('Expected assertions, received', extra={'response': result})
+            logger.error('Expected assertions, received', extra={'extra': result})
 
         return nonce, result.get('assertions', [])
 
@@ -346,7 +338,7 @@ class BountiesClient(object):
 
         success, result = await transaction.send(chain, api_key=api_key)
         if not success or 'reveals' not in result:
-            logger.error('Expected reveal, received', extra={'response': result})
+            logger.error('Expected reveal, received', extra={'extra': result})
 
         return result.get('reveals', [])
 
@@ -363,7 +355,7 @@ class BountiesClient(object):
         path = '/bounties/{0}/votes/{1}'.format(bounty_guid, index)
         success, result = await self.__client.make_request('GET', path, chain, api_key=api_key)
         if not success:
-            logger.error('Expected vote, received', extra={'response': result})
+            logger.error('Expected vote, received', extra={'extra': result})
             return None
 
         return result
@@ -380,7 +372,7 @@ class BountiesClient(object):
         path = '/bounties/{0}/votes'.format(bounty_guid)
         success, result = await self.__client.make_request('GET', path, chain, api_key=api_key)
         if not success:
-            logger.error('Expected vote, received', extra={'response': result})
+            logger.error('Expected vote, received', extra={'extra': result})
             return None
 
         return result
@@ -400,7 +392,7 @@ class BountiesClient(object):
         transaction = PostVoteTransaction(self.__client, bounty_guid, votes, valid_bloom)
         success, result = await transaction.send(chain, api_key=api_key)
         if not success or 'votes' not in result:
-            logger.error('Expected vote, received', extra={'response': result})
+            logger.error('Expected vote, received', extra={'extra': result})
 
         return result.get('votes', [])
 
@@ -418,6 +410,6 @@ class BountiesClient(object):
         transaction = SettleBountyTransaction(self.__client, bounty_guid)
         success, result = await transaction.send(chain, api_key=api_key)
         if not success or 'transfers' not in result:
-            logger.warning('No transfer event, received ', extra={'response': result})
+            logger.warning('No transfer event, received', extra={'extra': result})
 
         return result.get('transfers', [])

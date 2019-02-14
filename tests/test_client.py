@@ -4,40 +4,46 @@ import polyswarmclient
 import random
 import uuid
 
+import polyswarmclient.transaction
+import polyswarmclient.utils
 from . import success, event, random_address, random_bitset, random_ipfs_uri
 
 
 def test_check_response():
     valid_success_response = {'status': 'OK', 'result': 42}
-    assert polyswarmclient.check_response(valid_success_response)
+    assert polyswarmclient.utils.check_response(valid_success_response)
 
     valid_error_response = {'status': 'FAIL', 'errors': 'Whoops'}
-    assert not polyswarmclient.check_response(valid_error_response)
+    assert not polyswarmclient.utils.check_response(valid_error_response)
 
     invalid_response = {'foo': 'bar', 'baz': 'qux'}
-    assert not polyswarmclient.check_response(invalid_response)
+    assert not polyswarmclient.utils.check_response(invalid_response)
 
 
 def test_is_valid_ipfs_uri():
     invalid_ipfs_uri = '#!$!'
-    assert not polyswarmclient.is_valid_ipfs_uri(invalid_ipfs_uri)
+    assert not polyswarmclient.utils.is_valid_ipfs_uri(invalid_ipfs_uri)
 
     valid_ipfs_uri = 'QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG'
-    assert polyswarmclient.is_valid_ipfs_uri(valid_ipfs_uri)
+    assert polyswarmclient.utils.is_valid_ipfs_uri(valid_ipfs_uri)
 
 
 @pytest.mark.asyncio
 async def test_update_base_nonce(mock_client):
-    mock_client.http_mock.get(mock_client.url_with_parameters('/nonce', chain='home'), body=success(42))
-    home = polyswarmclient.NonceManager(mock_client, 'home')
+    for _ in range(10):
+        mock_client.http_mock.get(mock_client.url_with_parameters('/nonce', chain='home'), body=success(42))
+
+    home = polyswarmclient.transaction.NonceManager(mock_client, 'home')
     home.mark_update_nonce()
     async with home:
         pass
 
     assert home.base_nonce == 42
 
-    mock_client.http_mock.get(mock_client.url_with_parameters('/nonce', chain='side'), body=success(1337))
-    side = polyswarmclient.NonceManager(mock_client, 'side')
+    for _ in range(10):
+        mock_client.http_mock.get(mock_client.url_with_parameters('/nonce', chain='side'), body=success(1337))
+
+    side = polyswarmclient.transaction.NonceManager(mock_client, 'side')
     side.mark_update_nonce()
     async with side:
         pass

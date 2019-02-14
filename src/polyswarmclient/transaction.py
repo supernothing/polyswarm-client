@@ -1,135 +1,114 @@
+import asyncio
 import logging
-import uuid
 from abc import ABCMeta, abstractmethod
 
-from eth_abi import decode_abi, decode_single
-from eth_abi.exceptions import InsufficientDataBytes
-from hexbytes import HexBytes
-from web3 import Web3
+from polyswarmclient.utils import exit
 
-from polyswarmclient.utils import bool_list_to_int, int_to_bool_list, calculate_commitment, exit
-
-logger = logging.getLogger(__name__)  # Initialize logger
-
-NCT_APPROVE_SIG_HASH = '095ea7b3'
-NCT_TRANSFER_SIG_HASH = 'a9059cbb'
-POST_BOUNTY_SIG_HASH = '9b1cdad4'
-POST_ASSERTION_SIG_HASH = '9b3544f6'
-REVEAL_ASSERTION_SIG_HASH = 'f8f32de6'
-VOTE_SIG_HASH = '27028aae'
-SETTLE_SIG_HASH = '5592d687'
-STAKE_DEPOSIT_SIG_HASH = 'b6b55f25'
-STAKE_WITHDRAWAL_SIG_HASH = '2e1a7d4d'
+logger = logging.getLogger(__name__)
 
 
-class SimplifiedTransaction():
-    """
-    This is a simplification of the transaction object returned by polyswarmd.
-    The signature hash (first 4 bytes of input data) has been separated from the rest of the data.
-    """
+class NonceManager:
+    """Manages the nonce for some Ethereum chain"""
 
-    def __init__(self, to, value, signature_hash, data):
-        self.to = to
-        self.value = value
-        self.signature_hash = signature_hash
-        self.data = data
+    def __init__(self, client, chain):
+        self.base_nonce = 0
+        self.client = client
+        self.chain = chain
 
-    @classmethod
-    def simplify(cls, transaction):
-        """
-        Turn a regular transaction into a SimplifiedTransaction
+        self.needs_update = True
+        self.nonce_lock = asyncio.Lock()
+        self.in_progress = 0
+        self.in_progress_condition = asyncio.Condition()
 
-        Args:
-            transaction (dict): Transaction to be simplified
-        Returns:
-            (SimplifiedTransaction): If all fields exist, returns a SimplifiedTransaction. None otherwise
-        """
-        w3 = Web3()
-        transaction_data = transaction.get('data')
-        transaction_to = transaction.get('to')
-        value = transaction.get('value')
-        if transaction_data is None or transaction_to is None or value is None:
-            return None
-        byte_data = bytes(HexBytes(transaction_data))
-        sig = byte_data[:4]
-        data = bytes(HexBytes(byte_data[4:]))
-        to = w3.toChecksumAddress(transaction_to)
-        return cls(to, value, sig, data)
+    async def acquire(self):
+        """Acquires the nonce lock and updates base_nonce if needs_update is set"""
+        await self.nonce_lock.acquire()
 
+        if self.needs_update:
+            async with self.in_progress_condition:
+                # The wait inside here will release this lock, allowing finished() to work
+                await self.in_progress_condition.wait_for(self.all_finished)
 
-class AbstractTransactionVerifier(metaclass=ABCMeta):
-    """
-    This verifier is used to verify the details of a single transaction.
-    It decodes the input data into a tuple, and provides some helpers.
+            # Wait for nonce to settle, can't rely on pending tx count
+            last_nonce = -1
+            while True:
+                nonce = await self.client.get_base_nonce(self.chain)
+                if nonce is not None and nonce == last_nonce:
+                    break
 
-    Call verify with a transaction to compare it against a known definition
-    """
+                last_nonce = nonce
+                await asyncio.sleep(1)
 
-    def __init__(self, account):
-        self.w3 = Web3()
-        self.account = account
+            if nonce is not None:
+                self.base_nonce = nonce
 
-    def guid_as_string(self, guid):
-        return str(uuid.UUID(int=int(guid), version=4))
+            logger.warning('Updated nonce to %s on %s', nonce, self.chain)
+            self.needs_update = False
 
-    def verify(self, transaction):
-        abi = self.get_abi()
-        try:
-            if len(abi) == 1:
-                data = decode_single(abi[0], transaction.data)
-            else:
-                data = decode_abi(abi, transaction.data)
-        except InsufficientDataBytes:
-            logger.error('Transaction did not match expected input data')
-            return False
+    def all_finished(self):
+        """Check that all tasks have finished"""
+        return self.in_progress == 0
 
-        return self.verify_transaction(transaction.to, transaction.value, transaction.signature_hash, data)
+    async def finished(self):
+        """Mark that some in-progress transaction finished on polyswarmd"""
+        async with self.in_progress_condition:
+            self.in_progress -= 1
+            logger.debug('Tx resolved, in_progress: %s', self.in_progress)
 
-    @abstractmethod
-    def verify_transaction(self, to, value, signature_hash, decoded_data):
-        """
-        Called when a list of transactions were returned from polyswarmd.
-        This function will verify the transactions, and determines if the transactions are expected.
+            self.in_progress_condition.notify()
+
+    async def reserve(self, amount=1):
+        """Grab the next amount nonces.
 
         Args:
-            to (str): Address of recipient
-            value (int): Value of transaction (Eth)
-            signature_hash (bytes): First four bytes of hash of function signature
-            decoded_data: Arguments decoded from transaction
-        Returns:
-            True if valid and expected
+            amount (int): amount of sequential nonces to be claimed
+        Returns
+            (list[int]): a list of nonces to use
         """
-        raise NotImplementedError('Verify is not implemented')
+        async with self:
+            results = range(self.base_nonce, self.base_nonce + amount)
+            self.base_nonce += amount
 
-    @abstractmethod
-    def get_abi(self):
-        """
-        Called to get the abi breakdown for decoding the transaction input data
+            # Inside nonce_lock so that there is no way the next acquire could miss an in progress
+            async with self.in_progress_condition:
+                # Note that a set of nonces is being used
+                self.in_progress += 1
+                logger.debug('New tx in flight, in_progress: %s', self.in_progress)
 
-        Returns:
-            a list of types that match the parameters for the contract function to decode
+        return results
+
+    def mark_update_nonce(self):
         """
-        raise NotImplementedError('Get abi is not implemented')
+        Call this when the nonce is out of sync.
+        This sets the update flag to true.
+        The next acquire after being set will trigger an update
+        """
+        self.needs_update = True
+
+    async def __aenter__(self):
+        await self.acquire()
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self.nonce_lock.release()
 
 
 class AbstractTransaction(metaclass=ABCMeta):
-    """
-    Used to verify groups of transactions that make up a specific action.
-    For instance, when approving some funds to move, and calling a contract function that will consumer them.
+    """Used to verify and post groups of transactions that make up a specific action.
 
-    Call verify to compare a list of transactions.
+    For instance, when approving some funds to move, and calling a contract function that will consumer them.
     """
+
     def __init__(self, client, verifiers):
-        """
-        Initialize a group verifier
+        """Initialize a transaction
 
         Args:
+            client (Client): Client object used to post transactions
             verifiers (list): Ordered verifiers for each transaction
         """
         self.client = client
         self.verifiers = verifiers
 
-    async def send(self, chain, tries=5, api_key=None):
+    async def send(self, chain, tries=2, api_key=None):
         """Make a transaction generating request to polyswarmd, then sign and post the transactions
 
         Args:
@@ -142,67 +121,165 @@ class AbstractTransaction(metaclass=ABCMeta):
         if api_key is None:
             api_key = self.client.api_key
 
+        # Ensure we try at least once
+        tries = max(tries, 1)
+
+        success, result = await self.client.make_request('POST',
+                                                         self.get_path(),
+                                                         chain,
+                                                         json=self.get_body(),
+                                                         send_nonce=True,
+                                                         api_key=api_key,
+                                                         tries=tries)
+        if not success or 'transactions' not in result:
+            logger.error('Expected transactions, received', extra={'extra': result})
+            return False, result
+
+        transactions = result.get('transactions', [])
+        if not self.verify(transactions):
+            logger.error("Transactions did not match expectations for the given request.",
+                         extra={'extra': transactions})
+            if self.client.tx_error_fatal:
+                exit(1)
+            return False, {}
+
+        # Keep around any extra data from the first request, such as nonce for assertion
+        if 'transactions' in result:
+            del result['transactions']
+
+        txhashes = []
+        post_errors = []
+        get_errors = []
+
+        # Step one: Update nonces, sign then post transactions
+        replace_nonce = True
         while tries > 0:
             tries -= 1
 
-            success, result = await self.client.make_request('POST',
-                                                             self.get_path(),
-                                                             chain,
-                                                             json=self.get_body(),
-                                                             send_nonce=True,
-                                                             api_key=api_key,
-                                                             tries=1)
-            if not success or 'transactions' not in result:
-                logger.error('Expected transactions, received', extra={'extra': result})
+            # replace_nonce is True on first iteration and then after if nonce error occurs
+            nonce_manager = self.client.nonce_managers[chain]
+            if replace_nonce:
+                nonces = await nonce_manager.reserve(amount=len(transactions))
+                for i, transaction in enumerate(transactions):
+                    transaction['nonce'] = nonces[i]
+
+            signed_txs = self.client.sign_transactions(transactions)
+            raw_signed_txs = [bytes(tx['rawTransaction']).hex() for tx in signed_txs]
+            success, results = await self.__post_transactions(raw_signed_txs, chain, api_key)
+            results = [] if results is None else results
+
+            if replace_nonce:
+                await nonce_manager.finished()
+                replace_nonce = False
+
+            if len(results) != len(signed_txs):
+                logger.warning('Transaction result length mismatch')
+
+            txhashes = []
+            post_errors = []
+            for tx, result in zip(signed_txs, results):
+                txhash = bytes(tx['hash']).hex()
+                message = result.get('message', '')
+                is_error = result.get('is_error', False)
+
+                # Known transaction errors seem to be a geth issue, don't retransmit in this case
+                if is_error and 'known transaction' not in message.lower():
+                    post_errors.append(message)
+                else:
+                    txhashes.append(txhash)
+
+            if txhashes:
+                if post_errors:
+                    logger.warning('Transaction errors detected but some succeeded, fetching events',
+                                   extra={'extra': post_errors})
+
+                break
+
+            # Indicates a nonce error, resync nonces and retry
+            if any(['invalid transaction error' in e.lower() for e in post_errors]):
+                logger.error('Nonce desync detected, resyncing and trying again')
+                nonce_manager.mark_update_nonce()
+                replace_nonce = True
+
+        if not txhashes:
+            return False, {'errors': post_errors + get_errors}
+
+        # Step two: At least one transaction was submitted successfully, get and verify the events it generated
+        tries += 1
+        while tries > 0:
+            tries -= 1
+
+            success, results = await self.__get_transactions(txhashes, chain, api_key)
+
+            get_errors = results.get('errors', [])
+            has_required = self.has_required_event(results)
+
+            # Check to see if we failed to retrieve some receipts, retry the fetch if so
+            if not has_required and any(['receipt' in e.lower() for e in get_errors]):
+                logger.warning('Error fetching some receipts, retrying')
                 continue
 
-            # Keep around any extra data from the first request, such as nonce for assertion
-            transactions = result.get('transactions', [])
+            if any(['transaction failed' in e.lower for e in get_errors]):
+                logger.error('Transaction failed due to bad parameters, not retrying', extra={'extra': get_errors})
+                break
 
-            if not self.verify(transactions):
-                logger.error("Transactions did not match expectations for the given request.",
-                             extra={'extra': transactions})
-                if self.client.tx_error_fatal:
-                    exit(1)
-                return False, {}
+            # Combine our error output, but this is a success
+            results['errors'] = post_errors + get_errors
+            return has_required, results
 
-            if 'transactions' in result:
-                del result['transactions']
+        return False, {'errors': post_errors + get_errors}
 
-            nonce_manager = self.client.nonce_manager[chain]
-            nonces = await nonce_manager.next(amount=len(transactions))
-            transactions = [self.client.replace_nonce(nonces[i], transaction) for i, transaction in enumerate(transactions)]
-            tx_result = await self.client.post_transactions(transactions, chain, api_key=api_key)
-            await nonce_manager.finished()
-            has_required = self.has_required_event(tx_result)
-            errors = tx_result.get('errors', [])
-            nonce_error = False
-            for e in errors:
-                if 'invalid transaction error' in e.lower():
-                    nonce_error = True
-                    break
+    async def __post_transactions(self, transactions, chain, api_key):
+        """Post a set of (signed) transactions to Ethereum via polyswarmd, parsing the emitted events
 
-                if 'transaction failed at block' in e.lower():
-                    logger.error('Transaction failed due to incorrect parameters or missed window, not retrying')
-                    if not has_required:
-                        return False, {}
+        Args:
+            transactions (List[Transaction]): The transactions to sign and post
+            chain (str): Which chain to operate on
+            api_key (str): Override default API key
+        Returns:
+            Response JSON parsed from polyswarmd containing transaction status
+        """
+        success, results = await self.client.make_request('POST', '/transactions', chain,
+                                                          json={'transactions': transactions}, api_key=api_key, tries=1)
 
-            if nonce_error:
-                logger.error('Nonce desync detected, resyncing nonce and retrying')
-                nonce_manager.mark_update_nonce()
-                if not has_required:
-                    continue
+        if not success:
+            # Known transaction errors seem to be a geth issue, don't spam log about it
+            all_known_tx_errors = results is not None and \
+                                  all(['known transaction' in r.get('message', '') for r in results if
+                                       r.get('is_error')])
 
-            return True, {**result, **tx_result}
+            if self.client.tx_error_fatal:
+                logger.error('Received fatal transaction error during post', extra={'extra': results})
+                exit(1)
+            elif not all_known_tx_errors:
+                logger.error('Received transaction error during post', extra={'extra': results})
 
-        return False, {}
+        return success, results
+
+    async def __get_transactions(self, txhashes, chain, api_key):
+        """Get generated events or errors from receipts for a set of txhashes
+
+        Args:
+            txhashes (List[str]): The txhashes of the receipts to process
+            chain (str): Which chain to operate on
+            api_key (str): Override default API key
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events
+        """
+        success, results = await self.client.make_request('GET', '/transactions', chain,
+                                                          json={'transactions': txhashes}, api_key=api_key, tries=1)
+        if not success:
+            if self.client.tx_error_fatal:
+                logger.error('Received fatal transaction error during get', extra={'extra': results})
+                exit(1)
+            else:
+                logger.error('Received transaction error during get', extra={'extra': results})
+
+        return success, results
 
     @abstractmethod
     def has_required_event(self, transaction_events):
-        """
-        Checks the list for a given transaction.
-        Useful for many transactions, as they are actually multiple transactions
-        In the event one fails, but the needed one succeeds, this will return True
+        """Checks for existence of events in transaction logs, ensuring successful completion
 
         Returns:
             True if the required event was in the list, false otherwise
@@ -211,11 +288,10 @@ class AbstractTransaction(metaclass=ABCMeta):
 
     @abstractmethod
     def get_path(self):
-        """
-        Get the path to build this transaction
+        """Get the path of the route to build this transaction
 
         Returns:
-            Polyswarmd path to get the transaction data
+            str: Polyswarmd path to get the transaction data
         """
         raise NotImplementedError('get path is not implemented')
 
@@ -239,196 +315,4 @@ class AbstractTransaction(metaclass=ABCMeta):
         if len(transactions) != len(self.verifiers):
             return False
 
-        simplified = [SimplifiedTransaction.simplify(tx) for tx in transactions]
-        return all([v.verify(tx) for v, tx in zip(self.verifiers, simplified)])
-
-
-class NctApproveVerifier(AbstractTransactionVerifier):
-    def __init__(self, amount, account):
-        super().__init__(account)
-        self.amount = amount
-
-    def get_abi(self):
-        return ['address', 'uint256']
-
-    def verify_transaction(self, to, value, signature_hash, decoded_data):
-        address, approve_amount = decoded_data
-        logger.info('Approve address: %s, amount: %s', address, approve_amount)
-
-        return (signature_hash == HexBytes(NCT_APPROVE_SIG_HASH)
-                and value == 0
-                and approve_amount == self.amount)
-
-
-class NctTransferVerifier(AbstractTransactionVerifier):
-    def __init__(self, amount, account):
-        super().__init__(account)
-        self.amount = amount
-
-    def get_abi(self):
-        return ['address', 'uint256']
-
-    def verify_transaction(self, to, value, signature_hash, decoded_data):
-        address, transfer_amount = decoded_data
-        logger.info('Transfer Address: %s, Amount: %s', address, transfer_amount)
-
-        return (signature_hash == HexBytes(NCT_TRANSFER_SIG_HASH)
-                and value == 0
-                and transfer_amount == self.amount)
-
-
-class PostBountyVerifier(AbstractTransactionVerifier):
-    def __init__(self, amount, artifact_uri, num_artifacts, duration, bloom, account):
-        super().__init__(account)
-        self.amount = amount
-        self.artifact_uri = artifact_uri
-        self.num_artifacts = num_artifacts
-        self.duration = duration
-        self.bloom = bloom
-
-    def get_abi(self):
-        return ['uint128', 'uint256', 'string', 'uint256', 'uint256', 'uint256[8]']
-
-    def verify_transaction(self, to, value, signature_hash, data):
-        guid, amount, artifact_uri, num_artifacts, duration, bloom = data
-
-        bounty_bloom = 0
-        for b in bloom:
-            bounty_bloom = bounty_bloom << 256 | int(b)
-
-        logger.info(
-            'Post Bounty guid: %s amount: %s, artifact uri: %s, number of artifacts: %s, duration: %s, bloom: %s',
-            self.guid_as_string(guid), amount, artifact_uri.decode('utf-8'), num_artifacts, duration, bounty_bloom)
-        return (signature_hash == HexBytes(POST_BOUNTY_SIG_HASH)
-                and value == 0
-                and artifact_uri.decode('utf8') == self.artifact_uri
-                and num_artifacts == self.num_artifacts
-                and duration == self.duration
-                and bounty_bloom == self.bloom
-                and amount == self.amount)
-
-
-class PostAssertionVerifier(AbstractTransactionVerifier):
-    def __init__(self, guid, bid, mask, verdicts, nonce, account):
-        super().__init__(account)
-        self.guid = guid
-        self.bid = bid
-        self.mask = mask
-        self.verdicts = verdicts
-        self.nonce = nonce
-
-    def get_abi(self):
-        return ['uint128', 'uint256', 'uint256', 'uint256']
-
-    def verify_transaction(self, to, value, signature_hash, data):
-        guid, bid, mask, commitment = data
-
-        _, expected_commitment = calculate_commitment(self.account, bool_list_to_int(self.verdicts), nonce=self.nonce)
-
-        logger.info('Post Assertion guid: %s bid: %s, mask: %s, commitment: %s', self.guid_as_string(guid), bid, mask,
-                    commitment)
-
-        return (signature_hash == HexBytes(POST_ASSERTION_SIG_HASH)
-                and value == 0
-                and self.guid_as_string(guid) == self.guid
-                and bid == self.bid
-                and commitment == expected_commitment
-                and int_to_bool_list(mask, len(self.mask)) == self.mask)
-
-class RevealAssertionVerifier(AbstractTransactionVerifier):
-    def __init__(self, guid, index, nonce, verdicts, metadata, account):
-        super().__init__(account)
-        self.guid = guid
-        self.index = index
-        self.nonce = nonce
-        self.verdicts = verdicts
-        self.metadata = metadata
-
-    def get_abi(self):
-        return ['uint128', 'uint256', 'uint256', 'uint256', 'string']
-
-    def verify_transaction(self, to, value, signature_hash, data):
-        guid, assertion_id, nonce, verdicts, metadata = data
-
-        # If there is a 1 anywhere beyond the length of items we expect, fail it
-        if verdicts >> len(self.verdicts) > 0:
-            return False
-
-        logger.info('Reveal Assertion guid: %s assertion_id: %s, verdicts: %s, metadata: %s', self.guid_as_string(guid),
-                    assertion_id, int_to_bool_list(verdicts, len(self.verdicts)), metadata.decode('utf-8'))
-        return (signature_hash == HexBytes(REVEAL_ASSERTION_SIG_HASH)
-                and value == 0
-                and self.guid_as_string(guid) == self.guid
-                and assertion_id == self.index
-                and int_to_bool_list(verdicts, len(self.verdicts)) == self.verdicts
-                and metadata.decode('utf-8') == self.metadata
-                and nonce == int(self.nonce))
-
-
-class PostVoteVerifier(AbstractTransactionVerifier):
-    def __init__(self, guid, votes, valid_bloom, account):
-        super().__init__(account)
-        self.guid = guid
-        self.votes = votes
-        self.valid_bloom = valid_bloom
-
-    def get_abi(self):
-        return ['uint128', 'uint256', 'bool']
-
-    def verify_transaction(self, to, value, signature_hash, data):
-        guid, votes, valid_bloom = data
-        logger.info('Post Vote guid: %s, votes: %s, valid_bloom: %s', self.guid_as_string(guid),
-                    int_to_bool_list(votes, len(self.votes)), valid_bloom)
-        return (signature_hash == HexBytes(VOTE_SIG_HASH)
-                and value == 0
-                and self.guid_as_string(guid) == self.guid
-                and int_to_bool_list(votes, len(self.votes)) == self.votes
-                and valid_bloom == self.valid_bloom)
-
-
-class SettleBountyVerifier(AbstractTransactionVerifier):
-    def __init__(self, guid, account):
-        super().__init__(account)
-        self.guid = guid
-
-    def get_abi(self):
-        return ['uint128']
-
-    def verify_transaction(self, to, value, signature_hash, data):
-        guid = data
-        logger.info('Settle bounty guid: %s', self.guid_as_string(guid))
-        return (signature_hash == HexBytes(SETTLE_SIG_HASH)
-                and value == 0
-                and self.guid_as_string(guid) == self.guid)
-
-
-class StakingDepositVerifier(AbstractTransactionVerifier):
-    def __init__(self, amount, account):
-        super().__init__(account)
-        self.amount = amount
-
-    def get_abi(self):
-        return ['uint256']
-
-    def verify_transaction(self, to, value, signature_hash, data):
-        amount = data
-        logger.info('Stake Deposit Amount: %s', amount)
-        return (signature_hash == HexBytes(STAKE_DEPOSIT_SIG_HASH)
-                and value == 0
-                and amount == self.amount)
-
-
-class StakingWithdrawVerifier(AbstractTransactionVerifier):
-    def __init__(self, amount, account):
-        super().__init__(account)
-        self.amount = amount
-
-    def get_abi(self):
-        return ['uint256']
-
-    def verify_transaction(self, to, value, signature_hash, data):
-        amount = data
-        logger.info('Stake Withdraw Amount: %s', amount)
-        return (signature_hash == HexBytes(STAKE_WITHDRAWAL_SIG_HASH)
-                and value == 0
-                and amount == self.amount)
+        return all([v.verify(tx) for v, tx in zip(self.verifiers, transactions)])

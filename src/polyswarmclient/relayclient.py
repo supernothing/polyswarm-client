@@ -1,6 +1,7 @@
 import logging
 
-from polyswarmclient.transaction import AbstractTransaction, NctTransferVerifier
+from polyswarmclient.verifiers import NctTransferVerifier
+from polyswarmclient.transaction import AbstractTransaction
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -8,7 +9,7 @@ logger = logging.getLogger(__name__)  # Initialize logger
 class RelayDepositTransaction(AbstractTransaction):
     def __init__(self, client, amount):
         self.amount = amount
-        transfer = NctTransferVerifier(amount, client.account)
+        transfer = NctTransferVerifier(amount)
         super().__init__(client, [transfer])
 
     def get_path(self):
@@ -31,7 +32,7 @@ class RelayDepositTransaction(AbstractTransaction):
 class RelayWithdrawTransaction(AbstractTransaction):
     def __init__(self, client, amount):
         self.amount = amount
-        transfer = NctTransferVerifier(amount, client.account)
+        transfer = NctTransferVerifier(amount)
         super().__init__(client, [transfer])
 
     def get_path(self):

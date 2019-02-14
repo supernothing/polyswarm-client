@@ -54,14 +54,14 @@ class Microengine(AbstractMicroengine):
                 result = await self.redis.blpop(key, timeout=timeout)
                 if result is None:
                     logger.warning('Timeout waiting for result in bounty %s', guid)
-                    return ScanResult()
+                    return None
 
                 j = json.loads(result[1].decode('utf-8'))
                 return j['index'], ScanResult(bit=j['bit'], verdict=j['verdict'], confidence=j['confidence'],
                                               metadata=j['metadata'])
             except (AttributeError, ValueError):
                 logger.error('Received invalid response from worker')
-                return ScanResult()
+                return None
 
         num_artifacts = len(await self.client.list_artifacts(uri))
         jobs = [json.dumps({'guid': guid, 'uri': uri, 'index': i, 'chain': chain}) for i in range(num_artifacts)]

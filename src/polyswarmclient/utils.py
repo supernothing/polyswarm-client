@@ -2,10 +2,13 @@ import logging
 import asyncio
 import os
 import sys
+import uuid
 
+import base58
 from ethereum.utils import sha3
 
 logger = logging.getLogger(__name__)
+
 TASK_TIMEOUT = 1.0
 MAX_WAIT = 600
 
@@ -33,8 +36,13 @@ def int_to_bool_list(i, expected_size):
     diff = expected_size - len(bool_list)
     bool_list.extend([False] * diff)
     if diff < 0:
-        logger.warning('expected %s bool values when converting %s, found %s in %s', expected_size, i, len(bool_list), bool_list)
+        logger.warning('expected %s bool values when converting %s, found %s in %s', expected_size, i, len(bool_list),
+                       bool_list)
     return bool_list
+
+
+def guid_as_string(guid):
+    return str(uuid.UUID(int=int(guid), version=4))
 
 
 def calculate_commitment(account, verdicts, nonce=None):
@@ -73,3 +81,37 @@ def exit(exit_status):
         os._exit(exit_status)
     else:
         sys.exit(exit_status)
+
+
+def check_response(response):
+    """Check the status of responses from polyswarmd
+
+    Args:
+        response: Response dict parsed from JSON from polyswarmd
+    Returns:
+        (bool): True if successful else False
+    """
+    status = response.get('status')
+    ret = status and status == 'OK'
+    if not ret:
+        logger.info('Received unexpected failure response from polyswarmd', extra={'extra': response})
+    return ret
+
+
+def is_valid_ipfs_uri(ipfs_uri):
+    """Ensure that a given ipfs_uri is valid by checking length and base58 encoding.
+
+    Args:
+        ipfs_uri (str): ipfs_uri to validate
+
+    Returns:
+        bool: is this valid?
+    """
+    # TODO: Further multihash validation
+    try:
+        return len(ipfs_uri) < 100 and base58.b58decode(ipfs_uri)
+    except TypeError:
+        logger.error('Invalid IPFS URI: %s', ipfs_uri)
+    except Exception as err:
+        logger.exception('Unexpected error: %s', err)
+    return False

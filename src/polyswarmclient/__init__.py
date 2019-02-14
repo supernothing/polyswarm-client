@@ -1,6 +1,5 @@
 import aiohttp
 import asyncio
-import base58
 import json
 import logging
 import os
@@ -14,140 +13,26 @@ from polyswarmclient.bountiesclient import BountiesClient
 from polyswarmclient.stakingclient import StakingClient
 from polyswarmclient.offersclient import OffersClient
 from polyswarmclient.relayclient import RelayClient
-from polyswarmclient.utils import asyncio_join, asyncio_stop, exit, MAX_WAIT
+from polyswarmclient.transaction import NonceManager
+from polyswarmclient.utils import asyncio_join, asyncio_stop, exit, MAX_WAIT, check_response, is_valid_ipfs_uri
 from urllib.parse import urljoin
 
 from web3 import Web3
 
+logger = logging.getLogger(__name__)
 w3 = Web3()
 
-logger = logging.getLogger(__name__)  # Initialize logger
 REQUEST_TIMEOUT = 300.0
 MAX_ARTIFACTS = 256
 
 
-class NonceManager:
-    """
-    Manages the nonce for some ethereum chain
-    """
-
-    def __init__(self, client, chain):
-        self.base_nonce = 0
-        self.client = client
-        self.chain = chain
-        self.needs_update = False
-        self.nonce_lock = asyncio.Lock()
-        self.in_progress = 0
-        self.in_progress_condition = asyncio.Condition()
-
-    async def acquire(self):
-        """
-        Acquires the nonce lock.
-        Updates base_nonce if needs_update is set
-        """
-        await self.nonce_lock.acquire()
-        if self.needs_update:
-            async with self.in_progress_condition:
-                # The wait inside here will release this lock, allowing finished() to work
-                await self.in_progress_condition.wait_for(self.all_finished)
-            nonce = await self.client.update_base_nonce(self.chain)
-            logger.info('Updated to %s', nonce)
-            self.needs_update = False
-            if nonce is not None:
-                self.base_nonce = nonce
-
-    def all_finished(self):
-        """
-        Check that all tasks have finished
-        """
-        return self.in_progress == 0
-
-    async def finished(self):
-        """
-        Mark that some in-progress transaction finished on polyswarmd
-        """
-        async with self.in_progress_condition:
-            self.in_progress -= 1
-            self.in_progress_condition.notify()
-
-    async def next(self, amount=1):
-        """
-        Grab the next amount nonces.
-
-        Args:
-            amount (int): amount of sequential nonces to be claimed
-        Returns
-            (list[int]): a list of nonces to use
-        """
-        results = []
-        async with self:
-            for x in range(0, amount):
-                results.append(self.base_nonce + x)
-            self.base_nonce += amount
-            # Inside nonce_lock so that there is no way the next acquire could miss an in progress
-            async with self.in_progress_condition:
-                # note that a set of nonces is being used
-                self.in_progress += 1
-        return results
-
-    def mark_update_nonce(self):
-        """
-        Call this when the nonce is out of sync.
-        This sets the update flag to true.
-        The next acquire after being set will trigger an update
-        """
-        self.needs_update = True
-
-    async def __aenter__(self):
-        await self.acquire()
-
-    async def __aexit__(self, exc_type, exc, tb):
-        self.nonce_lock.release()
-
-
-def check_response(response):
-    """Check the status of responses from polyswarmd
-
-    Args:
-        response: Response dict parsed from JSON from polyswarmd
-    Returns:
-        (bool): True if successful else False
-    """
-    status = response.get('status')
-    ret = status and status == 'OK'
-    if not ret:
-        logger.error('Received unexpected failure response from polyswarmd', extra={'extra': response})
-    return ret
-
-
-def is_valid_ipfs_uri(ipfs_uri):
-    """
-    Ensure that a given ipfs_uri is valid by checking length and base58 encoding.
-
-    Args:
-        ipfs_uri (str): ipfs_uri to validate
-
-    Returns:
-        bool: is this valid?
-    """
-    # TODO: Further multihash validation
-    try:
-        return len(ipfs_uri) < 100 and base58.b58decode(ipfs_uri)
-    except TypeError:
-        logger.error('Invalid IPFS URI: %s', ipfs_uri)
-    except Exception as err:
-        logger.exception('Unexpected error: %s', err)
-    return False
-
-
 class Client(object):
-    """
-    Client to connected to a ethereum wallet as well as a pollyswarm_d instance.
+    """Client to connected to a Ethereum wallet as well as a polyswarmd instance.
 
     Args:
         polyswarmd_addr (str): URI of polyswarmd you are referring to.
         keyfile (str): Keyfile filename.
-        password (str): Password associated with Keyfile.
+        password (str): Password associated with keyfile.
         api_key (str): Your PolySwarm API key.
         tx_error_fatal (bool): Transaction errors are fatal and exit the program
         insecure_transport (bool): Allow insecure transport such as HTTP?
@@ -174,12 +59,8 @@ class Client(object):
         self.__session = None
 
         # Do not init nonce manager here. Need to wait until we can guarantee that our event loop is set.
-        self.nonce_manager = {}
-
-        self.__schedule = {
-            'home': events.Schedule(),
-            'side': events.Schedule(),
-        }
+        self.nonce_managers = {}
+        self.__schedules = {}
 
         self.tries = 0
 
@@ -208,8 +89,7 @@ class Client(object):
         self.on_settle_bounty_due = events.OnSettleBountyDueCallback()
 
     def run(self, chains=None):
-        """
-        Run the main event loop
+        """Run the main event loop
 
         Args:
             chains (set(str)): Set of chains to operate on. Defaults to {'home', 'side'}
@@ -254,12 +134,16 @@ class Client(object):
         """
         if chains is None:
             chains = {'home', 'side'}
+
         if self.api_key and not self.polyswarmd_uri.startswith('https://'):
             raise Exception('Refusing to send API key over insecure transport')
 
         self.params = {'account': self.account}
+
         # We can now create our locks, because we are assured that the event loop is set
-        self.nonce_manager = {'home': NonceManager(self, 'home'), 'side': NonceManager(self, 'side')}
+        self.nonce_managers = {chain: NonceManager(self, chain) for chain in chains}
+        self.__schedules = {chain: events.Schedule() for chain in chains}
+
         try:
             # XXX: Set the timeouts here to reasonable values, probably should be configurable
             # No limits on connections
@@ -273,9 +157,6 @@ class Client(object):
                 self.balances = BalanceClient(self)
 
                 for chain in chains:
-                    nonce_manager = self.nonce_manager[chain]
-                    async with nonce_manager:
-                        nonce_manager.base_nonce = await self.update_base_nonce(chain)
                     await self.bounties.fetch_parameters(chain)
                     await self.staking.fetch_parameters(chain)
                     await self.on_run.run(chain)
@@ -297,7 +178,7 @@ class Client(object):
             path (str): Path portion of URI to send request to
             chain (str): Which chain to operate on
             json (obj): JSON payload to send with request
-            track_nonce (bool): Whether to track generated transaction and update nonce
+            send_nonce (bool): Whether to include a base_nonce query string parameter in this request
             api_key (str): Override default API key
             tries (int): Number of times to retry before giving up
         Returns:
@@ -345,115 +226,43 @@ class Client(object):
             logger.debug('%s %s?%s', method, path, qs, extra={'extra': response})
 
             if not check_response(response):
-                logger.warning('Request %s %s?%s failed, retrying...', method, path, qs)
+                logger.info('Request %s %s?%s failed, retrying...', method, path, qs)
                 continue
             else:
                 break
+
         if not check_response(response):
             logger.warning('Request %s %s?%s failed, giving up', method, path, qs)
             return False, response.get('errors')
 
         return True, response.get('result')
 
-    async def post_transactions(self, transactions, chain, api_key=None):
-        """Post a set of (signed) transactions to Ethereum via polyswarmd, parsing the emitted events
+    def sign_transactions(self, transactions):
+        """Sign a set of transactions
 
         Args:
-            transactions (List[Transaction]): The transactions to sign and post
-            chain (str): Which chain to operate on
-            api_key (str): Override default API key
-
+            transactions (List[Transaction]): The transactions to sign
         Returns:
-            Response JSON parsed from polyswarmd containing emitted events
+            List[Transaction]: The signed transactions
         """
-        if chain != 'home' and chain != 'side':
-            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
-        if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
+        return [w3.eth.account.signTransaction(tx, self.priv_key) for tx in transactions]
 
-        signed_txs = [w3.eth.account.signTransaction(tx, self.priv_key) for tx in transactions]
-        raw_signed_txs = [bytes(tx['rawTransaction']).hex() for tx in signed_txs]
-        success, results = await self.make_request('POST', '/transactions',
-                                                   chain,
-                                                   json={'transactions': raw_signed_txs},
-                                                   api_key=api_key, tries=1)
-
-        if not success:
-            if self.tx_error_fatal:
-                logger.error('Received fatal transaction error', extra={'extra': results})
-                sys.exit(1)
-            else:
-                logger.error('Received transaction error', extra={'extra': results})
-
-        if len(results) != len(signed_txs):
-            logger.warning('Transaction result length mismatch')
-
-        errors = []
-        txhashes = []
-        for tx, result in zip(signed_txs, results):
-            txhash = bytes(tx['hash']).hex()
-            message = result.get('message', '')
-            is_error = result.get('is_error', False)
-
-            if is_error and 'known transaction' not in message.lower():
-                errors.append(message)
-            else:
-                txhashes.append(txhash)
-
-        route = '/transactions'
-        json = {
-            'transactions': txhashes
-        }
-        success, results = await self.make_request('GET', route, chain, json=json,
-                                                   api_key=api_key, tries=1)
-        if not success:
-            if self.tx_error_fatal:
-                logger.error('Received fatal transaction error', extra={'extra': results})
-                sys.exit(1)
-            else:
-                logger.error('Received transaction error', extra={'extra': results})
-
-        if not results:
-            errors.append('Failed to retrieve transaction results for {}'.format(txhashes))
-            return {}
-
-        # Combine errors from transaction post with errors after fetching events
-        results['errors'] = errors + results.get('errors', [])
-        return results
-
-    def replace_nonce(self, base_nonce, transaction):
-        """
-        Replaces the nonce in a transaction with the existing nonce value
-
-        Args:
-            base_nonce (int): nonce for the wallet being used
-            transaction (obj): transaction object from polyswarmd
-        Returns
-            (list): transactions to be signed and sent
-        """
-        original = transaction.get('nonce')
-        if original is not None:
-            transaction['nonce'] = base_nonce
-            return transaction
-
-    async def update_base_nonce(self, chain, api_key=None):
-        """
-        Update account's nonce from polyswarmd
+    async def get_base_nonce(self, chain, api_key=None):
+        """Get account's nonce from polyswarmd
 
         Args:
             chain (str): Which chain to operate on
             api_key (str): Override default API key
         """
         success, base_nonce = await self.make_request('GET', '/nonce', chain, api_key=api_key)
-
         if success:
             return base_nonce
         else:
             logger.error('Failed to fetch base nonce')
+            return None
 
     async def list_artifacts(self, ipfs_uri, api_key=None):
-        """
-        Return a list of artificats from a given ipfs_uri.
+        """Return a list of artificats from a given ipfs_uri.
 
         Args:
             ipfs_uri (str): IPFS URI to get artifiacts from.
@@ -567,8 +376,7 @@ class Client(object):
             raise StopAsyncIteration
 
     def get_artifacts(self, ipfs_uri, api_key=None):
-        """
-        Get an iterator to return artifacts.
+        """Get an iterator to return artifacts.
 
         Args:
             ipfs_uri (str): URI where artificats are located
@@ -654,7 +462,7 @@ class Client(object):
         """
         if chain != 'home' and chain != 'side':
             raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
-        self.__schedule[chain].put(expiration, event)
+        self.__schedules[chain].put(expiration, event)
 
     async def __handle_scheduled_events(self, number, chain):
         """Perform scheduled events when a new block is reported
@@ -665,8 +473,8 @@ class Client(object):
         """
         if chain != 'home' and chain != 'side':
             raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
-        while self.__schedule[chain].peek() and self.__schedule[chain].peek()[0] < number:
-            exp, task = self.__schedule[chain].get()
+        while self.__schedules[chain].peek() and self.__schedules[chain].peek()[0] < number:
+            exp, task = self.__schedules[chain].get()
             if isinstance(task, events.RevealAssertion):
                 asyncio.get_event_loop().create_task(
                     self.on_reveal_assertion_due.run(bounty_guid=task.guid, index=task.index, nonce=task.nonce,

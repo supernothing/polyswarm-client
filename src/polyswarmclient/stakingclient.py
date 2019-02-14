@@ -1,16 +1,18 @@
 import logging
 
 from polyswarmclient.parameters import Parameters
-from polyswarmclient.transaction import AbstractTransaction, StakingDepositVerifier, StakingWithdrawVerifier, NctApproveVerifier
+from polyswarmclient.verifiers import StakingDepositVerifier, StakingWithdrawVerifier, \
+    NctApproveVerifier
+from polyswarmclient.transaction import AbstractTransaction
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 
 class StakeDepositTransaction(AbstractTransaction):
     def __init__(self, client, amount):
         self.amount = amount
-        approve = NctApproveVerifier(amount, client.account)
-        deposit = StakingDepositVerifier(amount, client.account)
+        approve = NctApproveVerifier(amount)
+        deposit = StakingDepositVerifier(amount)
         super().__init__(client, [approve, deposit])
 
     def get_path(self):
@@ -24,16 +26,16 @@ class StakeDepositTransaction(AbstractTransaction):
     def has_required_event(self, transaction_events):
         deposits = transaction_events.get('deposits', [])
         for deposit in deposits:
-            if deposit.get('amount', 0) == self.amount:
+            if deposit.get('value', '') == self.amount:
                 return True
 
         return False
 
 
 class StakeWithdrawTransaction(AbstractTransaction):
-    def __init__(self, amount):
+    def __init__(self, client, amount):
         self.amount = amount
-        withdraw = StakingWithdrawVerifier(amount, client.account)
+        withdraw = StakingWithdrawVerifier(amount)
         super().__init__(client, [withdraw])
 
     def get_path(self):
@@ -47,7 +49,7 @@ class StakeWithdrawTransaction(AbstractTransaction):
     def has_required_event(self, transaction_events):
         withdrawals = transaction_events.get('withdrawals', [])
         for withdrawal in withdrawals:
-            if withdrawal.get('amount', 0) == self.amount:
+            if withdrawal.get('value', '') == self.amount:
                 return True
 
         return False

@@ -150,7 +150,7 @@ class AbstractAmbassador(ABC):
         """Submit a bounty in a new task
 
         Args:
-            bounty ((int, str, int)): Bounty to submit
+            bounty (QueuedBounty): Bounty to submit
             chain: Name of the chain to post to
         """
         assertion_reveal_window = await self.client.bounties.parameters[chain].get('assertion_reveal_window')
