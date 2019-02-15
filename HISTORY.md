@@ -1,6 +1,10 @@
 # Release History
 
-### 1.2.0 (2019-02-06)
+### 1.2.1 (2019-02-14)
+
+* **Fix** - Fix issues handling errors and parsing events from transactions
+
+### 1.2.0 (2019-02-12)
 
 * **Feature** - Support reporting confidence from scan used to weight bids
 * **Feature** - Redis backed producer/consumer microengine
