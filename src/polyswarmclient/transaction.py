@@ -219,7 +219,7 @@ class AbstractTransaction(metaclass=ABCMeta):
                 logger.warning('Error fetching some receipts, retrying')
                 continue
 
-            if any(['transaction failed' in e.lower for e in get_errors]):
+            if any(['transaction failed' in e.lower() for e in get_errors]):
                 logger.error('Transaction failed due to bad parameters, not retrying', extra={'extra': get_errors})
                 break
 
