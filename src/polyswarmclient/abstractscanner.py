@@ -21,6 +21,10 @@ class ScanResult(object):
         self.confidence = confidence
         self.metadata = metadata
 
+    def __repr__(self):
+        return '<ScanResult bit={}, verdict={}, confidence={}, metadata={}>'.format(self.bit, self.verdict,
+                                                                                    self.confidence, self.metadata)
+
 
 class AbstractScanner(ABC):
     """

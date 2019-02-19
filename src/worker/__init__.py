@@ -84,8 +84,16 @@ class Worker(object):
 
                 headers = {'Authorization': self.api_key} if self.api_key is not None else None
                 uri = '{}/artifacts/{}/{}'.format(self.polyswarmd_uri, uri, index)
-                response = await session.get(uri, headers=headers)
-                content = await response.read()
+
+                try:
+                    response = await session.get(uri, headers=headers)
+                    response.raise_for_status()
+
+                    content = await response.read()
+                except aiohttp.ClientResponseError:
+                    logger.exception('Error fetching artifact')
+                    continue
+
                 result = await self.scanner.scan(guid, content, chain)
 
                 j = json.dumps({
