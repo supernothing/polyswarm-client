@@ -124,6 +124,7 @@ class AbstractTransaction(metaclass=ABCMeta):
         # Ensure we try at least once
         tries = max(tries, 1)
 
+        # Step 1: Prepare the transaction, this is only done once
         success, result = await self.client.make_request('POST',
                                                          self.get_path(),
                                                          chain,
@@ -147,17 +148,45 @@ class AbstractTransaction(metaclass=ABCMeta):
         if 'transactions' in result:
             del result['transactions']
 
-        txhashes = []
+        orig_tries = tries
         post_errors = []
         get_errors = []
+        while tries > 0:
+            # Step 2: Update nonces, sign then post transactions
+            txhashes, post_errors = await self.__sign_and_post_transactions(transactions, orig_tries, chain, api_key)
+            if not txhashes:
+                return False, {'errors': post_errors}
 
-        # Step one: Update nonces, sign then post transactions
+            # Step 3: At least one transaction was submitted successfully, get and verify the events it generated
+            success, resync_nonces, results, get_errors = await self.__get_transactions(txhashes, orig_tries, chain,
+                                                                                        api_key)
+            if resync_nonces:
+                continue
+
+            return success, results
+
+        return False, {'errors': post_errors + get_errors}
+
+    async def __sign_and_post_transactions(self, transactions, tries, chain, api_key):
+        """Signs and posts a set of transactions to Ethereum via polyswarmd
+
+        Args:
+            transactions (List[Transaction]): The transactions to sign and post
+            tries (int): Number of times to retry before giving upyy
+            chain (str): Which chain to operate on
+            api_key (str): Override default API key
+        Returns:
+            Response JSON parsed from polyswarmd containing transaction status
+        """
+        nonce_manager = self.client.nonce_managers[chain]
         replace_nonce = True
+
+        txhashes = []
+        errors = []
         while tries > 0:
             tries -= 1
 
             # replace_nonce is True on first iteration and then after if nonce error occurs
-            nonce_manager = self.client.nonce_managers[chain]
             if replace_nonce:
                 nonces = await nonce_manager.reserve(amount=len(transactions))
                 for i, transaction in enumerate(transactions):
@@ -165,7 +194,23 @@ class AbstractTransaction(metaclass=ABCMeta):
 
             signed_txs = self.client.sign_transactions(transactions)
             raw_signed_txs = [bytes(tx['rawTransaction']).hex() for tx in signed_txs]
-            success, results = await self.__post_transactions(raw_signed_txs, chain, api_key)
+
+            success, results = await self.client.make_request('POST', '/transactions', chain,
+                                                              json={'transactions': raw_signed_txs}, api_key=api_key,
+                                                              tries=1)
+
+            if not success:
+                # Known transaction errors seem to be a geth issue, don't spam log about it
+                all_known_tx_errors = results is not None and \
+                                      all(['known transaction' in r.get('message', '') for r in results if
+                                           r.get('is_error')])
+
+                if self.client.tx_error_fatal:
+                    logger.error('Received fatal transaction error during post', extra={'extra': results})
+                    exit(1)
+                elif not all_known_tx_errors:
+                    logger.error('Received transaction error during post', extra={'extra': results})
+
             results = [] if results is None else results
 
             if replace_nonce:
@@ -176,7 +221,7 @@ class AbstractTransaction(metaclass=ABCMeta):
                 logger.warning('Transaction result length mismatch')
 
             txhashes = []
-            post_errors = []
+            errors = []
             for tx, result in zip(signed_txs, results):
                 txhash = bytes(tx['hash']).hex()
                 message = result.get('message', '')
@@ -184,98 +229,77 @@ class AbstractTransaction(metaclass=ABCMeta):
 
                 # Known transaction errors seem to be a geth issue, don't retransmit in this case
                 if is_error and 'known transaction' not in message.lower():
-                    post_errors.append(message)
+                    errors.append(message)
                 else:
                     txhashes.append(txhash)
 
             if txhashes:
-                if post_errors:
+                if errors:
                     logger.warning('Transaction errors detected but some succeeded, fetching events',
-                                   extra={'extra': post_errors})
+                                   extra={'extra': errors})
 
-                break
+                return txhashes, errors
 
-            # Indicates a nonce error, resync nonces and retry
-            if any(['invalid transaction error' in e.lower() for e in post_errors]):
-                logger.error('Nonce desync detected, resyncing and trying again')
+            # Indicates nonce is too low, we can handle this now, resync nonces and retry
+            if any(['invalid transaction error' in e.lower() for e in errors]):
+                logger.error('Nonce desync detected during post, resyncing and trying again')
                 nonce_manager.mark_update_nonce()
                 replace_nonce = True
 
-        if not txhashes:
-            return False, {'errors': post_errors + get_errors}
+        return txhashes, errors
 
-        # Step two: At least one transaction was submitted successfully, get and verify the events it generated
-        tries += 1
-        while tries > 0:
-            tries -= 1
-
-            success, results = await self.__get_transactions(txhashes, chain, api_key)
-
-            get_errors = results.get('errors', [])
-            has_required = self.has_required_event(results)
-
-            # Check to see if we failed to retrieve some receipts, retry the fetch if so
-            if not has_required and any(['receipt' in e.lower() for e in get_errors]):
-                logger.warning('Error fetching some receipts, retrying')
-                continue
-
-            if any(['transaction failed' in e.lower() for e in get_errors]):
-                logger.error('Transaction failed due to bad parameters, not retrying', extra={'extra': get_errors})
-                break
-
-            # Combine our error output, but this is a success
-            results['errors'] = post_errors + get_errors
-            return has_required, results
-
-        return False, {'errors': post_errors + get_errors}
-
-    async def __post_transactions(self, transactions, chain, api_key):
-        """Post a set of (signed) transactions to Ethereum via polyswarmd, parsing the emitted events
-
-        Args:
-            transactions (List[Transaction]): The transactions to sign and post
-            chain (str): Which chain to operate on
-            api_key (str): Override default API key
-        Returns:
-            Response JSON parsed from polyswarmd containing transaction status
-        """
-        success, results = await self.client.make_request('POST', '/transactions', chain,
-                                                          json={'transactions': transactions}, api_key=api_key, tries=1)
-
-        if not success:
-            # Known transaction errors seem to be a geth issue, don't spam log about it
-            all_known_tx_errors = results is not None and \
-                                  all(['known transaction' in r.get('message', '') for r in results if
-                                       r.get('is_error')])
-
-            if self.client.tx_error_fatal:
-                logger.error('Received fatal transaction error during post', extra={'extra': results})
-                exit(1)
-            elif not all_known_tx_errors:
-                logger.error('Received transaction error during post', extra={'extra': results})
-
-        return success, results
-
-    async def __get_transactions(self, txhashes, chain, api_key):
+    async def __get_transactions(self, txhashes, tries, chain, api_key):
         """Get generated events or errors from receipts for a set of txhashes
 
         Args:
             txhashes (List[str]): The txhashes of the receipts to process
+            tries (int): Number of times to retry before giving upyy
             chain (str): Which chain to operate on
             api_key (str): Override default API key
         Returns:
-            Response JSON parsed from polyswarmd containing emitted events
+            (bool, bool, dict, List[str]): Success, Resync nonce, Response JSON parsed from polyswarmd containing
+                emitted events, errors
         """
-        success, results = await self.client.make_request('GET', '/transactions', chain,
-                                                          json={'transactions': txhashes}, api_key=api_key, tries=1)
-        if not success:
-            if self.client.tx_error_fatal:
-                logger.error('Received fatal transaction error during get', extra={'extra': results})
-                exit(1)
-            else:
-                logger.error('Received transaction error during get', extra={'extra': results})
+        nonce_manager = self.client.nonce_managers[chain]
 
-        return success, results
+        success = False
+        resync_nonce = False
+        results = {}
+        errors = []
+        while tries > 0:
+            tries -= 1
+
+            success, results = await self.client.make_request('GET', '/transactions', chain,
+                                                              json={'transactions': txhashes}, api_key=api_key, tries=1)
+            if not success:
+                if self.client.tx_error_fatal:
+                    logger.error('Received fatal transaction error during get', extra={'extra': results})
+                    exit(1)
+                else:
+                    logger.error('Received transaction error during get', extra={'extra': results})
+
+            results = {} if results is None else results
+
+            errors = results.get('errors', [])
+            success = self.has_required_event(results)
+
+            # Indicates nonce may be too high, if so resync nonces and try again at top level
+            if any(['timeout during wait for receipt' in e.lower() for e in errors]):
+                logger.error('Nonce desync detected during get, resyncing and trying again')
+                nonce_manager.mark_update_nonce()
+                resync_nonce = True
+                break
+
+            # Check to see if we failed to retrieve some receipts, retry the fetch if so
+            if not success and any(['receipt' in e.lower() for e in errors]):
+                logger.warning('Error fetching some receipts, retrying')
+                continue
+
+            if any(['transaction failed' in e.lower() for e in errors]):
+                logger.error('Transaction failed due to bad parameters, not retrying', extra={'extra': errors})
+                break
+
+        return success, resync_nonce, results, errors
 
     @abstractmethod
     def has_required_event(self, transaction_events):

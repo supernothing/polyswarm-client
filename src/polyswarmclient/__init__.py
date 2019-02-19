@@ -189,6 +189,9 @@ class Client(object):
         if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
+        # Ensure we try at least once
+        tries = max(tries, 1)
+
         uri = urljoin(self.polyswarmd_uri, path)
 
         params = dict(self.params)
@@ -203,6 +206,7 @@ class Client(object):
             api_key = self.api_key
         headers = {'Authorization': api_key} if api_key is not None else None
 
+        orig_tries = tries
         qs = '&'.join([a + '=' + str(b) for (a, b) in params.items()])
         response = {}
         while tries > 0:
@@ -226,7 +230,9 @@ class Client(object):
             logger.debug('%s %s?%s', method, path, qs, extra={'extra': response})
 
             if not check_response(response):
-                logger.info('Request %s %s?%s failed, retrying...', method, path, qs)
+                if tries > 0:
+                    logger.info('Request %s %s?%s failed, retrying...', method, path, qs)
+
                 continue
             else:
                 break
