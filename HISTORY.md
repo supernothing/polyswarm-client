@@ -1,5 +1,10 @@
 # Release History
 
+### 1.2.2 (2019-02-19)
+
+* **Fix** - Fix issues recovering from nonce gaps
+* **Fix** - Fix issues detecting artifact download failure from producer microengine backend
+
 ### 1.2.1 (2019-02-14)
 
 * **Fix** - Fix issues handling errors and parsing events from transactions
