@@ -1,5 +1,9 @@
 # Release History
 
+### 1.2.3 (2019-02-20)
+
+* **Fix** - Fix invalid None result from transaction send
+
 ### 1.2.2 (2019-02-19)
 
 * **Fix** - Fix issues recovering from nonce gaps
