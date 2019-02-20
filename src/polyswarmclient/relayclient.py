@@ -23,7 +23,8 @@ class RelayDepositTransaction(AbstractTransaction):
     def has_required_event(self, transaction_events):
         transfers = transaction_events.get('transfers', [])
         for transfer in transfers:
-            if transfer.get('amount', 0) == self.amount:
+            value = int(transfer.get('value', 0))
+            if value == self.amount:
                 return True
 
         return False
@@ -46,7 +47,8 @@ class RelayWithdrawTransaction(AbstractTransaction):
     def has_required_event(self, transaction_events):
         transfers = transaction_events.get('transfers', [])
         for transfer in transfers:
-            if transfer.get('amount', 0) == self.amount:
+            value = int(transfer.get('value', 0))
+            if value == self.amount:
                 return True
 
         return False
