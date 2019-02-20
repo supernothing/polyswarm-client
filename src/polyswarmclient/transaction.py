@@ -125,18 +125,21 @@ class AbstractTransaction(metaclass=ABCMeta):
         tries = max(tries, 1)
 
         # Step 1: Prepare the transaction, this is only done once
-        success, result = await self.client.make_request('POST',
-                                                         self.get_path(),
-                                                         chain,
-                                                         json=self.get_body(),
-                                                         send_nonce=True,
-                                                         api_key=api_key,
-                                                         tries=tries)
-        if not success or 'transactions' not in result:
-            logger.error('Expected transactions, received', extra={'extra': result})
-            return False, result
+        success, results = await self.client.make_request('POST',
+                                                          self.get_path(),
+                                                          chain,
+                                                          json=self.get_body(),
+                                                          send_nonce=True,
+                                                          api_key=api_key,
+                                                          tries=tries)
 
-        transactions = result.get('transactions', [])
+        results = {} if results is None else results
+
+        if not success or 'transactions' not in results:
+            logger.error('Expected transactions, received', extra={'extra': results})
+            return False, results
+
+        transactions = results.get('transactions', [])
         if not self.verify(transactions):
             logger.error("Transactions did not match expectations for the given request.",
                          extra={'extra': transactions})
@@ -145,8 +148,8 @@ class AbstractTransaction(metaclass=ABCMeta):
             return False, {}
 
         # Keep around any extra data from the first request, such as nonce for assertion
-        if 'transactions' in result:
-            del result['transactions']
+        if 'transactions' in results:
+            del results['transactions']
 
         orig_tries = tries
         post_errors = []
