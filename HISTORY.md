@@ -1,5 +1,10 @@
 # Release History
 
+### 1.2.4 (2019-02-22)
+
+* **Fix** - Fix event checks for relay deposits and withdrawals in relayclient
+* **Fix** - Fix handling of timeouts when fetching artifacts via workers
+
 ### 1.2.3 (2019-02-20)
 
 * **Fix** - Fix invalid None result from transaction send
