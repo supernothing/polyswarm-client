@@ -91,7 +91,10 @@ class Worker(object):
 
                     content = await response.read()
                 except aiohttp.ClientResponseError:
-                    logger.exception('Error fetching artifact')
+                    logger.exception('Error fetching artifact %s', uri)
+                    continue
+                except asyncio.TimeoutError:
+                    logger.exception('Timeout fetching artifact %s', uri)
                     continue
 
                 result = await self.scanner.scan(guid, content, chain)
