@@ -163,15 +163,12 @@ class MockClient(Client):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
 
-    def url_with_parameters(self, path, chain=None, track_nonce=False):
+    def url_with_parameters(self, path, chain=None):
         # This is for tests, so don't bother grabbing the lock, we know what tasks are running
         params = {'account': self.account}
 
         if chain is not None:
             params['chain'] = chain
-
-        if track_nonce:
-            params['base_nonce'] = self.base_nonce[chain]
 
         qs = '&'.join('{0}={1}'.format(k, v) for k, v in sorted(params.items()))
         return 'http://localhost{0}?{1}'.format(path, qs)

@@ -62,7 +62,7 @@ async def test_list_artifacts(mock_client):
         {'hash': 'QmYCvbfNbCwFR45HiNP45rwJgvatpiW38D961L5qAhUM5Y', 'name': 'contact'},
     ]
 
-    mock_client.http_mock.get(mock_client.url_with_parameters('/artifacts/{0}'.format(valid_ipfs_uri)),
+    mock_client.http_mock.get(mock_client.url_with_parameters('/artifacts/{0}'.format(valid_ipfs_uri), chain='side'),
                               body=success(valid_response))
     assert await mock_client.list_artifacts(valid_ipfs_uri) == [(x['name'], x['hash']) for x in valid_response]
 

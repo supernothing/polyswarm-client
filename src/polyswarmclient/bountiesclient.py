@@ -173,18 +173,6 @@ class BountiesClient(object):
 
         self.parameters[chain] = Parameters(result)
 
-    async def get_artifact_count(self, ipfs_uri, api_key=None):
-        """Gets the number of artifacts at the ipfs uri
-
-        Args:
-            ipfs_uri (str): IPFS URI for the artifact set
-            api_key (str): Override default API key
-        Returns:
-            Number of artifacts at the uri
-        """
-        artifacts = await self.__client.list_artifacts(ipfs_uri, api_key=api_key)
-        return len(artifacts) if artifacts is not None and artifacts else 0
-
     async def calculate_bloom(self, ipfs_uri, api_key=None):
         """Calculate bloom filter for a set of artifacts.
 
@@ -249,7 +237,7 @@ class BountiesClient(object):
         """
         bounty_fee = await self.parameters[chain].get('bounty_fee')
         bloom = await self.calculate_bloom(artifact_uri)
-        num_artifacts = await self.get_artifact_count(artifact_uri)
+        num_artifacts = await self.__client.get_artifact_count(artifact_uri)
         transaction = PostBountyTransaction(self.__client, amount, bounty_fee, artifact_uri, num_artifacts, duration,
                                             bloom)
         success, result = await transaction.send(chain, api_key=api_key)

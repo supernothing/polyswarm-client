@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 w3 = Web3()
 
 REQUEST_TIMEOUT = 300.0
+RATE_LIMIT_SLEEP = 2.0
 MAX_ARTIFACTS = 256
 
 
@@ -208,13 +209,20 @@ class Client(object):
 
         orig_tries = tries
         qs = '&'.join([a + '=' + str(b) for (a, b) in params.items()])
-        response = {}
         while tries > 0:
             tries -= 1
 
+            response = {}
             try:
                 async with self.__session.request(method, uri, params=params, headers=headers,
                                                   json=json) as raw_response:
+                    # Handle "Too many requests" rate limit by not hammering server, and instead sleeping a bit
+                    if raw_response.status == 429:
+                        logger.warning('Hit polyswarmd rate limits, sleeping then trying again')
+                        await asyncio.sleep(RATE_LIMIT_SLEEP)
+                        tries += 1
+                        continue
+
                     try:
                         response = await raw_response.json()
                     except (ValueError, aiohttp.ContentTypeError):
@@ -232,16 +240,12 @@ class Client(object):
             if not check_response(response):
                 if tries > 0:
                     logger.info('Request %s %s?%s failed, retrying...', method, path, qs)
+                    continue
+                elif orig_tries > 1:
+                    logger.warning('Request %s %s?%s failed, giving up', method, path, qs)
+                    return False, response.get('errors')
 
-                continue
-            else:
-                break
-
-        if not check_response(response):
-            logger.warning('Request %s %s?%s failed, giving up', method, path, qs)
-            return False, response.get('errors')
-
-        return True, response.get('result')
+            return True, response.get('result')
 
     def sign_transactions(self, transactions):
         """Sign a set of transactions
@@ -267,7 +271,7 @@ class Client(object):
             logger.error('Failed to fetch base nonce')
             return None
 
-    async def list_artifacts(self, ipfs_uri, api_key=None):
+    async def list_artifacts(self, ipfs_uri, api_key=None, tries=2):
         """Return a list of artificats from a given ipfs_uri.
 
         Args:
@@ -278,43 +282,34 @@ class Client(object):
             List[(str, str)]: A list of tuples. First tuple element is the artifact name, second tuple element
             is the artifact hash.
         """
-        if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
-
         if not is_valid_ipfs_uri(ipfs_uri):
+            logger.warning('Invalid IPFS URI: %s', ipfs_uri)
             return []
 
-        uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}'.format(ipfs_uri))
-        params = dict(self.params)
+        path = '/artifacts/{0}'.format(ipfs_uri)
 
-        # Allow overriding API key per request
-        if api_key is None:
-            api_key = self.api_key
-        headers = {'Authorization': api_key} if api_key is not None else None
-
-        try:
-            async with self.__session.get(uri, params=params, headers=headers) as raw_response:
-                try:
-                    response = await raw_response.json()
-                except (ValueError, aiohttp.ContentTypeError):
-                    response = await raw_response.read() if raw_response else 'None'
-                    logger.error('Received non-json response from polyswarmd: %s', response)
-                    return []
-        except OSError:
-            logger.error('Connection to polyswarmd refused')
-            return []
-        except asyncio.TimeoutError:
-            logger.error('Connection to polyswarmd timed out')
+        # Chain parameter doesn't matter for artifacts, just set to side
+        success, result = await self.make_request('GET', path, 'side', api_key=api_key, tries=tries)
+        if not success:
+            logger.error('Expected artifact listing, received', extra={'extra': result})
             return []
 
-        logger.debug('GET /artifacts/%s', ipfs_uri, extra={'extra': response})
+        result = {} if result is None else result
+        return [(a.get('name', ''), a.get('hash', '')) for a in result]
 
-        if not check_response(response):
-            return []
+    async def get_artifact_count(self, ipfs_uri, api_key=None):
+        """Gets the number of artifacts at the ipfs uri
 
-        return [(a['name'], a['hash']) for a in response.get('result', {})]
+        Args:
+            ipfs_uri (str): IPFS URI for the artifact set
+            api_key (str): Override default API key
+        Returns:
+            Number of artifacts at the uri
+        """
+        artifacts = await self.list_artifacts(ipfs_uri, api_key=api_key)
+        return len(artifacts) if artifacts is not None and artifacts else 0
 
-    async def get_artifact(self, ipfs_uri, index, api_key=None):
+    async def get_artifact(self, ipfs_uri, index, api_key=None, tries=2):
         """Retrieve an artifact from IPFS via polyswarmd
 
         Args:
@@ -335,18 +330,26 @@ class Client(object):
             api_key = self.api_key
         headers = {'Authorization': api_key} if api_key is not None else None
 
-        try:
-            async with self.__session.get(uri, params=params, headers=headers) as raw_response:
-                if raw_response.status == 200:
-                    return await raw_response.read()
+        while tries > 0:
+            tries -= 1
 
-                return None
-        except OSError:
-            logger.error('Connection to polyswarmd refused')
-            return None
-        except asyncio.TimeoutError:
-            logger.error('Connection to polyswarmd timed out')
-            return None
+            try:
+                async with self.__session.get(uri, params=params, headers=headers) as raw_response:
+                    # Handle "Too many requests" rate limit by not hammering server, and instead sleeping a bit
+                    if raw_response.status == 429:
+                        logger.warning('Hit polyswarmd rate limits, sleeping then trying again')
+                        await asyncio.sleep(RATE_LIMIT_SLEEP)
+                        tries += 1
+                        continue
+
+                    if raw_response.status == 200:
+                        return await raw_response.read()
+            except OSError:
+                logger.error('Connection to polyswarmd refused')
+            except asyncio.TimeoutError:
+                logger.error('Connection to polyswarmd timed out')
+
+        return None
 
     @staticmethod
     def to_wei(amount, unit='ether'):
@@ -396,7 +399,7 @@ class Client(object):
 
         return Client.__GetArtifacts(self, ipfs_uri, api_key=api_key)
 
-    async def post_artifacts(self, files, api_key=None):
+    async def post_artifacts(self, files, api_key=None, tries=2):
         """Post artifacts to polyswarmd, flexible files parameter to support different use-cases
 
         Args:
@@ -408,55 +411,78 @@ class Client(object):
         Returns:
             (str): IPFS URI of the uploaded artifact
         """
-        with aiohttp.MultipartWriter('form-data') as mpwriter:
-            to_close = []
-            try:
-                for filename, f in files:
-                    # If contents is None, open filename for reading and remember to close it
-                    if f is None:
-                        f = open(filename, 'rb')
-                        to_close.append(f)
 
-                    # If filename is None and our file object has a name attribute, use it
-                    if filename is None and hasattr(f, 'name'):
-                        filename = f.name
+        uri = urljoin(self.polyswarmd_uri, '/artifacts')
+        params = dict(self.params)
 
-                    if filename:
-                        filename = os.path.basename(filename)
-                    else:
-                        filename = "file"
+        # Allow overriding API key per request
+        if api_key is None:
+            api_key = self.api_key
+        headers = {'Authorization': api_key} if api_key is not None else None
 
-                    payload = aiohttp.payload.get_payload(f, content_type='application/octet-stream')
-                    payload.set_content_disposition('form-data', name='file', filename=filename)
-                    mpwriter.append_payload(payload)
+        while tries > 0:
+            tries -= 1
 
-                uri = urljoin(self.polyswarmd_uri, '/artifacts')
-                params = dict(self.params)
+            # MultipartWriter can only be used once, recreate if on retry
+            with aiohttp.MultipartWriter('form-data') as mpwriter:
+                response = {}
+                to_close = []
+                try:
+                    for filename, f in files:
+                        # If contents is None, open filename for reading and remember to close it
+                        if f is None:
+                            f = open(filename, 'rb')
+                            to_close.append(f)
 
-                # Allow overriding API key per request
-                if api_key is None:
-                    api_key = self.api_key
-                headers = {'Authorization': api_key} if api_key is not None else None
+                        # If filename is None and our file object has a name attribute, use it
+                        if filename is None and hasattr(f, 'name'):
+                            filename = f.name
 
-                async with self.__session.post(uri, params=params, headers=headers, data=mpwriter) as raw_response:
-                    try:
-                        response = await raw_response.json()
-                    except (ValueError, aiohttp.ContentTypeError):
-                        response = await raw_response.read() if raw_response else 'None'
-                        logger.error('Received non-json response from polyswarmd: %s', response)
-                        return None
+                        if filename:
+                            filename = os.path.basename(filename)
+                        else:
+                            filename = "file"
+
+                        payload = aiohttp.payload.get_payload(f, content_type='application/octet-stream')
+                        payload.set_content_disposition('form-data', name='file', filename=filename)
+                        mpwriter.append_payload(payload)
+
+                    # Make the request
+                    async with self.__session.post(uri, params=params, headers=headers,
+                                                   data=mpwriter) as raw_response:
+                        # Handle "Too many requests" rate limit by not hammering server, and instead sleeping a bit
+                        if raw_response.status == 429:
+                            logger.warning('Hit polyswarmd rate limits, sleeping then trying again')
+                            await asyncio.sleep(RATE_LIMIT_SLEEP)
+                            tries += 1
+                            continue
+
+                        try:
+                            response = await raw_response.json()
+                        except (ValueError, aiohttp.ContentTypeError):
+                            response = await raw_response.read() if raw_response else 'None'
+                            logger.error('Received non-json response from polyswarmd: %s', response)
+                            response = {}
+                            continue
+                except OSError:
+                    logger.error('Connection to polyswarmd refused, files: %s', files)
+                except asyncio.TimeoutError:
+                    logger.error('Connection to polyswarmd timed out, files: %s', files)
+                finally:
+                    for f in to_close:
+                        f.close()
 
                 logger.debug('POST/artifacts', extra={'extra': response})
 
                 if not check_response(response):
-                    return None
+                    if tries > 0:
+                        logger.info('Posting artifacts to polyswarmd failed, retrying')
+                        continue
+                    else:
+                        logger.info('Posting artifacts to polyswarmd failed, giving up')
+                        return None
 
                 return response.get('result')
-            except (OSError, asyncio.TimeoutError):
-                logger.error("Artifacts could not be posted, files: %s", files)
-            finally:
-                for f in to_close:
-                    f.close()
 
     def schedule(self, expiration, event, chain):
         """Schedule an event to execute on a particular block
