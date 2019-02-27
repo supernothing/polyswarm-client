@@ -5,7 +5,7 @@ git clone https://github.com/polyswarm/ethash.git
 cd ethash
 python setup.py sdist bdist_wheel
 
-move-item  c:\ethash\dist\*.whl c:\dist\ethash\
+move-item  c:\dist\ethash\dist\*.whl c:\dist\ethash\
 pip wheel /usr/src/app/
 
 7z a polyswarm-client.7z *.whl
