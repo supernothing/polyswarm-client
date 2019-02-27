@@ -11,7 +11,7 @@ pip wheel /usr/src/app/
 7z a polyswarm-client.7z *.whl
 
 
-#aws.cmd s3 cp --acl=public-read  polyswarm-client.7z s3://polyswarm-wheel/
+aws.cmd s3 cp --acl=public-read  polyswarm-client.7z s3://polyswarm-wheel/
 
 $native_call_success = $?
 if (-not $native_call_success)
