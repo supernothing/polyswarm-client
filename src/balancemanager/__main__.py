@@ -78,7 +78,7 @@ def deposit(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure_
     """
     client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
     d = Deposit(client, amount, testing=testing)
-    d.run()
+    d.run_oneshot()
     sys.exit(d.exit_code)
 
 
@@ -95,7 +95,7 @@ def withdraw(ctx, polyswarmd_addr, keyfile, password, api_key, testing, insecure
     """
     client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
     w = Withdraw(client, amount, testing=testing)
-    w.run()
+    w.run_oneshot()
     sys.exit(w.exit_code)
 
 

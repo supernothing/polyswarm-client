@@ -1,8 +1,10 @@
-import logging
 import asyncio
+import logging
+import multiprocessing
 import os
 import sys
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import base58
 from ethereum.utils import sha3
@@ -55,6 +57,18 @@ def calculate_commitment(account, verdicts, nonce=None):
     account = int(account, 16)
     commitment = sha3(int_to_bytes(verdicts ^ int_from_bytes(sha3(nonce)) ^ account))
     return int_from_bytes(nonce), int_from_bytes(commitment)
+
+
+def configure_event_loop():
+    # Default event loop does not support pipes on Windows
+    if sys.platform == 'win32':
+        loop = asyncio.ProactorEventLoop()
+    else:
+        loop = asyncio.SelectorEventLoop()
+
+    # Default executor spawns way too many threads, set this to nproc
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()))
+    asyncio.set_event_loop(loop)
 
 
 def asyncio_join():

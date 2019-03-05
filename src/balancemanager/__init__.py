@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from polyswarmclient.utils import asyncio_stop
+from polyswarmclient.utils import asyncio_stop, configure_event_loop
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +17,6 @@ class BalanceManager(object):
     """
 
     def __init__(self, client, amount, testing=0, chains=None):
-        if chains is None:
-            chains = {'home', 'side'}
         self.client = client
         self.chains = chains
         self.amount = amount
@@ -30,7 +28,14 @@ class BalanceManager(object):
         """
         Starts the client on whichever chain this uses.
         """
-        self.client.run(self.chains)
+        self.client.run(chains=self.chains)
+
+    def run_oneshot(self):
+        """
+        Runs run_task once
+        """
+        configure_event_loop()
+        asyncio.get_event_loop().run_until_complete(self.client.run_task(chains=self.chains, listen_for_events=False))
 
     async def handle_run(self, chain):
         """
@@ -42,8 +47,6 @@ class BalanceManager(object):
                 await self.handle_transfer(chain)
         else:
             await self.handle_transfer(chain)
-
-        asyncio_stop()
 
     async def handle_transfer(self, chain):
         """

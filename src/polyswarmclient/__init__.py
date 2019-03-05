@@ -3,7 +3,6 @@ import asyncio
 import json
 import logging
 import os
-import sys
 import time
 import websockets
 
@@ -14,7 +13,8 @@ from polyswarmclient.stakingclient import StakingClient
 from polyswarmclient.offersclient import OffersClient
 from polyswarmclient.relayclient import RelayClient
 from polyswarmclient.transaction import NonceManager
-from polyswarmclient.utils import asyncio_join, asyncio_stop, exit, MAX_WAIT, check_response, is_valid_ipfs_uri
+from polyswarmclient.utils import asyncio_join, asyncio_stop, configure_event_loop, exit, MAX_WAIT, check_response, \
+    is_valid_ipfs_uri
 from urllib.parse import urljoin
 
 from web3 import Web3
@@ -99,16 +99,11 @@ class Client(object):
             chains = {'home', 'side'}
 
         while True:
-            loop = asyncio.SelectorEventLoop()
-
-            # Default event loop does not support pipes on Windows
-            if sys.platform == 'win32':
-                loop = asyncio.ProactorEventLoop()
-
-            asyncio.set_event_loop(loop)
+            # Ensure we're running on a fresh loop
+            configure_event_loop()
 
             try:
-                asyncio.get_event_loop().run_until_complete(self.run_task(chains))
+                asyncio.get_event_loop().run_until_complete(self.run_task(chains=chains))
             except asyncio.CancelledError:
                 logger.info('Clean exit requested, exiting')
 
@@ -126,7 +121,7 @@ class Client(object):
                 time.sleep(wait)
                 continue
 
-    async def run_task(self, chains=None):
+    async def run_task(self, chains=None, listen_for_events=True):
         """
         How the event loop handles running a task.
 
@@ -164,7 +159,8 @@ class Client(object):
 
                 # At this point we're initialized, reset our failure counter and listen for events
                 self.tries = 0
-                await asyncio.wait([self.listen_for_events(chain) for chain in chains])
+                if listen_for_events:
+                    await asyncio.wait([self.listen_for_events(chain) for chain in chains])
         finally:
             self.__session = None
             self.bounties = None
