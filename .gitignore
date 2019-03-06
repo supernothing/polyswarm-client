@@ -9,6 +9,10 @@ __pycache__/
 tests/.hypothesis/
 .vscode
 .coverage
+.eggs
+build
+dist
+
 
 # Ignored Read the Docs assets
 _build
