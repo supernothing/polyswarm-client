@@ -4,11 +4,25 @@ services:
   - docker:dind
 
 stages:
+  - ciimage
   - test
   - e2e
   - prebuildwindows
   - notifydependents
   - pypi
+
+variables:
+  STAGE_IMAGE: $CI_CUSTOM_DEV_REGISTRY_URI/ci-images/stage:latest
+
+buildciimage:
+
+  stage: ciimage
+  script:
+    - docker login -u "$CI_CUSTOM_DEV_REGISTRY_USERNAME" -p "$CI_CUSTOM_DEV_REGISTRY_PASSWORD" "$CI_CUSTOM_DEV_REGISTRY_URI"
+    - docker build -t $STAGE_IMAGE  docker/ci-image/
+    - docker push $STAGE_IMAGE
+  only:
+    - images
 
 test:
   image: python:3.5
@@ -17,13 +31,16 @@ test:
     - pip install tox
   script:
     - tox -e py35
+  except:
+    - images
 
 kick-e2e:
   tags:
       - docker
   before_script:
     - apk --no-cache add curl jq
-
+  except:
+    - images
   stage: e2e
   script:
     - set -e
