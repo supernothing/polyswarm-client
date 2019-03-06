@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import multiprocessing
 import os
 import sys
 import uuid
@@ -13,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 TASK_TIMEOUT = 1.0
 MAX_WAIT = 600
+MAX_WORKERS = 4
 
 
 def int_to_bytes(i):
@@ -66,8 +66,8 @@ def configure_event_loop():
     else:
         loop = asyncio.SelectorEventLoop()
 
-    # Default executor spawns way too many threads, set this to nproc
-    loop.set_default_executor(ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()))
+    # Default executor spawns way too many threads, set this to a reasonable default
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=MAX_WORKERS))
     asyncio.set_event_loop(loop)
 
 

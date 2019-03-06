@@ -205,6 +205,7 @@ class Client(object):
 
         orig_tries = tries
         qs = '&'.join([a + '=' + str(b) for (a, b) in params.items()])
+        response = {}
         while tries > 0:
             tries -= 1
 
@@ -242,6 +243,8 @@ class Client(object):
                     return False, response.get('errors')
 
             return True, response.get('result')
+
+        return False, response.get('errors')
 
     def sign_transactions(self, transactions):
         """Sign a set of transactions

@@ -2,12 +2,11 @@ import base64
 import logging
 import random
 import os
-import asyncio
 
 from concurrent.futures import CancelledError
 from polyswarmclient.abstractambassador import AbstractAmbassador
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 EICAR = base64.b64decode(
     b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=')
@@ -37,8 +36,7 @@ class Ambassador(AbstractAmbassador):
                     logger.error('Error uploading artifact to IPFS, continuing')
                     continue
 
-                await self.push_bounty(amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS)
-                await asyncio.sleep(self.submission_rate)
+                await self.push_bounty(amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS, chain)
             except CancelledError:
                 logger.warning('Cancel requested')
                 break

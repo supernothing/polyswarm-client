@@ -5,7 +5,7 @@ import sys
 
 from polyswarmclient.config import init_logging, LoggerConfig
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 
 def choose_backend(backend, logger_config):

@@ -1,13 +1,12 @@
 import logging
 import random
 import os
-import asyncio
 
 from concurrent.futures import CancelledError
 from polyswarmclient.abstractambassador import AbstractAmbassador
 from polyswarmclient.corpus import DownloadToFileSystemCorpus
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
 ARTIFACT_BLACKLIST = os.getenv('ARTIFACT_BLACKLIST', 'truth.db').split(',')
@@ -60,8 +59,7 @@ class Ambassador(AbstractAmbassador):
                     logger.error('Error uploading artifact to IPFS, continuing')
                     continue
 
-                await self.push_bounty(amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS)
-                await asyncio.sleep(self.submission_rate)
+                await self.push_bounty(amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS, chain)
             except CancelledError:
                 logger.warning('Cancel requested')
                 break

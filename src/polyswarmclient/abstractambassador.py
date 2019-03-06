@@ -10,9 +10,7 @@ logger = logging.getLogger(__name__)  # Initialize logger
 
 MAX_TRIES = 10
 BOUNTY_QUEUE_SIZE = 10
-MAX_BOUNTIES_IN_FLIGHT = 10
-MAX_BOUNTIES_PER_BLOCK = 1
-BLOCK_DIVISOR = 1
+MIN_SUBMISSION_RATE = 1
 
 
 class QueuedBounty(object):
@@ -27,7 +25,7 @@ class QueuedBounty(object):
 
 
 class AbstractAmbassador(ABC):
-    def __init__(self, client, testing=0, chains=None, watchdog=0, submission_rate=0):
+    def __init__(self, client, testing=0, chains=None, watchdog=0, submission_rate=1):
         self.client = client
         self.chains = chains
         self.client.on_run.register(self.__handle_run)
@@ -35,23 +33,22 @@ class AbstractAmbassador(ABC):
         self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
 
         # Initialize in run_task to ensure we're on the right loop
-        self.bounty_queue = None
-        self.bounty_semaphore = None
-        self.block_event = None
+        self.bounty_queues = {}
 
         self.watchdog = watchdog
         self.first_block = 0
         self.last_block = 0
-        self.last_bounty_count = 0
+        self.last_bounty_count = {}
 
         self.testing = testing
-        self.bounties_posted = 0
+        self.bounties_posted = {}
+        self.bounties_posted_locks = {}
         self.settles_posted = 0
-        self.submission_rate = submission_rate
+        self.submission_rate = max(MIN_SUBMISSION_RATE, submission_rate)
 
     @classmethod
     def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, chains=None,
-                watchdog=0, submission_rate=0):
+                watchdog=0, submission_rate=1):
         """Connect the Ambassador to a Client.
 
         Args:
@@ -78,7 +75,7 @@ class AbstractAmbassador(ABC):
         """
         pass
 
-    async def push_bounty(self, amount, ipfs_uri, duration, api_key=None):
+    async def push_bounty(self, amount, ipfs_uri, duration, chain, api_key=None):
         """Push a bounty onto the queue for submission
 
         Args:
@@ -89,13 +86,14 @@ class AbstractAmbassador(ABC):
         """
         bounty = QueuedBounty(amount, ipfs_uri, duration, api_key=api_key)
         logger.info('Queueing bounty %s', bounty)
-        await self.bounty_queue.put(bounty)
+
+        await self.bounty_queues[chain].put(bounty)
 
     def run(self):
         """Run the Client on all of our chains."""
         self.client.run(self.chains)
 
-    async def __handle_run(self, chain: str) -> None:
+    async def __handle_run(self, chain):
         """Asynchronously run a task on a given chain.
 
         Args:
@@ -112,39 +110,35 @@ class AbstractAmbassador(ABC):
             chain (str): Name of the chain to post bounties to.
 
         """
-        self.bounty_queue = asyncio.Queue(maxsize=BOUNTY_QUEUE_SIZE)
-        self.bounty_semaphore = asyncio.BoundedSemaphore(value=MAX_BOUNTIES_IN_FLIGHT)
-        self.block_event = asyncio.Event()
+        self.bounty_queues[chain] = asyncio.Queue(maxsize=BOUNTY_QUEUE_SIZE)
+        self.bounties_posted_locks[chain] = asyncio.Lock()
 
         # Producer task
         asyncio.get_event_loop().create_task(self.generate_bounties(chain))
 
         # Consumer
         while True:
-            # Wait for a block
-            await self.block_event.wait()
-            self.block_event.clear()
+            # Delay submissions
+            await asyncio.sleep(self.submission_rate)
 
-            bounties_this_block = 0
-            while bounties_this_block < MAX_BOUNTIES_PER_BLOCK:
-                # Exit if we are in testing mode
-                if self.testing > 0 and self.bounties_posted >= self.testing:
+            # Exit if we are in testing mode
+            async with self.bounties_posted_locks[chain]:
+                bounties_posted = self.bounties_posted.get(chain, 0)
+                if self.testing > 0 and bounties_posted >= self.testing:
                     logger.info('All testing bounties submitted')
                     return
 
-                try:
-                    bounty = self.bounty_queue.get_nowait()
-                except asyncio.queues.QueueEmpty:
-                    logger.debug('Queue empty, waiting for next block')
-                    break
+            try:
+                bounty = self.bounty_queues[chain].get_nowait()
+            except asyncio.queues.QueueEmpty:
+                logger.debug('Queue empty, waiting for next window')
+                continue
 
-                if bounty is None:
-                    logger.info('Got None for bounty value, moving on to next block')
-                    break
+            if bounty is None:
+                logger.info('Got None for bounty value, moving on to next window')
+                continue
 
-                bounties_this_block += 1
-                await self.bounty_semaphore.acquire()
-                asyncio.get_event_loop().create_task(self.submit_bounty(bounty, chain))
+            asyncio.get_event_loop().create_task(self.submit_bounty(bounty, chain))
 
     async def submit_bounty(self, bounty, chain):
         """Submit a bounty in a new task
@@ -178,14 +172,16 @@ class AbstractAmbassador(ABC):
 
             await self.on_before_bounty_posted(bounty.amount, bounty.ipfs_uri, bounty.duration, chain)
 
-            logger.info('Submitting bounty %s', self.bounties_posted, extra={'extra': bounty})
             bounties = await self.client.bounties.post_bounty(bounty.amount, bounty.ipfs_uri, bounty.duration, chain,
                                                               api_key=bounty.api_key)
 
             if not bounties:
                 await self.on_bounty_post_failed(bounty.amount, bounty.ipfs_uri, bounty.duration, chain)
             else:
-                self.bounties_posted += 1
+                async with self.bounties_posted_locks[chain]:
+                    bounties_posted = self.bounties_posted.get(chain, 0)
+                    logger.info('Submitted bounty %s', bounties_posted, extra={'extra': bounty})
+                    self.bounties_posted[chain] = bounties_posted + 1
 
             for b in bounties:
                 guid = b['guid']
@@ -197,8 +193,7 @@ class AbstractAmbassador(ABC):
                 sb = SettleBounty(guid)
                 self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
 
-            self.bounty_queue.task_done()
-            self.bounty_semaphore.release()
+            self.bounty_queues[chain].task_done()
             return
 
         logger.warning('Failed %d attempts to post bounty due to low balance. Skipping', tries, extra={'extra': bounty})
@@ -210,9 +205,6 @@ class AbstractAmbassador(ABC):
 
         self.last_block = number
 
-        if self.block_event is not None and number % BLOCK_DIVISOR == 0:
-            self.block_event.set()
-
         if not self.watchdog:
             return
 
@@ -221,10 +213,13 @@ class AbstractAmbassador(ABC):
             return
 
         blocks = number - self.first_block
-        if blocks % self.watchdog == 0 and self.bounties_posted == self.last_bounty_count:
-            raise Exception('Bounties not processing, exiting with failure')
+        async with self.bounties_posted_locks[chain]:
+            bounties_posted = self.bounties_posted.get(chain, 0)
+            last_bounty_count = self.last_bounty_count.get(chain, 0)
+            if blocks % self.watchdog == 0 and bounties_posted == last_bounty_count:
+                raise Exception('Bounties not processing, exiting with failure')
 
-        self.last_bounty_count = self.bounties_posted
+            self.last_bounty_count[chain] = bounties_posted
 
     async def __handle_settle_bounty(self, bounty_guid, chain):
         """
