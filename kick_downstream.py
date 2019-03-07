@@ -21,9 +21,19 @@ class DownstreamKicker(object):
         raise Exception("project {0} not found".format(proj_name))
 
     def _get_all_projects(self):
-        r = requests.get("{0}/api/v4/projects/".format(self.gitlab_url_base), headers=self.head)
-        r.raise_for_status()
-        return r.json()
+        all_projects = []
+        page = 1
+        per_page = 100
+        while True:
+            r = requests.get("{0}/api/v4/projects?simple=true&page={1}&per_page={2}".format(self.gitlab_url_base, page, per_page), headers=self.head)
+            r.raise_for_status()
+            these_projects = r.json()
+            if not these_projects:
+                break
+            else:
+                all_projects += these_projects
+            page += 1
+        return all_projects
 
     def get_or_update_project_token(self, project_id):
         url = "{0}/api/v4/projects/{1}/triggers".format(self.gitlab_url_base, project_id)
