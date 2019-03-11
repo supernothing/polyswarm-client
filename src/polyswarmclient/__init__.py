@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 w3 = Web3()
 
 REQUEST_TIMEOUT = 300.0
-RATE_LIMIT_SLEEP = 2.0
 MAX_ARTIFACTS = 256
+RATE_LIMIT_SLEEP = 2.0
 
 
 class Client(object):
@@ -203,7 +203,6 @@ class Client(object):
             api_key = self.api_key
         headers = {'Authorization': api_key} if api_key is not None else None
 
-        orig_tries = tries
         qs = '&'.join([a + '=' + str(b) for (a, b) in params.items()])
         response = {}
         while tries > 0:
@@ -213,14 +212,14 @@ class Client(object):
             try:
                 async with self.__session.request(method, uri, params=params, headers=headers,
                                                   json=json) as raw_response:
-                    # Handle "Too many requests" rate limit by not hammering server, and instead sleeping a bit
-                    if raw_response.status == 429:
-                        logger.warning('Hit polyswarmd rate limits, sleeping then trying again')
-                        await asyncio.sleep(RATE_LIMIT_SLEEP)
-                        tries += 1
-                        continue
-
                     try:
+                        # Handle "Too many requests" rate limit by not hammering server, and instead sleeping a bit
+                        if raw_response.status == 429:
+                            logger.warning('Hit polyswarmd rate limits, sleeping then trying again')
+                            await asyncio.sleep(RATE_LIMIT_SLEEP)
+                            tries += 1
+                            continue
+
                         response = await raw_response.json()
                     except (ValueError, aiohttp.ContentTypeError):
                         response = await raw_response.read() if raw_response else 'None'
@@ -238,7 +237,7 @@ class Client(object):
                 if tries > 0:
                     logger.info('Request %s %s?%s failed, retrying...', method, path, qs)
                     continue
-                elif orig_tries > 1:
+                else:
                     logger.warning('Request %s %s?%s failed, giving up', method, path, qs)
                     return False, response.get('errors')
 
@@ -449,14 +448,14 @@ class Client(object):
                     # Make the request
                     async with self.__session.post(uri, params=params, headers=headers,
                                                    data=mpwriter) as raw_response:
-                        # Handle "Too many requests" rate limit by not hammering server, and instead sleeping a bit
-                        if raw_response.status == 429:
-                            logger.warning('Hit polyswarmd rate limits, sleeping then trying again')
-                            await asyncio.sleep(RATE_LIMIT_SLEEP)
-                            tries += 1
-                            continue
-
                         try:
+                            # Handle "Too many requests" rate limit by not hammering server, and instead sleeping a bit
+                            if raw_response.status == 429:
+                                logger.warning('Hit polyswarmd rate limits, sleeping then trying again')
+                                await asyncio.sleep(RATE_LIMIT_SLEEP)
+                                tries += 1
+                                continue
+
                             response = await raw_response.json()
                         except (ValueError, aiohttp.ContentTypeError):
                             response = await raw_response.read() if raw_response else 'None'
