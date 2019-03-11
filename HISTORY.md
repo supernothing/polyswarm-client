@@ -1,5 +1,12 @@
 # Release History
 
+### 1.2.5 (2019-03-11)
+
+* **Fix** - Better handling of rate limits
+* **Fix** - Use fixed version of ethash for windows
+* **Fix** - Fix bug with deposit/withdraw tasks not exiting cleanly
+* **Fix** - Fix regression handling nonce gaps
+
 ### 1.2.4 (2019-02-22)
 
 * **Fix** - Fix event checks for relay deposits and withdrawals in relayclient
