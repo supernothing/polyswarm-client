@@ -98,9 +98,9 @@ class Client(object):
         if chains is None:
             chains = {'home', 'side'}
 
+        configure_event_loop()
+
         while True:
-            # Ensure we're running on a fresh loop
-            configure_event_loop()
 
             try:
                 asyncio.get_event_loop().run_until_complete(self.run_task(chains=chains))
