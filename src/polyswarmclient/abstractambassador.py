@@ -144,7 +144,7 @@ class AbstractAmbassador(ABC):
                     bounty = self.bounty_queues[chain].get_nowait()
                 except asyncio.queues.QueueEmpty:
                     logger.debug('Queue empty, waiting for next window')
-                    continue
+                    break
 
                 if bounty is None:
                     logger.info('Got None for bounty value, moving on to next block')
