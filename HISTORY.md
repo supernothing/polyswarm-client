@@ -1,5 +1,10 @@
 # Release History
 
+### 1.3.0 (2019-03-13)
+
+* **Fix** - Fix tasks running on wrong event loop after top level exception handler
+* **Fix** - Fix ambassador blocking event loop if no bounties queued
+
 ### 1.2.5 (2019-03-11)
 
 * **Fix** - Better handling of rate limits
