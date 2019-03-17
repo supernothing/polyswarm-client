@@ -4,7 +4,7 @@ import logging
 import sys
 
 from worker import Worker
-from polyswarmclient.config import init_logging, LoggerConfig
+from polyswarmclient.config import init_logging, LoggerConfig, validate_apikey
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -56,6 +56,7 @@ def choose_backend(backend, logger_config):
 @click.option('--polyswarmd-addr', envvar='POLYSWARMD_ADDR', default='localhost:31337',
               help='Address (host:port) of polyswarmd instance')
 @click.option('--api-key', envvar='API_KEY', default='',
+              callback=validate_apikey,
               help='API key to use with polyswarmd')
 @click.option('--backend', envvar='BACKEND', required=True,
               help='Backend to use')

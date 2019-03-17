@@ -4,7 +4,7 @@ import sys
 import functools
 
 from balancemanager import Deposit, Withdraw, Maintainer
-from polyswarmclient.config import init_logging, LoggerConfig
+from polyswarmclient.config import init_logging, LoggerConfig, validate_apikey
 from polyswarmclient import Client
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -32,6 +32,7 @@ def polyswarm_client(func):
     @click.option('--password', envvar='PASSWORD', prompt=True, hide_input=True,
                   help='Password to decrypt the keyfile with')
     @click.option('--api-key', envvar='API_KEY', default='',
+                  callback=validate_apikey,
                   help='API key to use with polyswarmd')
     @click.option('--testing', default=0,
                   help='Activate testing mode for integration testing, trigger N balances to the sidechain then exit')

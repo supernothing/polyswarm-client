@@ -3,7 +3,7 @@ import importlib.util
 import logging
 import sys
 
-from polyswarmclient.config import init_logging, LoggerConfig
+from polyswarmclient.config import init_logging, LoggerConfig, validate_apikey
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -54,6 +54,7 @@ def choose_backend(backend, logger_config):
 @click.option('--password', envvar='PASSWORD', prompt=True, hide_input=True,
               help='Password to decrypt the keyfile with')
 @click.option('--api-key', envvar='API_KEY', default='',
+              callback=validate_apikey,
               help='API key to use with polyswarmd')
 @click.option('--backend', envvar='BACKEND', required=True,
               help='Backend to use')
