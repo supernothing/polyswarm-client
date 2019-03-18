@@ -16,7 +16,7 @@ def validate_apikey(ctx, param, value):
         if value == param.get_default(ctx):
             return value
         # Verify we have a hex-clean API key which of the appropriate length.
-        if len(value) != 32 or not all([c in string.hexdigits.lower() for c in value])
+        if len(value) != 32 or not all([c in string.hexdigits.lower() for c in value]):
             raise click.BadParameter("API key is an invalid 16-byte hex value.")
         return value
     except ValueError:
