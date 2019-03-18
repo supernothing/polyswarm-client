@@ -1,5 +1,6 @@
 import click
 import logging
+import string
 
 from polyswarmclient.log_formatter import JSONFormatter, ExtraTextFormatter
 from pythonjsonlogger import jsonlogger
@@ -14,10 +15,8 @@ def validate_apikey(ctx, param, value):
         # checking.
         if value == param.get_default(ctx):
             return value
-        # int(x, 16) doesn't check newlines, etc. This ensures we've got a clean API key
-        if len(value) != 32:
-            raise click.BadParameter('API key must be 32 characters')
-        if format(int(value, 16), 'x') != value:
+        # Verify we have a hex-clean API key which of the appropriate length.
+        if len(value) != 32 or not all([c in string.hexdigits.lower() for c in value])
             raise click.BadParameter("API key is an invalid 16-byte hex value.")
         return value
     except ValueError:
