@@ -16,7 +16,7 @@ def validate_apikey(ctx, param, value):
             return value
         # int(x, 16) doesn't check newlines, etc. This ensures we've got a clean API key
         if len(value) != 32:
-            raise click.BadParameter('API_KEY must be 32 characters')
+            raise click.BadParameter('API key must be 32 characters')
         if format(int(value, 16), 'x') != value:
             raise click.BadParameter("API key is an invalid 32-byte hex value.")
         return value
