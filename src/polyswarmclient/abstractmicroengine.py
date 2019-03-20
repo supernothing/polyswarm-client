@@ -14,8 +14,10 @@ class AbstractMicroengine(object):
         self.client = client
         self.chains = chains
         self.scanner = scanner
+        self.client.on_run.register(self.__handle_run)
         self.client.on_new_bounty.register(self.__handle_new_bounty)
         self.client.on_reveal_assertion_due.register(self.__handle_reveal_assertion)
+        self.client.on_quorum_reached.register(self.__handle_quorum_reached)
         self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
 
         # Limits used by default bidding logic
@@ -23,7 +25,8 @@ class AbstractMicroengine(object):
         self.max_bid = 0
 
         self.testing = testing
-        self.active_bounties = set()
+        self.bounties_pending = {}
+        self.bounties_pending_locks = {}
         self.bounties_seen = 0
         self.reveals_posted = 0
         self.settles_posted = 0
@@ -119,6 +122,14 @@ class AbstractMicroengine(object):
         """
         self.client.run(self.chains)
 
+    async def __handle_run(self, chain):
+        """Perform setup required once on correct loop
+
+        Args:
+            chain (str): Chain we are operating on.
+        """
+        self.bounties_pending_locks[chain] = asyncio.Lock()
+
     async def __handle_new_bounty(self, guid, author, amount, uri, expiration, block_number, txhash, chain):
         """Scan and assert on a posted bounty
 
@@ -135,10 +146,12 @@ class AbstractMicroengine(object):
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
-        if guid in self.active_bounties:
-            logger.info('Already received bounty, skipping')
-            return []
-        self.active_bounties.add(guid)
+        async with self.bounties_pending_locks[chain]:
+            bounties_pending = self.bounties_pending.get(chain, set())
+            if guid in bounties_pending:
+                logger.info('Bounty %s already seen, not responding', guid)
+                return []
+            self.bounties_pending[chain] = bounties_pending | {guid}
 
         self.bounties_seen += 1
         if self.testing > 0:
@@ -207,7 +220,7 @@ class AbstractMicroengine(object):
             logger.info('Testing mode, %s reveals remaining', self.testing - self.reveals_posted)
         return await self.client.bounties.post_reveal(bounty_guid, index, nonce, verdicts, metadata, chain)
 
-    async def __handle_settle_bounty(self, bounty_guid, chain):
+    async def __do_handle_settle_bounty(self, bounty_guid, chain):
         """
         Callback registered in `__init__` to handle a settled bounty.
 
@@ -217,9 +230,12 @@ class AbstractMicroengine(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
-        if bounty_guid not in self.active_bounties:
-            logger.warning('Trying to settle an inactive bounty, this should not happen')
-        self.active_bounties.remove(bounty_guid)
+        async with self.bounties_pending_locks[chain]:
+            bounties_pending = self.bounties_pending.get(chain, set())
+            if bounty_guid not in bounties_pending:
+                logger.info('Bounty %s already settled', bounty_guid)
+                return []
+            self.bounties_pending[chain] = bounties_pending - {bounty_guid}
 
         self.settles_posted += 1
         if self.testing > 0:
@@ -233,3 +249,9 @@ class AbstractMicroengine(object):
             logger.info("All testing bounties complete, exiting")
             asyncio_stop()
         return ret
+
+    async def __handle_quorum_reached(self, bounty_guid, block_number, txhash, chain):
+        return await self.__do_handle_settle_bounty(bounty_guid, chain)
+
+    async def __handle_settle_bounty(self, bounty_guid, chain):
+        return await self.__do_handle_settle_bounty(bounty_guid, chain)

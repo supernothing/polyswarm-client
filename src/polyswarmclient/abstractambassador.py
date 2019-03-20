@@ -32,6 +32,7 @@ class AbstractAmbassador(ABC):
         self.chains = chains
         self.client.on_run.register(self.__handle_run)
         self.client.on_new_block.register(self.__handle_new_block)
+        self.client.on_quorum_reached.register(self.__handle_quorum_reached)
         self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
 
         # Initialize in run_task to ensure we're on the right loop
@@ -47,7 +48,10 @@ class AbstractAmbassador(ABC):
         self.testing = testing
         self.bounties_posted = {}
         self.bounties_posted_locks = {}
-        self.settles_posted = 0
+        self.bounties_pending = {}
+        self.bounties_pending_locks = {}
+        self.settles_posted = {}
+        self.settles_posted_locks = {}
         self.submission_rate = submission_rate
 
     @classmethod
@@ -118,6 +122,8 @@ class AbstractAmbassador(ABC):
         self.bounty_semaphores[chain] = asyncio.Semaphore(value=MAX_BOUNTIES_IN_FLIGHT)
         self.block_events[chain] = asyncio.Event()
         self.bounties_posted_locks[chain] = asyncio.Lock()
+        self.bounties_pending_locks[chain] = asyncio.Lock()
+        self.settles_posted_locks[chain] = asyncio.Lock()
 
         # Producer task
         asyncio.get_event_loop().create_task(self.generate_bounties(chain))
@@ -196,7 +202,11 @@ class AbstractAmbassador(ABC):
                 async with self.bounties_posted_locks[chain]:
                     bounties_posted = self.bounties_posted.get(chain, 0)
                     logger.info('Submitted bounty %s', bounties_posted, extra={'extra': bounty})
-                    self.bounties_posted[chain] = bounties_posted + 1
+                    self.bounties_posted[chain] = bounties_posted + len(bounties)
+
+                async with self.bounties_pending_locks[chain]:
+                    bounties_pending = self.bounties_pending.get(chain, set())
+                    self.bounties_pending[chain] = bounties_pending | {b['guid'] for b in bounties}
 
             for b in bounties:
                 guid = b['guid']
@@ -241,7 +251,7 @@ class AbstractAmbassador(ABC):
 
             self.last_bounty_count[chain] = bounties_posted
 
-    async def __handle_settle_bounty(self, bounty_guid, chain):
+    async def __do_handle_settle_bounty(self, bounty_guid, chain):
         """
         When a bounty is scheduled to be settled, actually settle the bounty to the given chain.
 
@@ -251,19 +261,39 @@ class AbstractAmbassador(ABC):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events.
         """
-        self.settles_posted += 1
-        if self.testing > 0:
-            if self.settles_posted > self.testing:
-                logger.warning('Scheduled settle, but finished with testing mode')
+        async with self.bounties_pending_locks[chain]:
+            bounties_pending = self.bounties_pending.get(chain, set())
+            if bounty_guid not in bounties_pending:
+                logger.info('Bounty %s already settled', bounty_guid)
                 return []
-            logger.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
+            self.bounties_pending[chain] = bounties_pending - {bounty_guid}
+
+        last_settle = False
+        async with self.settles_posted_locks[chain]:
+            settles_posted = self.settles_posted.get(chain, 0)
+            self.settles_posted[chain] = settles_posted + 1
+
+            if self.testing > 0:
+                if self.settles_posted[chain] > self.testing:
+                    logger.warning('Scheduled settle, but finished with testing mode')
+                    return []
+                elif self.settles_posted[chain] == self.testing:
+                    last_settle = True
+
+            logger.info('Testing mode, %s settles remaining', self.testing - self.settles_posted[chain])
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
-        if self.testing > 0 and self.settles_posted >= self.testing:
+        if last_settle:
             logger.info("All testing bounties complete, exiting")
             asyncio_stop()
 
         return ret
+
+    async def __handle_quorum_reached(self, bounty_guid, block_number, txhash, chain):
+        return await self.__do_handle_settle_bounty(bounty_guid, chain)
+
+    async def __handle_settle_bounty(self, bounty_guid, chain):
+        return await self.__do_handle_settle_bounty(bounty_guid, chain)
 
     async def on_before_bounty_posted(self, amount, ipfs_uri, duration, chain):
         """Override this to implement additional steps before the bounty is posted

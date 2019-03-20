@@ -574,6 +574,10 @@ class Client(object):
                         elif event == 'fee_update':
                             d = {'bounty_fee': data.get('bounty_fee'), 'assertion_fee': data.get('assertion_fee')}
                             await self.bounties.parameters[chain].update({k: v for k, v in d.items() if v is not None})
+                        elif event == 'window_update':
+                            d = {'assertion_reveal_window': data.get('assertion_reveal_window'),
+                                 'arbiter_vote_window': data.get('arbiter_vote_window')}
+                            await self.bounties.parameters[chain].update({k: v for k, v in d.items() if v is not None})
                         elif event == 'bounty':
                             asyncio.get_event_loop().create_task(
                                 self.on_new_bounty.run(**data, block_number=block_number, txhash=txhash, chain=chain))

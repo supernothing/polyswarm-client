@@ -20,7 +20,8 @@ class AbstractArbiter(object):
         self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
 
         self.testing = testing
-        self.active_bounties = set()
+        self.bounties_pending = {}
+        self.bounties_pending_locks = {}
         self.bounties_seen = 0
         self.votes_posted = 0
         self.settles_posted = 0
@@ -74,6 +75,8 @@ class AbstractArbiter(object):
         Args:
             chain (str): Chain we are operating on.
         """
+        self.bounties_pending_locks[chain] = asyncio.Lock()
+
         min_stake = await self.client.staking.parameters[chain].get('minimum_stake')
         staking_balance = await self.client.staking.get_total_balance(chain)
         tries = 0
@@ -110,10 +113,12 @@ class AbstractArbiter(object):
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
-        if guid in self.active_bounties:
-            logger.info('Already received bounty, skipping')
-            return []
-        self.active_bounties.add(guid)
+        async with self.bounties_pending_locks[chain]:
+            bounties_pending = self.bounties_pending.get(chain, set())
+            if guid in bounties_pending:
+                logger.info('Bounty %s already seen, not responding', guid)
+                return []
+            self.bounties_pending[chain] = bounties_pending | {guid}
 
         self.bounties_seen += 1
         if self.testing > 0:
@@ -182,9 +187,12 @@ class AbstractArbiter(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events.
         """
-        if bounty_guid not in self.active_bounties:
-            logger.warning('Trying to settle an inactive bounty, this should not happen')
-        self.active_bounties.remove(bounty_guid)
+        async with self.bounties_pending_locks[chain]:
+            bounties_pending = self.bounties_pending.get(chain, set())
+            if bounty_guid not in bounties_pending:
+                logger.info('Bounty %s already settled', bounty_guid)
+                return []
+            self.bounties_pending[chain] = bounties_pending - {bounty_guid}
 
         self.settles_posted += 1
         if self.testing > 0:
