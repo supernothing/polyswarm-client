@@ -186,7 +186,7 @@ class AbstractAmbassador(ABC):
                     return
                 else:
                     tries += 1
-                    logger.warning('Insufficient balance to post bounty on %s. Have %s NCT. Need %s NCT.', chain,
+                    logger.critical('Insufficient balance to post bounty on %s. Have %s NCT. Need %s NCT.', chain,
                                    balance, bounty.amount + bounty_fee, extra={'extra': bounty})
                     await asyncio.sleep(tries * tries)
                     continue

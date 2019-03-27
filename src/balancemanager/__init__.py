@@ -70,10 +70,10 @@ class BalanceManager(object):
         else:
             if chain == 'home':
                 # Converting from amount_wei because it gives a better string output than self.amount
-                logger.info('Insufficient funds for deposit. Have %s NCT. Need %s NCT.', self.client.from_wei(balance),
+                logger.critical('Insufficient funds for deposit. Have %s NCT. Need %s NCT.', self.client.from_wei(balance),
                             self.client.from_wei(amount_wei))
             elif chain == 'side':
-                logger.info('Insufficient funds for withdrawal. Have %s NCT. Need %s NCT.',
+                logger.critical('Insufficient funds for withdrawal. Have %s NCT. Need %s NCT.',
                             self.client.from_wei(balance), self.client.from_wei(amount_wei))
 
             self.exit_code = 1
@@ -152,7 +152,7 @@ class Maintainer(object):
                 logger.info('Transferred %d times of %s', self.transfers, self.testing)
             # Don't need to wait on withdrawals. The funds are instantly locked up on the sidechain
         else:
-            logger.info('Insufficient funds for withdrawal. Have %s NCT. Need %s NCT.', side_balance, withdrawal_amount)
+            logger.critical('Insufficient funds for withdrawal. Have %s NCT. Need %s NCT.', side_balance, withdrawal_amount)
 
     async def try_deposit(self, side_balance):
         """
@@ -174,7 +174,7 @@ class Maintainer(object):
             if self.testing > 0:
                 logger.info('Transferred %d times of %s', self.transfers, self.testing)
         else:
-            logger.info('Insufficient funds for deposit. Have %s NCT. Need %s NCT', home_balance, self.refill_amount)
+            logger.critical('Insufficient funds for deposit. Have %s NCT. Need %s NCT', home_balance, self.refill_amount)
 
     async def watch_balance(self, block, chain):
         """
