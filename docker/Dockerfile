@@ -1,5 +1,5 @@
 # This loads version 3.6.8
-FROM python:3.6-jessie
+FROM python:3.6-stretch
 LABEL maintainer="PolySwarm Developers <info@polyswarm.io>"
 
 ENV DOCKERIZE_VERSION v0.6.1
