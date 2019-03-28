@@ -9,7 +9,7 @@ FROM microsoft/windowsservercore:1803
 # or vs_installershell.exe because choco doesn't
 
 RUN ["powershell", "Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"]
-RUN choco install python --version 3.5.4 -y
+RUN choco install python --version 3.6.7 -y
 RUN choco install git -y
 RUN choco install 7zip -y
 
