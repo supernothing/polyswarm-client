@@ -1,9 +1,10 @@
 import click
+import functools
 import logging
+import signal
 import string
 
 from polyswarmclient.log_formatter import JSONFormatter, ExtraTextFormatter
-from pythonjsonlogger import jsonlogger
 
 logger = logging.getLogger(__name__)
 
@@ -11,8 +12,7 @@ logger = logging.getLogger(__name__)
 def validate_apikey(ctx, param, value):
     """Validates the API key passed in through click parameters"""
     try:
-        # If we recieved the parameter's default value, then don't bother
-        # checking.
+        # If we received the parameter's default value, then don't bother checking.
         if value == param.get_default(ctx):
             return value
         # Verify we have a hex-clean API key which of the appropriate length.
@@ -22,36 +22,69 @@ def validate_apikey(ctx, param, value):
     except ValueError:
         raise click.BadParameter("API key must only contain valid hexadecimal values")
     except TypeError:
-        # I don't believe this can ever be triggered as a click option, but I'm
-        # keeping it around for completeness.
+        # I don't believe this can ever be triggered as a click option, but I'm keeping it around for completeness.
         raise click.BadParameter("API key must be a string")
 
-def init_logging(log_format, loglevel=logging.WARNING):
+
+def init_logging(loggers, log_format, loglevel=logging.WARNING):
     """
     Logic to support JSON logging.
     """
     # Change settings on polyswarm-client logger
-    logger_config = LoggerConfig(log_format, loglevel)
-    logger_config.configure('polyswarmclient')
+    logger_config = LoggerConfig(loggers, log_format, loglevel)
+    logger_config.configure()
 
 
 class LoggerConfig:
-    def __init__(self, log_format, log_level=logging.WARNING):
+    LEVELS = [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]
+
+    def __init__(self, loggers, log_format, log_level=logging.WARNING):
+        self.loggers = loggers + ['polyswarmclient']
         self.log_format = log_format
         self.log_level = log_level
 
-    def configure(self, name):
-        configured = logging.getLogger(name)
-        if self.log_format and self.log_format in ['json', 'datadog']:
-            log_handler = logging.StreamHandler()
-            formatter = JSONFormatter('(level) (name) (timestamp) (message)')
-            log_handler.setFormatter(formatter)
-            configured.addHandler(log_handler)
-            configured.setLevel(self.log_level)
-            configured.info("Logging in JSON format.")
+    def configure(self):
+        for name in self.loggers:
+            logger = logging.getLogger(name)
+            if self.log_format and self.log_format in ['json', 'datadog']:
+                log_handler = logging.StreamHandler()
+                formatter = JSONFormatter('(level) (name) (timestamp) (message)')
+                log_handler.setFormatter(formatter)
+                logger.addHandler(log_handler)
+                logger.setLevel(self.log_level)
+                logger.info("Logging in JSON format.")
+            else:
+                log_handler = logging.StreamHandler()
+                log_handler.setFormatter(ExtraTextFormatter(fmt='%(levelname)s:%(name)s:%(asctime)s %(message)s'))
+                logger.addHandler(log_handler)
+                logger.setLevel(self.log_level)
+                logger.info("Logging in text format.")
+
+        signal.signal(signal.SIGUSR1, self.__signal_handler)
+        signal.signal(signal.SIGUSR2, self.__signal_handler)
+
+    def set_level(self, new_level):
+        self.log_level = new_level
+        for name in self.loggers:
+            logger = logging.getLogger(name)
+            logger.setLevel(self.log_level)
+
+    def __signal_handler(self, signum, frame):
+        delta = 0
+        if signum == signal.SIGUSR1:
+            print('Incrementing logging level')
+            delta = 1
+        elif signum == signal.SIGUSR2:
+            print('Decrementing logging level')
+            delta = -1
         else:
-            log_handler = logging.StreamHandler()
-            log_handler.setFormatter(ExtraTextFormatter(fmt='%(levelname)s:%(name)s:%(asctime)s %(message)s'))
-            configured.addHandler(log_handler)
-            configured.setLevel(self.log_level)
-            configured.info("Logging in text format.")
+            print('Unrecognized signal trapped, ignoring')
+            return
+
+        try:
+            cur_index = self.LEVELS.index(self.log_level)
+        except ValueError:
+            raise ValueError('Invalid logging level')
+
+        index = max(min(cur_index + delta, len(self.LEVELS) - 1), 0)
+        self.set_level(self.LEVELS[index])

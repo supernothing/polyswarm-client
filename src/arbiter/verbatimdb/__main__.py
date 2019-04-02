@@ -14,7 +14,7 @@ from polyswarmclient.config import init_logging
 @click.option('--log_format', default='text',
               help='Log format. Can be `json` or `text` (default)')
 def main(malicious, benign, output, log_format):
-    init_logging(log_format)
+    init_logging([], log_format)
     generate_db(output, malicious, benign)
 
 

@@ -4,12 +4,12 @@ import logging
 import sys
 
 from worker import Worker
-from polyswarmclient.config import init_logging, LoggerConfig, validate_apikey
+from polyswarmclient.config import init_logging, validate_apikey
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
-def choose_backend(backend, logger_config):
+def choose_backend(backend):
     """Resolves scanner name string to implementation
 
     Args:
@@ -33,7 +33,6 @@ def choose_backend(backend, logger_config):
 
     # have valid module that can be imported, so import it.
     scanner_module = importlib.import_module(mod_spec.name)
-    logger_config.configure(scanner_module.__name__)
 
     # find Scanner class in this module
     if hasattr(scanner_module, "Scanner"):
@@ -43,7 +42,7 @@ def choose_backend(backend, logger_config):
     else:
         raise Exception("No scanner backend found {0}".format(backend))
 
-    return scanner_class
+    return scanner_module.__name__, scanner_class
 
 
 @click.command()
@@ -84,15 +83,10 @@ def main(log, redis_addr, queue, polyswarmd_addr, api_key, backend, testing, ins
         logging.error('invalid log level')
         sys.exit(-1)
 
-    # setup polyswarm-client logs
-    init_logging(log_format, loglevel)
+    logger_name, scanner_class = choose_backend(backend)
 
-    config = LoggerConfig(log_format, loglevel)
-    config.configure('worker')
-    config.configure('microengine')
-
-    scanner_class = choose_backend(backend, config)
     scanner = scanner_class()
+    init_logging(['worker', 'microengine', logger_name], log_format, loglevel)
 
     worker = Worker(redis_addr, queue, polyswarmd_addr, api_key, testing, insecure_transport, scanner)
     worker.run()

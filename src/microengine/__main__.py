@@ -3,12 +3,12 @@ import importlib.util
 import logging
 import sys
 
-from polyswarmclient.config import init_logging, LoggerConfig, validate_apikey
+from polyswarmclient.config import init_logging, validate_apikey
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
-def choose_backend(backend, logger_config):
+def choose_backend(backend):
     """Resolves microengine name string to implementation
 
     Args:
@@ -30,18 +30,17 @@ def choose_backend(backend, logger_config):
         raise Exception("Microengine backend `{0}` cannot be imported as a python module.".format(backend))
 
     # have valid module that can be imported, so import it.
-    micro_engine_module = importlib.import_module(mod_spec.name)
-    logger_config.configure(micro_engine_module.__name__)
+    microengine_module = importlib.import_module(mod_spec.name)
 
     # find Microengine class in this module
-    if hasattr(micro_engine_module, "Microengine"):
-        micro_engine_class = micro_engine_module.Microengine
-    elif len(backend_list) == 2 and hasattr(micro_engine_module, backend_list[1]):
-        micro_engine_class = getattr(micro_engine_module, backend_list[1])
+    if hasattr(microengine_module, "Microengine"):
+        microengine_class = microengine_module.Microengine
+    elif len(backend_list) == 2 and hasattr(microengine_module, backend_list[1]):
+        microengine_class = getattr(microengine_module, backend_list[1])
     else:
         raise Exception("No microengine backend found {0}".format(backend))
 
-    return micro_engine_class
+    return microengine_module.__name__, microengine_class
 
 
 @click.command()
@@ -86,14 +85,11 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
     if not isinstance(loglevel, int):
         logging.error('invalid log level')
         sys.exit(-1)
-    # setup polyswarm-client logs
-    init_logging(log_format, loglevel)
-    # setup microengine logs
-    config = LoggerConfig(log_format, loglevel)
-    config.configure('microengine')
 
-    micro_engine_class = choose_backend(backend, config)
-    micro_engine_class.connect(polyswarmd_addr, keyfile, password,
+    logger_name, microengine_class = choose_backend(backend)
+
+    init_logging(['microengine', logger_name], log_format, loglevel)
+    microengine_class.connect(polyswarmd_addr, keyfile, password,
                                api_key=api_key, testing=testing,
                                insecure_transport=insecure_transport,
                                chains=set(chains)).run()
