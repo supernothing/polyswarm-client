@@ -206,11 +206,15 @@ class AbstractAmbassador(ABC):
 
                 async with self.bounties_pending_locks[chain]:
                     bounties_pending = self.bounties_pending.get(chain, set())
-                    self.bounties_pending[chain] = bounties_pending | {b['guid'] for b in bounties}
+                    self.bounties_pending[chain] = bounties_pending | {b.get('guid') for b in bounties if 'guid' in b}
 
             for b in bounties:
-                guid = b['guid']
-                expiration = int(b['expiration'])
+                guid = b.get('guid')
+                expiration = int(b.get('expiration', 0))
+
+                if guid is None or expiration == 0:
+                    logger.error('Processing invalid bounty, not scheduling settle')
+                    continue
 
                 # Handle any additional steps in derived implementations
                 await self.on_after_bounty_posted(guid, bounty.amount, bounty.ipfs_uri, expiration, chain)
