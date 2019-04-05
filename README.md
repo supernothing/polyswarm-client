@@ -17,7 +17,7 @@ For important changes releases, see the [Release History](https://github.com/pol
 
 ## Installation
 
-You need python3 >= 3.5.4.
+You need python3 >= 3.6.5.
 Then to install polyswarm-client, use pip
 
 ```python

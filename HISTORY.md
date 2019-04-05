@@ -1,5 +1,15 @@
 # Release History
 
+### 1.4.0 (2019-04-05)
+
+* **Feature** - Move to python3.6 by default for both Docker and tests
+* **Feature** - Allow dynamically increasing/decreasing log levels via SIGUSR1/SIGUSR2
+* **Feature** - Allow a configurable arbiter vote window
+* **Feature** - Validate API keys passed via command line
+* **Fix** - Handle invalid polyswarmd responses more robustly
+* **Fix** - Adjust logging levels for insufficient balance conditions
+* **Fix** - Remove "reporter" functionality (obsolete)
+
 ### 1.3.0 (2019-03-13)
 
 * **Fix** - Fix tasks running on wrong event loop after top level exception handler
