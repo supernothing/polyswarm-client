@@ -14,19 +14,16 @@ logger = logging.getLogger(__name__)
 REQUEST_TIMEOUT = 5.0
 
 
+class ApiKeyException(Exception):
+    pass
+
+
 class Worker(object):
-    def __init__(self, redis_addr, queue, polyswarmd_addr, api_key=None, testing=0, insecure_transport=False,
-                 scanner=None):
+    def __init__(self, redis_addr, queue, api_key=None, testing=0, scanner=None):
         self.redis_uri = 'redis://' + redis_addr
-
-        protocol = 'http://' if insecure_transport else 'https://'
-        self.polyswarmd_uri = protocol + polyswarmd_addr
-
         self.queue = queue
-        self.polyswarmd_addr = polyswarmd_addr
         self.api_key = api_key
         self.testing = testing
-        self.insecure_transport = insecure_transport
         self.scanner = scanner
 
         self.tries = 0
@@ -61,9 +58,6 @@ class Worker(object):
                 continue
 
     async def run_task(self):
-        if self.api_key and not self.polyswarmd_uri.startswith('https://'):
-            raise Exception('Refusing to send API key over insecure transport')
-
         conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
         async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
@@ -76,14 +70,21 @@ class Worker(object):
 
                     guid = job['guid']
                     uri = job['uri']
+                    polyswarmd_uri = job['polyswarmd_uri']
+
+                    if self.api_key and not polyswarmd_uri.startswith('https://'):
+                        raise ApiKeyException()
+
                     index = job['index']
                     chain = job['chain']
+                except ApiKeyException:
+                    logger.exception("Refusing to send API key over insecure transport")
                 except (AttributeError, TypeError, ValueError):
                     logger.exception('Invalid job received, ignoring')
                     continue
 
                 headers = {'Authorization': self.api_key} if self.api_key is not None else None
-                uri = '{}/artifacts/{}/{}'.format(self.polyswarmd_uri, uri, index)
+                uri = '{}/artifacts/{}/{}'.format(polyswarmd_uri, uri, index)
 
                 try:
                     response = await session.get(uri, headers=headers)

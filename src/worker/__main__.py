@@ -52,8 +52,6 @@ def choose_backend(backend):
               help='Address (host:port) of polyswarmd instance')
 @click.option('--queue', envvar='QUEUE', required=True,
               help='Queue to listen for jobs on')
-@click.option('--polyswarmd-addr', envvar='POLYSWARMD_ADDR', default='localhost:31337',
-              help='Address (host:port) of polyswarmd instance')
 @click.option('--api-key', envvar='API_KEY', default='',
               callback=validate_apikey,
               help='API key to use with polyswarmd')
@@ -61,11 +59,9 @@ def choose_backend(backend):
               help='Backend to use')
 @click.option('--testing', default=0,
               help='Activate testing mode for integration testing, respond to N bounties and N offers then exit')
-@click.option('--insecure-transport', is_flag=True,
-              help='Connect to polyswarmd via http:// and ws://, mutually exclusive with --api-key')
 @click.option('--log-format', default='text',
               help='Log format. Can be `json` or `text` (default)')
-def main(log, redis_addr, queue, polyswarmd_addr, api_key, backend, testing, insecure_transport, log_format):
+def main(log, redis_addr, queue, api_key, backend, testing, log_format):
     """Entrypoint for the worker driver
 
     Args:
@@ -75,7 +71,6 @@ def main(log, redis_addr, queue, polyswarmd_addr, api_key, backend, testing, ins
         backend (str): Backend implementation to use
         api_key(str): API key to use with polyswarmd
         testing (int): Mode to process N bounties then exit (optional)
-        insecure_transport (bool): Connect to polyswarmd without TLS
         log_format (str): Format to output logs in. `text` or `json`
     """
     loglevel = getattr(logging, log.upper(), None)
@@ -88,7 +83,7 @@ def main(log, redis_addr, queue, polyswarmd_addr, api_key, backend, testing, ins
     scanner = scanner_class()
     init_logging(['worker', 'microengine', logger_name], log_format, loglevel)
 
-    worker = Worker(redis_addr, queue, polyswarmd_addr, api_key, testing, insecure_transport, scanner)
+    worker = Worker(redis_addr, queue, api_key, testing, scanner)
     worker.run()
 
 

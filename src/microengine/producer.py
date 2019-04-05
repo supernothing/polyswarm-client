@@ -64,7 +64,7 @@ class Microengine(AbstractMicroengine):
                 return None
 
         num_artifacts = len(await self.client.list_artifacts(uri))
-        jobs = [json.dumps({'guid': guid, 'uri': uri, 'index': i, 'chain': chain}) for i in range(num_artifacts)]
+        jobs = [json.dumps({'guid': guid, 'uri': uri, 'index': i, 'chain': chain, 'polyswarmd_uri': self.client.polyswarmd_uri}) for i in range(num_artifacts)]
         await self.redis.rpush(QUEUE, *jobs)
 
         key = '{}_{}_{}_results'.format(QUEUE, guid, chain)
