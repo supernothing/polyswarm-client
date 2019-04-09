@@ -26,12 +26,10 @@ buildciimage:
     - images
 
 test:
-  image: python:3.6-stretch
+  image: $STAGE_IMAGE
   stage: test
   tags:
     - docker
-  before_script:
-    - pip3 install tox
   script:
     - tox -e py36
   except:
