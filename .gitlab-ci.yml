@@ -15,7 +15,8 @@ variables:
   STAGE_IMAGE: $CI_CUSTOM_DEV_REGISTRY_URI/ci-images/stage:latest
 
 buildciimage:
-
+  tags:
+    - docker
   stage: ciimage
   script:
     - docker login -u "$CI_CUSTOM_DEV_REGISTRY_USERNAME" -p "$CI_CUSTOM_DEV_REGISTRY_PASSWORD" "$CI_CUSTOM_DEV_REGISTRY_URI"
@@ -27,6 +28,8 @@ buildciimage:
 test:
   image: python:3.6-stretch
   stage: test
+  tags:
+    - docker
   before_script:
     - pip3 install tox
   script:
@@ -89,6 +92,8 @@ kickafterpacker:
   before_script:
     - apk --no-cache add py3-requests
   stage: notifydependents
+  tags:
+    - docker
   only:
     - feature/windows-builds
     - master
@@ -96,8 +101,10 @@ kickafterpacker:
     - python3 kick_downstream.py
 
 push-to-pypi:
-  image: python:3.5
+  image: python:3.6-stretch
   stage: pypi
+  tags:
+    - docker
   only:
     - tags
   before_script:
