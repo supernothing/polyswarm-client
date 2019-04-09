@@ -2,6 +2,7 @@ FROM docker:stable
 # This image has python 3.6.8 and our common dependencies used to run CI builds.
 RUN apk --no-cache add \
         curl \
+        git \
         gcc \
         jq \
         libffi-dev \
