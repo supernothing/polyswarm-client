@@ -25,12 +25,12 @@ buildciimage:
     - images
 
 test:
-  image: python:3.5
+  image: python:3.6-stretch
   stage: test
   before_script:
-    - pip install tox
+    - pip3 install tox
   script:
-    - tox -e py35
+    - tox -e py36
   except:
     - images
 
