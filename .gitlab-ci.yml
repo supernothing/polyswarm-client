@@ -1,5 +1,3 @@
-image: docker:stable
-
 services:
   - docker:dind
 
@@ -15,6 +13,7 @@ variables:
   STAGE_IMAGE: $CI_CUSTOM_DEV_REGISTRY_URI/ci-images/stage:latest
 
 buildciimage:
+  image: $STAGE_IMAGE
   tags:
     - docker
   stage: ciimage
@@ -36,10 +35,9 @@ test:
     - images
 
 kick-e2e:
+  image: $STAGE_IMAGE
   tags:
       - docker
-  before_script:
-    - apk --no-cache add curl jq
   except:
     - images
   stage: e2e
@@ -76,6 +74,7 @@ kick-e2e:
       fi
 
 wheels:
+  image: docker:stable
   stage: prebuildwindows
   tags:
     - win2k16
@@ -87,8 +86,7 @@ wheels:
     - docker run --rm -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t polyswarm/windows-builder
 
 kickafterpacker:
-  before_script:
-    - apk --no-cache add py3-requests
+  image: $STAGE_IMAGE
   stage: notifydependents
   tags:
     - docker
@@ -99,14 +97,12 @@ kickafterpacker:
     - python3 kick_downstream.py
 
 push-to-pypi:
-  image: python:3.6-stretch
+  image: $STAGE_IMAGE
   stage: pypi
   tags:
     - docker
   only:
     - tags
-  before_script:
-    - pip install --upgrade setuptools wheel twine
   script:
     - python setup.py sdist bdist_wheel
 
