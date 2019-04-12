@@ -6,6 +6,7 @@
 * **Fix** - Add a sane backoff when worker fails to process a message
 * **Fix** - Error handling for mismatching keys on message processing
 * **Fix** - Remove dynamically increasing/decreasing log levels via SIGUSR1/SIGUSR2
+* **Fix** - Update versions for aiodns and aiohttp
 
 ### 1.4.0 (2019-04-05)
 
