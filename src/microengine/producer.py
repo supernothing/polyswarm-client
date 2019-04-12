@@ -66,7 +66,7 @@ class Microengine(AbstractMicroengine):
 
         num_artifacts = len(await self.client.list_artifacts(uri))
         jobs = [json.dumps({
-            'ts': datetime.utcnow(),
+            'ts': datetime.utcnow().isoformat(),
             'guid': guid,
             'uri': uri,
             'index': i,
