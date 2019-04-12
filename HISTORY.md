@@ -1,5 +1,11 @@
 # Release History
 
+### 1.4.1 (2019-04-12)
+
+* **Fix** - Add a timestamp (ts) key into the message payload in the producer
+* **Fix** - Add a sane backoff when worker fails to process a message
+* **Fix** - Error handling for mismatching keys on message processing
+
 ### 1.4.0 (2019-04-05)
 
 * **Feature** - Move to python3.6 by default for both Docker and tests
