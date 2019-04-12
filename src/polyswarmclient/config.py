@@ -61,8 +61,8 @@ class LoggerConfig:
                 logger.info("Logging in text format.")
 
         # removed in version 1.4.1 due to issues with Windows microengines
-        #signal.signal(signal.SIGUSR1, self.__signal_handler)
-        #signal.signal(signal.SIGUSR2, self.__signal_handler)
+        # signal.signal(signal.SIGUSR1, self.__signal_handler)
+        # signal.signal(signal.SIGUSR2, self.__signal_handler)
 
     def set_level(self, new_level):
         self.log_level = new_level
