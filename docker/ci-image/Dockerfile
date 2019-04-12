@@ -20,4 +20,3 @@ RUN apk --no-cache add \
     rm -f packer.zip
     
 RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN ln -s /usr/bin/pip3 /usr/bin/pip
