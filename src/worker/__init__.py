@@ -12,7 +12,6 @@ from polyswarmclient.utils import asyncio_join, asyncio_stop, exit, MAX_WAIT
 logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 5.0
-BACKOFF_MAX = 30
 
 class ApiKeyException(Exception):
     pass
