@@ -11,7 +11,7 @@ from ethereum.utils import sha3
 logger = logging.getLogger(__name__)
 
 TASK_TIMEOUT = 1.0
-MAX_WAIT = 600
+MAX_WAIT = int(os.getenv("WORKER_BACKOFF", "3"))
 MAX_WORKERS = 4
 
 

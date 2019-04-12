@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 5.0
 
-
 class ApiKeyException(Exception):
     pass
 
@@ -77,8 +76,12 @@ class Worker(object):
 
                     index = job['index']
                     chain = job['chain']
+                except KeyError as e:
+                    logger.exception("bad message format {}".format(e))
+                    continue
                 except ApiKeyException:
                     logger.exception("Refusing to send API key over insecure transport")
+                    continue
                 except (AttributeError, TypeError, ValueError):
                     logger.exception('Invalid job received, ignoring')
                     continue
