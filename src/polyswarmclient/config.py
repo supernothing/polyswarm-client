@@ -63,4 +63,3 @@ class LoggerConfig:
         for name in self.loggers:
             logger = logging.getLogger(name)
             logger.setLevel(self.log_level)
-
