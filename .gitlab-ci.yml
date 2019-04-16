@@ -8,6 +8,7 @@ stages:
   - prebuildwindows
   - notifydependents
   - pypi
+  - windowsbase
 
 variables:
   STAGE_IMAGE: $CI_CUSTOM_DEV_REGISTRY_URI/ci-images/stage:latest
@@ -84,6 +85,16 @@ wheels:
   script:
     - docker build -t polyswarm/windows-builder -f docker/windows/choco/Dockerfile .
     - docker run --rm -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t polyswarm/windows-builder
+
+windowsbase:
+  tags:
+    - win2k16
+  script:
+    - docker login -u "$CI_CUSTOM_DEV_REGISTRY_USERNAME" -p "$CI_CUSTOM_DEV_REGISTRY_PASSWORD" "$CI_CUSTOM_DEV_REGISTRY_URI"
+    - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/base/Dockerfile docker/windows/base
+    - docker push polyswarm/polyswarm-client-windows
+  only:
+    - feature/base-windows-build
 
 kickafterpacker:
   image: $STAGE_IMAGE
