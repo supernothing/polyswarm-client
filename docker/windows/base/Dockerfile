@@ -23,6 +23,15 @@ RUN choco install -y 7zip `
                      nmap `
                      sysinternals `
                      vim
+
+## -- NSSM -------------------------------
+RUN choco install -y nssm
+
+## -- Polyswarm Powershell Utilities -----
+ADD polyswarm-profile.ps1 $env:LocalAppData 
+RUN Get-Content $env:LocalAppData/polyswarm-psutils.ps1 `
+  | Set-Content $profile.AllUsersAllHosts
+
 ## ---------------------------------------
 
 CMD powershell
