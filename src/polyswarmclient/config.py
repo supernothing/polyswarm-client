@@ -37,7 +37,7 @@ class LoggerConfig:
     LEVELS = [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]
 
     def __init__(self, loggers, log_format, log_level=logging.WARNING):
-        self.loggers = loggers + ['polyswarmclient']
+        self.loggers = loggers
         self.log_format = log_format
         self.log_level = log_level
 
