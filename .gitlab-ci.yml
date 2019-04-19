@@ -90,7 +90,7 @@ windowsbase:
   tags:
     - win2k16
   script:
-    - docker login -u "$CI_CUSTOM_DEV_REGISTRY_USERNAME" -p "$CI_CUSTOM_DEV_REGISTRY_PASSWORD" "$CI_CUSTOM_DEV_REGISTRY_URI"
+    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
     - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/base/Dockerfile docker/windows/base
     - docker push polyswarm/polyswarm-client-windows
   only:

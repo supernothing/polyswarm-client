@@ -1,6 +1,6 @@
 # escape=`
 # Tag version?
-FROM mcr.microsoft.com/windows/servercore
+FROM mcr.microsoft.com/windows/servercore:1809
 LABEL description="Base image for Polyswarm Windows Microengines"
 SHELL ["powershell", "-ExecutionPolicy bypass", "-NoProfile", "-command"]
 
