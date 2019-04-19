@@ -8,6 +8,7 @@ import aioredis
 from datetime import datetime
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
 from polyswarmclient.abstractscanner import ScanResult
+from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ KEY_TIMEOUT = 20
 
 class Microengine(AbstractMicroengine):
     def __init__(self, client, testing=0, scanner=None, chains=None):
+        init_logging([__name__], log_format='json')
         super().__init__(client, testing, None, chains)
 
         if QUEUE is None:

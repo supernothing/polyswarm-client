@@ -7,6 +7,7 @@ import os
 from polyswarmclient.abstractarbiter import AbstractArbiter
 from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.corpus import DownloadToFileSystemCorpus
+from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)  # Initialize logger
 ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
@@ -25,6 +26,7 @@ class Arbiter(AbstractArbiter):
             testing (int): How many test bounties to respond to
             chains (set[str]): Chain(s) to operate on
         """
+        init_logging([__name__], log_format='json')
         super().__init__(client, testing, None, chains)
         db_pth = os.path.join(ARTIFACT_DIRECTORY, 'truth.db')
 

@@ -2,6 +2,7 @@ import logging
 
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
 from polyswarmclient.abstractscanner import AbstractScanner, ScanResult
+from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -35,5 +36,6 @@ class Microengine(AbstractMicroengine):
     """
     def __init__(self, client, testing=0, scanner=None, chains=None):
         """Initialize Scanner"""
+        init_logging([__name__], log_format='json')
         scanner = Scanner()
         super().__init__(client, testing, scanner, chains)

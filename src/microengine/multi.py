@@ -3,6 +3,7 @@ import logging
 
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
 from polyswarmclient.abstractscanner import AbstractScanner, ScanResult
+from polyswarmclient.config import init_logging
 from microengine.clamav import Scanner as ClamavScanner
 from microengine.yara import Scanner as YaraScanner
 
@@ -51,5 +52,6 @@ class Microengine(AbstractMicroengine):
             testing (int): How many test bounties to respond to
             chains (set[str]): Chain(s) to operate on
         """
+        init_logging([__name__], log_format='json')
         scanner = Scanner()
         super().__init__(client, testing, scanner, chains)
