@@ -5,6 +5,7 @@ import os
 from concurrent.futures import CancelledError
 from polyswarmclient.abstractambassador import AbstractAmbassador
 from polyswarmclient.corpus import DownloadToFileSystemCorpus
+from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ class Ambassador(AbstractAmbassador):
             testing (int): How many test bounties to respond to
             chains (set[str]): Chain(s) to operate on
         """
+        init_logging([__name__], log_format='json')
         super().__init__(client, testing, chains, watchdog, submission_rate)
 
         self.artifacts = []

@@ -5,6 +5,7 @@ import os
 
 from concurrent.futures import CancelledError
 from polyswarmclient.abstractambassador import AbstractAmbassador
+from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,20 @@ BOUNTY_TEST_DURATION_BLOCKS = int(os.getenv('BOUNTY_TEST_DURATION_BLOCKS', 5))
 
 class Ambassador(AbstractAmbassador):
     """Ambassador which submits the EICAR test file"""
+
+    def __init__(self, client, testing=0, chains=None, watchdog=0, submission_rate=30):
+        """
+        Initialize {{ cookiecutter.participant_name }}
+
+        Args:
+            client (`Client`): Client to use
+            testing (int): How many test bounties to respond to
+            chains (set[str]): Chain(s) to operate on
+            watchdog: interval over which a watchdog thread should verify bounty placement on-chain (in number of blocks)
+            submission_rate: if nonzero, produce a sleep in the main event loop to prevent the ambassador from overloading `polyswarmd` during testing
+        """
+        init_logging([__name__], log_format='json')
+        super().__init__(client, testing, chains, watchdog, submission_rate)
 
     async def generate_bounties(self, chain):
         """Submit either the EICAR test string or a benign sample

@@ -2,6 +2,7 @@ import logging
 
 from polyswarmclient.abstractarbiter import AbstractArbiter
 from microengine.clamav import Scanner
+from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -20,5 +21,6 @@ class Arbiter(AbstractArbiter):
 
     def __init__(self, client, testing=0, scanner=None, chains=None):
         """Initialize a ClamAV arbiter"""
+        init_logging([__name__], log_format='json')
         scanner = Scanner()
         super().__init__(client, testing, scanner, chains)
