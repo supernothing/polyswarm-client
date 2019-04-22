@@ -22,6 +22,9 @@ function Install-Service {
     .PARAMETER Name
     Specifies the service name
 
+    .PARAMETER Callback
+    Specifies the service name
+
     .INPUTS
     None. You cannot pipe objects to Add-Extension.
 
@@ -30,14 +33,26 @@ function Install-Service {
     or file name.
 
     .EXAMPLE
-    PS> Install-Service -Name "tachyon_server" -Path "C:\microengine\tachyon_server.exe"
+    PS> Install-Service -Name tachyon_server -Path C:\microengine\tachyon_server.exe
     [NSSM] Installing tachyon_server Service
     Done!
 
     .EXAMPLE
-    PS> Install-Service -Name "tachyon_server" -Path "C:\microengine\tachyon_server.exe" -AppDirectory "C:\tachyon" -AppPriority 32
+    PS> Install-Service -Name microengine -Path C:\Python\Scripts\microengine.exe -AppDirectory "C:\" -AppParameters "--log DEBUG" -AppParameters "--insecure-transport" --keyfile "dummy"
     [NSSM] Installing tachyon_server Service
     Done!
+    PS> Start-Service microengine
+    Using account: 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+    Logging Level: DEBUG
+
+    .LINK
+    https://nssm.cc/usage
+
+    .LINK
+    https://nssm.cc/commands
+
+    .LINK
+    https://gist.github.com/magnetikonline/2217fd95cf15a0324696
 
     #>
 
@@ -45,46 +60,44 @@ function Install-Service {
         [Parameter(Mandatory = $true)]
         [String]$Name
         [Parameter(Mandatory = $true)]
-        [ValidateDrive("C", "D")]
         [String]$Path
         [String]$AppDirectory = "C:\$Name"
         [String]$AppExit = "Default Restart"
         [Number]$AppRestartDelay = 250
         [String]$AppStdOut = "C:\$Name"
         [String]$AppStdErr = "$AppStdOut"
+        [String]$StartType = "SERVICE_AUTO_START"
     )
 
+    Get-Command "nssm"
+
     echo "[NSSM] Installing $Name Service"
-    nssm install $Name $Path
-    nssm set $Name AppDirectory "$AppDirectory"
-    nssm set $Name AppExit "$AppExit"
-    nssm set $Name AppRestartDelay "$AppRestartDelay"
-    nssm set $Name AppStdOut "$AppStdOut"
-    nssm set $Name AppStdErr "$AppStdErr"
 
-    # The user is now passing other, unanticipated variables to `nssm set`, we
-    # read them off as standard PS parameters and raise if the length is odd.
-    Function ConvertTo-Hash($list) {
-        if ($list.length % 2 -ne 0) { throw "Invalid Length" }
+    iex "nssm install $Name $Path"
+    iex "nssm set $Name AppDirectory $AppDirectory"
+    iex "nssm set $Name AppExit $AppExit"
+    iex "nssm set $Name AppRestartDelay $AppRestartDelay"
+    iex "nssm set $Name AppStdOut $AppStdOut"
+    iex "nssm set $Name AppStdErr $AppStdErr"
+    iex "nssm set $Name Start $StartType"
 
-        $h = @{}
-
-        while($list) {
-            $head, $next, $list = $list
-            $h.$head = $next
+    # The user is now passing other, nondefaulting, unanticipated variables to
+    # `nssm set`, we read them off as standard PS parameters and raise if the
+    # length is odd.
+    if ($args.length -ge 1) {
+        # don't clobber the real args
+        $sargs = $args.Clone()
+        if ($sargs.length % 2 -ne 0) {
+            throw "Invalid Supplementary Arglist Length"
         }
 
-        $h
+        while ($sargs) {
+            $key, $value, $sargs = $sargs
+            # Now do the actual `nssm set`
+            iex "nssm set $Name $key $value"
+        }
     }
 
-    # Now do the actual `nssm set`
-    $remaining = ConvertTo-Hash($args)
-    foreach ($key in $remaining.Keys) {
-        $value = $remaining[$key]
-        nssm set $Name $key $value
-    }
-
-    nssm set microengine Start SERVICE_AUTO_START
 
     echo "Done!"
 }
