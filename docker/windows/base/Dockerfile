@@ -28,8 +28,8 @@ RUN choco install -y 7zip `
 RUN choco install -y nssm
 
 ## -- Polyswarm Powershell Utilities -----
-ADD polyswarm-profile.ps1 $env:LocalAppData/polyswarm-profile.ps1
-RUN Get-Content $env:LocalAppData/polyswarm-profile.ps1 `
+ADD polyswarm-profile.ps1 C:/polyswarm/polyswarm-profile.ps1
+RUN Get-Content C:/polyswarm/polyswarm-profile.ps1 `
   | Set-Content $profile.AllUsersAllHosts
 
 ## ---------------------------------------
