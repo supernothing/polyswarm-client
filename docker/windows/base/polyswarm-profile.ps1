@@ -57,16 +57,14 @@ function Install-Service {
     #>
 
     Param(
-        [Parameter(Mandatory = $true)]
-        [String]$Name
-        [Parameter(Mandatory = $true)]
-        [String]$Path
-        [String]$AppDirectory = "C:\$Name"
-        [String]$AppExit = "Default Restart"
-        [Number]$AppRestartDelay = 250
-        [String]$AppStdOut = "C:\$Name"
-        [String]$AppStdErr = "$AppStdOut"
-        [String]$StartType = "SERVICE_AUTO_START"
+        [Parameter(Mandatory = $true)][String] $Name,
+        [Parameter(Mandatory = $true)][String] $Path,
+        [String] $AppDirectory = "C:\$Name",
+        [String] $AppExit = "Default Restart",
+        $AppRestartDelay = 250,
+        [String] $AppStdOut = "C:\$Name",
+        [String] $AppStdErr = "$AppStdOut",
+        [String] $StartType = "SERVICE_AUTO_START"
     )
 
     Get-Command "nssm"

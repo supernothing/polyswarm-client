@@ -32,6 +32,9 @@ ADD polyswarm-profile.ps1 C:/polyswarm/polyswarm-profile.ps1
 RUN Get-Content C:/polyswarm/polyswarm-profile.ps1 `
   | Set-Content $profile.AllUsersAllHosts
 
+# Remove chocolatey cache
+RUN Remove-Item -Path "$env:LocalAppData\Temp\*" -Recurse
+
 ## ---------------------------------------
 
 CMD powershell
