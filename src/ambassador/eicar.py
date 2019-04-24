@@ -5,7 +5,6 @@ import os
 
 from concurrent.futures import CancelledError
 from polyswarmclient.abstractambassador import AbstractAmbassador
-from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,6 @@ class Ambassador(AbstractAmbassador):
             watchdog: interval over which a watchdog thread should verify bounty placement on-chain (in number of blocks)
             submission_rate: if nonzero, produce a sleep in the main event loop to prevent the ambassador from overloading `polyswarmd` during testing
         """
-        init_logging([__name__], log_format='json')
         super().__init__(client, testing, chains, watchdog, submission_rate)
 
     async def generate_bounties(self, chain):
