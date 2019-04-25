@@ -57,8 +57,8 @@ function Install-Service {
     #>
 
     Param(
-        [Parameter(Mandatory = $true)][String] $Name,
-        [Parameter(Mandatory = $true)][String] $Path,
+        [String] $Name,
+        [String] $Path,
         [String] $AppDirectory = "C:\$Name",
         [String] $AppExit = "Default Restart",
         $AppRestartDelay = 250,
@@ -66,6 +66,10 @@ function Install-Service {
         [String] $AppStdErr = "$AppStdOut",
         [String] $StartType = "SERVICE_AUTO_START"
     )
+
+    # Unfortunately, can't use `Parameter(Mandatory = $true)]' w/ $args
+    if (!$Name) { throw "Must supply a name to Install-Service" }
+    if (!$Path) { throw "Must supply a Path to Install-Service" }
 
     Get-Command "nssm"
 
