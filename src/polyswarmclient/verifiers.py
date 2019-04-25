@@ -3,10 +3,9 @@ from abc import ABCMeta, abstractmethod
 
 from eth_abi import decode_abi
 from eth_abi.exceptions import InsufficientDataBytes
-from ethereum.utils import sha3
 from hexbytes import HexBytes
 
-from polyswarmclient.utils import int_to_bool_list, guid_as_string
+from polyswarmclient.utils import int_to_bool_list, guid_as_string, sha3
 
 logger = logging.getLogger(__name__)
 

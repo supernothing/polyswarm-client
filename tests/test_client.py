@@ -3,6 +3,9 @@ import pytest
 import polyswarmclient
 import random
 import uuid
+from os import urandom
+
+from unittest.mock import patch
 
 import polyswarmclient.transaction
 import polyswarmclient.utils
@@ -27,6 +30,14 @@ def test_is_valid_ipfs_uri():
     valid_ipfs_uri = 'QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG'
     assert polyswarmclient.utils.is_valid_ipfs_uri(valid_ipfs_uri)
 
+@patch('os.urandom', return_value=0x41)
+def test_calculate_commitment(mock_fn):
+    nonce, commitment = polyswarmclient.utils.calculate_commitment(
+        "0x4141414141414141414141414141414141414141414141414141414141414141",
+        polyswarmclient.utils.bool_list_to_int([True, True, True])
+    )
+    assert nonce == 65
+    assert commitment == 16260335923677497924282686029038487427342546648292884828210727571478684022780
 
 @pytest.mark.asyncio
 async def test_update_base_nonce(mock_client):
