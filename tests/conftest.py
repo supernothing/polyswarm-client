@@ -2,6 +2,7 @@ import asyncio
 import base64
 import pytest
 import tempfile
+import sys
 
 from . import success
 from aioresponses import aioresponses
@@ -78,7 +79,10 @@ class WebsocketMock(object):
 
 class MockClient(Client):
     def __init__(self):
-        with tempfile.NamedTemporaryFile() as tf:
+        # write will complain about permissions if `NamedTemporaryFile' is
+        # delete=True under windows.
+        do_delete = sys.platform != 'win32'
+        with tempfile.NamedTemporaryFile(delete=do_delete) as tf:
             tf.write(TESTKEY)
             tf.flush()
 
