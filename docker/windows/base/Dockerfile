@@ -9,8 +9,8 @@ RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.or
 
 ## -- Microengine Dependencies ------------
 ## Needed to build native extensions
-RUN choco install -y git `
-                     vcbuildtools
+RUN choco install -y git
+RUN choco install -y vcbuildtools --version 2015.4
 
 ## Install basic polyswarm python pkgs
 RUN choco install -y python --version 3.6.7
@@ -18,11 +18,7 @@ RUN pip install git+https://github.com/polyswarm/ethash.git#egg=pyethash
 RUN pip install --no-warn-script-location polyswarm-client
 
 ## -- Utilities ---------------------------
-RUN choco install -y 7zip `
-                     checksum `
-                     nmap `
-                     sysinternals `
-                     vim
+RUN choco install -y vim-console
 
 ## -- NSSM -------------------------------
 RUN choco install -y nssm
@@ -32,8 +28,8 @@ ADD polyswarm-profile.ps1 C:/polyswarm/polyswarm-profile.ps1
 RUN Get-Content C:/polyswarm/polyswarm-profile.ps1 `
   | Set-Content $profile.AllUsersAllHosts
 
-# Remove chocolatey cache
-RUN Remove-Item -Path "$env:LocalAppData\Temp\*" -Recurse
+# Remove various caches
+RUN Remove-Item -Path "$env:TMP\*","$env:LocalAppData\pip\*" -Recurse -Force
 
 ## ---------------------------------------
 
