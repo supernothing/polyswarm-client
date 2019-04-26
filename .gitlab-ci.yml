@@ -119,3 +119,15 @@ windowsbase:
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
     - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/base/Dockerfile docker/windows/base
     - docker push polyswarm/polyswarm-client-windows
+
+linuxbase:
+  stage: postrelease
+  tags:
+    - docker
+  only:
+    - feature/base-linux-build
+    - tags
+  script:
+    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
+    - docker build -t polyswarm/polyswarm-client -f docker/Dockerfile .
+    - docker push polyswarm/polyswarm-client
