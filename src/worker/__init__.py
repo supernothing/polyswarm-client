@@ -13,18 +13,24 @@ logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 5.0
 
+
 class ApiKeyException(Exception):
     pass
 
 
 class Worker(object):
-    def __init__(self, redis_addr, queue, api_key=None, testing=0, scanner=None):
+    def __init__(self, redis_addr, queue, task_count=1, download_limit=1, scan_limit=1, api_key=None, testing=0,
+                 scanner=None):
         self.redis_uri = 'redis://' + redis_addr
         self.queue = queue
         self.api_key = api_key
         self.testing = testing
         self.scanner = scanner
-
+        self.task_count = task_count
+        self.download_limit = download_limit
+        self.scan_limit = scan_limit
+        self.download_lock = None
+        self.scan_lock = None
         self.tries = 0
 
     def run(self):
@@ -38,7 +44,9 @@ class Worker(object):
             asyncio.set_event_loop(loop)
 
             try:
-                asyncio.get_event_loop().run_until_complete(self.run_task())
+                asyncio.get_event_loop().run_until_complete(self.setup())
+                asyncio.get_event_loop().run_until_complete(asyncio.gather(*[self.run_task(i)
+                                                                           for i in range(self.task_count)]))
             except asyncio.CancelledError:
                 logger.info('Clean exit requested, exiting')
 
@@ -52,11 +60,15 @@ class Worker(object):
                 self.tries += 1
                 wait = min(MAX_WAIT, self.tries * self.tries)
 
-                logger.critical('Detected unhandled exception, sleeping for %s seconds then resetting task', wait)
+                logger.critical(f'Detected unhandled exception, sleeping for {wait} seconds then resetting task')
                 time.sleep(wait)
                 continue
 
-    async def run_task(self):
+    async def setup(self):
+        self.scan_lock = asyncio.Semaphore(value=self.scan_limit)
+        self.download_lock = asyncio.Semaphore(value=self.download_limit)
+
+    async def run_task(self, task_index):
         conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
         async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
@@ -65,7 +77,7 @@ class Worker(object):
                 try:
                     _, job = await redis.blpop(self.queue)
                     job = json.loads(job.decode('utf-8'))
-                    logger.info('Got job: %s', job)
+                    logger.info(f'Got job on task {task_index}', extra={'extra': job})
 
                     guid = job['guid']
                     uri = job['uri']
@@ -77,7 +89,7 @@ class Worker(object):
                     index = job['index']
                     chain = job['chain']
                 except KeyError as e:
-                    logger.exception("bad message format {}".format(e))
+                    logger.exception(f"bad message format on task {task_index}: {e}")
                     continue
                 except ApiKeyException:
                     logger.exception("Refusing to send API key over insecure transport")
@@ -87,21 +99,22 @@ class Worker(object):
                     continue
 
                 headers = {'Authorization': self.api_key} if self.api_key is not None else None
-                uri = '{}/artifacts/{}/{}'.format(polyswarmd_uri, uri, index)
+                uri = f'{polyswarmd_uri}/artifacts/{uri}/{index}'
+                async with self.download_lock:
+                    try:
+                        response = await session.get(uri, headers=headers)
+                        response.raise_for_status()
 
-                try:
-                    response = await session.get(uri, headers=headers)
-                    response.raise_for_status()
+                        content = await response.read()
+                    except aiohttp.ClientResponseError:
+                        logger.exception(f'Error fetching artifact {uri} on task {task_index}')
+                        continue
+                    except asyncio.TimeoutError:
+                        logger.exception(f'Timeout fetching artifact {uri} on task {task_index}')
+                        continue
 
-                    content = await response.read()
-                except aiohttp.ClientResponseError:
-                    logger.exception('Error fetching artifact %s', uri)
-                    continue
-                except asyncio.TimeoutError:
-                    logger.exception('Timeout fetching artifact %s', uri)
-                    continue
-
-                result = await self.scanner.scan(guid, content, chain)
+                async with self.scan_lock:
+                    result = await self.scanner.scan(guid, content, chain)
 
                 j = json.dumps({
                     'index': index,
@@ -111,7 +124,7 @@ class Worker(object):
                     'metadata': result.metadata,
                 })
 
-                logger.info('Scan results: %s', j)
+                logger.info(f'Scan results on task {task_index}', extra={'extra': j})
 
-                key = '{}_{}_{}_results'.format(self.queue, guid, chain)
+                key = f'{self.queue}_{guid}_{chain}_results'
                 await redis.rpush(key, j)
