@@ -111,7 +111,7 @@ push-to-pypi:
 windowsbase:
   stage: postrelease
   tags:
-    - win-test
+    - win-participants
   only:
     - feature/base-windows-build
     - tags
