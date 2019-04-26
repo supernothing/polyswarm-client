@@ -1,5 +1,11 @@
 # Release History
 
+### 1.4.2 (2019-04-26)
+
+* **Feature** - Add Dockerfile to build a base Windows docker image containing polyswarm-client
+* **Fix** - Clean up logging; remove polyswarmclient from loggers
+* **Fix** - Clean up imports and dependencies to make polyswarm-client easier to build on Windows (remove pyethereum)
+
 ### 1.4.1 (2019-04-12)
 
 * **Fix** - Add a timestamp (ts) key into the message payload in the producer

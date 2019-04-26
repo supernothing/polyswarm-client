@@ -5,10 +5,9 @@ stages:
   - ciimage
   - test
   - e2e
-  - prebuildwindows
   - notifydependents
   - pypi
-  - windowsbase
+  - postrelease
 
 variables:
   STAGE_IMAGE: $CI_CUSTOM_DEV_REGISTRY_URI/ci-images/stage:latest
@@ -35,77 +34,56 @@ test:
   except:
     - images
 
-kick-e2e:
-  image: $STAGE_IMAGE
-  tags:
-      - docker
-  except:
-    - images
-  stage: e2e
-  script:
-    - set -e
 
-    # kick e2e
-    - >-
-      E2E_PIPELINE_ID=`curl
-      --silent
-      --request POST
-      --form "token=$CI_JOB_TOKEN"
-      --form "variables[SOURCE_PROJECT]=$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME"
-      --form "variables[SOURCE_BRANCH]=$CI_COMMIT_REF_NAME"
-      --form "ref=master"
-      "https://gitlab.polyswarm.io/api/v4/projects/${CI_CUSTOM_PROJECT_ID_E2E}/trigger/pipeline" | jq -r ".id"`
-
-    # poll for it to finish
-    - >-
-      while [ -z $PIPELINE_STATUS ] || [ $PIPELINE_STATUS = "pending" ] || [ $PIPELINE_STATUS = "running" ]; do
-        PIPELINE_STATUS=`curl \
-          --silent \
-          --header "PRIVATE-TOKEN: $CI_CUSTOM_CI_PAT" \
-          "https://gitlab.polyswarm.io/api/v4/projects/${CI_CUSTOM_PROJECT_ID_E2E}/pipelines/$E2E_PIPELINE_ID" | jq -r ".status"`
-        echo "waiting for e2e pipeline ...";
-        sleep 5;
-      done
-
-    # check for success
-    - >-
-      if [ $PIPELINE_STATUS != "success" ]; then
-        echo "failure further down the pipeline"
-        exit 1
-      fi
-
-wheels:
-  image: docker:stable
-  stage: prebuildwindows
-  tags:
-    - win2k16
-  only:
-    - feature/windows-builds
-    - master
-  script:
-    - docker build -t polyswarm/windows-builder -f docker/windows/choco/Dockerfile .
-    - docker run --rm -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t polyswarm/windows-builder
-
-windowsbase:
-  tags:
-    - win-test
-  script:
-    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
-    - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/base/Dockerfile docker/windows/base
-    - docker push polyswarm/polyswarm-client-windows
-  only:
-    - feature/base-windows-build
-
-kickafterpacker:
-  image: $STAGE_IMAGE
-  stage: notifydependents
-  tags:
-    - docker
-  only:
-    - feature/windows-builds
-    - master
-  script:
-    - python3 kick_downstream.py
+#kick-e2e:
+#  image: $STAGE_IMAGE
+#  tags:
+#      - docker
+#  except:
+#    - images
+#  stage: e2e
+#  script:
+#    - set -e
+#
+#    # kick e2e
+#    - >-
+#      E2E_PIPELINE_ID=`curl
+#      --silent
+#      --request POST
+#      --form "token=$CI_JOB_TOKEN"
+#      --form "variables[SOURCE_PROJECT]=$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME"
+#      --form "variables[SOURCE_BRANCH]=$CI_COMMIT_REF_NAME"
+#      --form "ref=master"
+#      "https://gitlab.polyswarm.io/api/v4/projects/${CI_CUSTOM_PROJECT_ID_E2E}/trigger/pipeline" | jq -r ".id"`
+#
+#    # poll for it to finish
+#    - >-
+#      while [ -z $PIPELINE_STATUS ] || [ $PIPELINE_STATUS = "pending" ] || [ $PIPELINE_STATUS = "running" ]; do
+#        PIPELINE_STATUS=`curl \
+#          --silent \
+#          --header "PRIVATE-TOKEN: $CI_CUSTOM_CI_PAT" \
+#          "https://gitlab.polyswarm.io/api/v4/projects/${CI_CUSTOM_PROJECT_ID_E2E}/pipelines/$E2E_PIPELINE_ID" | jq -r ".status"`
+#        echo "waiting for e2e pipeline ...";
+#        sleep 5;
+#      done
+#
+#    # check for success
+#    - >-
+#      if [ $PIPELINE_STATUS != "success" ]; then
+#        echo "failure further down the pipeline"
+#        exit 1
+#      fi
+#
+#kickafterpacker:
+#  image: $STAGE_IMAGE
+#  stage: notifydependents
+#  tags:
+#    - docker
+#  only:
+#    - feature/windows-builds
+#    - master
+#  script:
+#    - python3 kick_downstream.py
 
 push-to-pypi:
   image: $STAGE_IMAGE
@@ -129,3 +107,15 @@ push-to-pypi:
 
     # using env variables from Gitlab: TWINE_USERNAME, TWINE_PASSWORD, TWINE_REPOSITORY_URL
     - twine upload dist/*
+
+windowsbase:
+  stage: postrelease
+  tags:
+    - win-test
+  only:
+    - feature/base-windows-build
+    - tags
+  script:
+    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
+    - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/base/Dockerfile docker/windows/base
+    - docker push polyswarm/polyswarm-client-windows
