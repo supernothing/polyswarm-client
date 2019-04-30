@@ -14,7 +14,6 @@ RUN choco install -y vcbuildtools --version 2015.4
 
 ## Install basic polyswarm python pkgs
 RUN choco install -y python --version 3.6.7
-RUN pip install git+https://github.com/polyswarm/ethash.git#egg=pyethash
 RUN pip install --no-warn-script-location polyswarm-client
 
 ## -- Utilities ---------------------------
