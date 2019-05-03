@@ -33,7 +33,7 @@ class Microengine(AbstractMicroengine):
     async def __handle_run(self, chain):
         if self.redis is None:
             redis_uri = 'redis://' + REDIS_ADDR
-            self.redis = await aioredis.create_redis(redis_uri)
+            self.redis = await aioredis.create_redis_pool(redis_uri)
 
     async def fetch_and_scan_all(self, guid, uri, duration, chain):
         """Overrides the default fetch logic to embed the URI and index rather than downloading on producer side
@@ -91,3 +91,5 @@ class Microengine(AbstractMicroengine):
             logger.exception('Redis connection down')
         except aioredis.errors.ReplyError:
             logger.exception('Redis out of memory')
+
+        return []

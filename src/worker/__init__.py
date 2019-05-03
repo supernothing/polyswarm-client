@@ -72,7 +72,7 @@ class Worker(object):
         conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
         async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
-            redis = await aioredis.create_redis(self.redis_uri)
+            redis = await aioredis.create_redis_pool(self.redis_uri)
             while True:
                 try:
                     _, job = await redis.blpop(self.queue)
@@ -90,8 +90,10 @@ class Worker(object):
                     chain = job['chain']
                 except OSError:
                     logger.exception('Redis connection down')
+                    continue
                 except aioredis.errors.ReplyError:
                     logger.exception('Redis out of memory')
+                    continue
                 except KeyError as e:
                     logger.exception(f"bad message format on task {task_index}: {e}")
                     continue
