@@ -60,6 +60,10 @@ class Microengine(AbstractMicroengine):
                 j = json.loads(result[1].decode('utf-8'))
                 return j['index'], ScanResult(bit=j['bit'], verdict=j['verdict'], confidence=j['confidence'],
                                               metadata=j['metadata'])
+            except aioredis.errors.ReplyError:
+                logger.exception('Redis out of memory')
+            except OSError:
+                logger.exception('Redis connection down')
             except (AttributeError, ValueError):
                 logger.error('Received invalid response from worker')
                 return None
@@ -72,13 +76,18 @@ class Microengine(AbstractMicroengine):
             'index': i,
             'chain': chain,
             'polyswarmd_uri': self.client.polyswarmd_uri}) for i in range(num_artifacts)]
-        await self.redis.rpush(QUEUE, *jobs)
+        try:
+            await self.redis.rpush(QUEUE, *jobs)
 
-        key = '{}_{}_{}_results'.format(QUEUE, guid, chain)
-        results = await asyncio.gather(*[wait_for_result(key) for _ in jobs])
-        results = {r[0]: r[1] for r in results if r is not None}
+            key = '{}_{}_{}_results'.format(QUEUE, guid, chain)
+            results = await asyncio.gather(*[wait_for_result(key) for _ in jobs])
+            results = {r[0]: r[1] for r in results if r is not None}
 
-        # Age off old result keys
-        await self.redis.expire(key, KEY_TIMEOUT)
+            # Age off old result keys
+            await self.redis.expire(key, KEY_TIMEOUT)
 
-        return [results.get(i, ScanResult()) for i in range(num_artifacts)]
+            return [results.get(i, ScanResult()) for i in range(num_artifacts)]
+        except OSError:
+            logger.exception('Redis connection down')
+        except aioredis.errors.ReplyError:
+            logger.exception('Redis out of memory')

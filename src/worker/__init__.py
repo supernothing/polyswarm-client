@@ -88,6 +88,10 @@ class Worker(object):
 
                     index = job['index']
                     chain = job['chain']
+                except OSError:
+                    logger.exception('Redis connection down')
+                except aioredis.errors.ReplyError:
+                    logger.exception('Redis out of memory')
                 except KeyError as e:
                     logger.exception(f"bad message format on task {task_index}: {e}")
                     continue
@@ -127,4 +131,9 @@ class Worker(object):
                 logger.info(f'Scan results on task {task_index}', extra={'extra': j})
 
                 key = f'{self.queue}_{guid}_{chain}_results'
-                await redis.rpush(key, j)
+                try:
+                    await redis.rpush(key, j)
+                except OSError:
+                    logger.exception('Redis connection down')
+                except aioredis.errors.ReplyError:
+                    logger.exception('Redis out of memory')
