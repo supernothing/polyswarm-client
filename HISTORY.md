@@ -2,8 +2,8 @@
 
 ### 1.4.3 (1029-05-03)
 
-**Fix** - Reconnect to Redis on failure
-**Fix** - Handle Redis OOM error
+* **Fix** - Reconnect to Redis on failure
+* **Fix** - Handle Redis OOM error
 
 ### 1.4.2 (2019-04-26)
 
