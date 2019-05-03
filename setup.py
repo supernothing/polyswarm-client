@@ -13,7 +13,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='polyswarm-client',
-    version='1.4.2',
+    version='1.4.3',
     description='Client library to simplify interacting with a polyswarmd instance',
     long_description=long_description,
     long_description_content_type="text/markdown",
