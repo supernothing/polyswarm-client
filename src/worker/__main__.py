@@ -49,6 +49,8 @@ def choose_backend(backend):
 @click.command()
 @click.option('--log', default='WARNING',
               help='Logging level')
+@click.option('--client-log', default='WARNING',
+              help='PolySwarm Client log level')
 @click.option('--redis-addr', envvar='REDIS_ADDR', default='localhost:6379',
               help='Address (host:port) of polyswarmd instance')
 @click.option('--queue', envvar='QUEUE', required=True,
@@ -68,11 +70,12 @@ def choose_backend(backend):
               help='Activate testing mode for integration testing, respond to N bounties and N offers then exit')
 @click.option('--log-format', default='text',
               help='Log format. Can be `json` or `text` (default)')
-def main(log, redis_addr, queue, backend, tasks, download_limit, scan_limit, api_key, testing, log_format):
+def main(log, client_log, redis_addr, queue, backend, tasks, download_limit, scan_limit, api_key, testing, log_format):
     """Entrypoint for the worker driver
 
     Args:
-        log (str): Logging level
+        log (str): Logging level for all app logs
+        client_log (str): Logging level for all polyswarmclient logs
         redis_addr (str): Address of redis
         backend (str): Backend implementation to use
         queue (str): Name of queue to listen on
@@ -84,7 +87,8 @@ def main(log, redis_addr, queue, backend, tasks, download_limit, scan_limit, api
         log_format (str): Format to output logs in. `text` or `json`
     """
     loglevel = getattr(logging, log.upper(), None)
-    if not isinstance(loglevel, int):
+    clientlevel = getattr(logging, client_log.upper(), None)
+    if not isinstance(loglevel, int) or not isinstance(clientlevel, int):
         logging.error('invalid log level')
         sys.exit(-1)
 
@@ -92,6 +96,7 @@ def main(log, redis_addr, queue, backend, tasks, download_limit, scan_limit, api
 
     scanner = scanner_class()
     init_logging(['worker', 'microengine', logger_name], log_format, loglevel)
+    init_logging(['polyswarmclient'], log_format, clientlevel)
 
     logger.info('Running worker with %s tasks', tasks)
 

@@ -46,6 +46,8 @@ def choose_backend(backend):
 @click.command()
 @click.option('--log', default='WARNING',
               help='Logging level')
+@click.option('--client-log', default='WARNING',
+              help='PolySwarm Client log level')
 @click.option('--polyswarmd-addr', envvar='POLYSWARMD_ADDR', default='localhost:31337',
               help='Address (host:port) of polyswarmd instance')
 @click.option('--keyfile', envvar='KEYFILE', type=click.Path(exists=True), default='keyfile',
@@ -70,12 +72,13 @@ def choose_backend(backend):
               help='How often to submit a new sample in seconds. Default: No delay between submissions.')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')
-def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, watchdog,
+def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, watchdog,
          log_format, submission_rate):
     """Entrypoint for the ambassador driver
 
     Args:
-        log (str): Logging level
+        log (str): Logging level for all app logs
+        client_log (str): Logging level for all polyswarmclient logs
         polyswarmd_addr(str): Address of polyswarmd
         keyfile (str): Path to private key file to use to sign transactions
         password (str): Password to decrypt the encrypted private key
@@ -88,13 +91,15 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
         log_format (str): Format to output logs in. `text` or `json`
     """
     loglevel = getattr(logging, log.upper(), None)
-    if not isinstance(loglevel, int):
+    clientlevel = getattr(logging, client_log.upper(), None)
+    if not isinstance(loglevel, int) or not isinstance(clientlevel, int):
         logging.error('invalid log level')
         sys.exit(-1)
 
     logger_name, ambassador_class = choose_backend(backend)
 
     init_logging(['ambassador', logger_name], log_format, loglevel)
+    init_logging(['polyswarmclient'], log_format, clientlevel)
     ambassador_class.connect(polyswarmd_addr, keyfile, password,
                              api_key=api_key, testing=testing,
                              insecure_transport=insecure_transport,

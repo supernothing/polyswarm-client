@@ -45,7 +45,9 @@ def choose_backend(backend):
 
 @click.command()
 @click.option('--log', default='WARNING',
-              help='Logging level')
+              help='App Log level')
+@click.option('--client-log', default='WARNING',
+              help='PolySwarm Client log level')
 @click.option('--polyswarmd-addr', envvar='POLYSWARMD_ADDR', default='localhost:31337',
               help='Address (host:port) of polyswarmd instance')
 @click.option('--keyfile', envvar='KEYFILE', type=click.Path(exists=True), default='keyfile',
@@ -67,11 +69,12 @@ def choose_backend(backend):
               help='Log format. Can be `json` or `text` (default)')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')
-def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, log_format):
+def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, log_format):
     """Entrypoint for the microengine driver
 
     Args:
-        log (str): Logging level
+        log (str): Logging level for all app logs
+        client_log (str): Logging level for all polyswarmclient logs
         polyswarmd_addr(str): Address of polyswarmd
         keyfile (str): Path to private key file to use to sign transactions
         password (str): Password to decrypt the encrypted private key
@@ -82,17 +85,19 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
         log_format (str): Format to output logs in. `text` or `json`
     """
     loglevel = getattr(logging, log.upper(), None)
-    if not isinstance(loglevel, int):
+    clientlevel = getattr(logging, client_log.upper(), None)
+    if not isinstance(loglevel, int) or not isinstance(clientlevel, int):
         logging.error('invalid log level')
         sys.exit(-1)
 
     logger_name, microengine_class = choose_backend(backend)
 
     init_logging(['microengine', logger_name], log_format, loglevel)
+    init_logging(['polyswarmclient'], log_format, clientlevel)
     microengine_class.connect(polyswarmd_addr, keyfile, password,
-                               api_key=api_key, testing=testing,
-                               insecure_transport=insecure_transport,
-                               chains=set(chains)).run()
+                              api_key=api_key, testing=testing,
+                              insecure_transport=insecure_transport,
+                              chains=set(chains)).run()
 
 
 if __name__ == '__main__':

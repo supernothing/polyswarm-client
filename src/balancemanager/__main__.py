@@ -48,19 +48,23 @@ def polyswarm_client(func):
 @click.group()
 @click.option('--log', default='WARNING',
               help='Logging level')
+@click.option('--client-log', default='WARNING',
+              help='PolySwarm Client log level')
 @click.option('--log-format', default='text',
               help='Log format. Can be `json` or `text` (default)')
 @click.pass_context
-def cli(ctx, log, log_format):
+def cli(ctx, log, client_log, log_format):
     """
     Entrypoint for the balance manager driver
     """
     loglevel = getattr(logging, log.upper(), None)
-    if not isinstance(loglevel, int):
+    clientlevel = getattr(logging, client_log.upper(), None)
+    if not isinstance(loglevel, int) or not isinstance(clientlevel, int):
         logging.error('invalid log level')
         sys.exit(-1)
 
     init_logging(['balancemanager'], log_format, loglevel)
+    init_logging(['polyswarmclient'], log_format, clientlevel)
 
 
 @cli.command()
