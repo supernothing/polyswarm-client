@@ -18,6 +18,10 @@ class ApiKeyException(Exception):
     pass
 
 
+class ExpiredException(Exception):
+    pass
+
+
 class Worker(object):
     def __init__(self, redis_addr, queue, task_count=1, download_limit=1, scan_limit=1, api_key=None, testing=0,
                  scanner=None):
@@ -81,6 +85,7 @@ class Worker(object):
 
                     guid = job['guid']
                     uri = job['uri']
+
                     polyswarmd_uri = job['polyswarmd_uri']
 
                     if self.api_key and not polyswarmd_uri.startswith('https://'):
@@ -88,6 +93,13 @@ class Worker(object):
 
                     index = job['index']
                     chain = job['chain']
+
+                    duration = job['duration']
+                    timestamp = job['ts']
+
+                    if timestamp + duration <= time.time() // 1:
+                        raise ExpiredException()
+
                 except OSError:
                     logger.exception('Redis connection down')
                     continue
@@ -95,7 +107,10 @@ class Worker(object):
                     logger.exception('Redis out of memory')
                     continue
                 except KeyError as e:
-                    logger.exception(f"bad message format on task {task_index}: {e}")
+                    logger.exception(f"Bad message format on task {task_index}: {e}")
+                    continue
+                except ExpiredException:
+                    logger.exception(f'Received expired job {guid} index {index}')
                     continue
                 except ApiKeyException:
                     logger.exception("Refusing to send API key over insecure transport")

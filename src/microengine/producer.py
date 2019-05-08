@@ -1,11 +1,10 @@
+import aioredis
 import asyncio
 import json
 import logging
 import os
+import time
 
-import aioredis
-
-from datetime import datetime
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
 from polyswarmclient.abstractscanner import ScanResult
 
@@ -41,6 +40,7 @@ class Microengine(AbstractMicroengine):
         Args:
             guid (str): GUID of the associated bounty
             uri (str):  Base artifact URI
+            duration (int): Blocks until bounty expiration
             chain (str): Chain we are operating on
 
         Returns:
@@ -52,15 +52,15 @@ class Microengine(AbstractMicroengine):
 
         async def wait_for_result(key):
             try:
-                result = await self.redis.blpop(key, timeout=timeout)
-                if result is None:
-                    logger.warning('Timeout waiting for result in bounty %s', guid)
-                    return None
+                with await self.redis as redis:
+                    result = await redis.blpop(key, timeout=timeout)
+                    if result is None:
+                        logger.critical('Timeout waiting for result in bounty %s', guid)
+                        return None
 
-                j = json.loads(result[1].decode('utf-8'))
-                return j['index'], ScanResult(bit=j['bit'], verdict=j['verdict'], confidence=j['confidence'],
-                                              metadata=j['metadata'])
-
+                    j = json.loads(result[1].decode('utf-8'))
+                    return j['index'], ScanResult(bit=j['bit'], verdict=j['verdict'], confidence=j['confidence'],
+                                                  metadata=j['metadata'])
             except aioredis.errors.ReplyError:
                 logger.exception('Redis out of memory')
             except OSError:
@@ -71,12 +71,14 @@ class Microengine(AbstractMicroengine):
 
         num_artifacts = len(await self.client.list_artifacts(uri))
         jobs = [json.dumps({
-            'ts': datetime.utcnow().isoformat(),
+            'ts': time.time() // 1,
             'guid': guid,
             'uri': uri,
             'index': i,
             'chain': chain,
+            'duration': timeout,
             'polyswarmd_uri': self.client.polyswarmd_uri}) for i in range(num_artifacts)]
+
         try:
             await self.redis.rpush(QUEUE, *jobs)
 
