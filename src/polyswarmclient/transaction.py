@@ -196,7 +196,8 @@ class AbstractTransaction(metaclass=ABCMeta):
                     transaction['nonce'] = nonces[i]
 
             signed_txs = self.client.sign_transactions(transactions)
-            raw_signed_txs = [bytes(tx['rawTransaction']).hex() for tx in signed_txs]
+            raw_signed_txs = [bytes(tx['rawTransaction']).hex() for tx in signed_txs
+                              if tx.get('rawTransaction', None) is not None]
 
             success, results = await self.client.make_request('POST', '/transactions', chain,
                                                               json={'transactions': raw_signed_txs}, api_key=api_key,
@@ -226,6 +227,10 @@ class AbstractTransaction(metaclass=ABCMeta):
             txhashes = []
             errors = []
             for tx, result in zip(signed_txs, results):
+                if tx.get('hash', None) is None:
+                    logger.warning(f'Signed transaction missing txhash: {tx}')
+                    continue
+
                 txhash = bytes(tx['hash']).hex()
                 message = result.get('message', '')
                 is_error = result.get('is_error', False)

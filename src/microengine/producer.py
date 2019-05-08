@@ -60,11 +60,12 @@ class Microengine(AbstractMicroengine):
                 j = json.loads(result[1].decode('utf-8'))
                 return j['index'], ScanResult(bit=j['bit'], verdict=j['verdict'], confidence=j['confidence'],
                                               metadata=j['metadata'])
+
             except aioredis.errors.ReplyError:
                 logger.exception('Redis out of memory')
             except OSError:
                 logger.exception('Redis connection down')
-            except (AttributeError, ValueError):
+            except (AttributeError, ValueError, KeyError):
                 logger.error('Received invalid response from worker')
                 return None
 
