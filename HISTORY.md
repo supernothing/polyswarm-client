@@ -1,6 +1,16 @@
 # Release History
 
-### 1.4.3 (1029-05-03)
+### 1.5.0 (2019-05-08)
+
+* **Feature** - Skip expired jobs in worker, and unblock redis connection pool during worker response timeouts
+* **Fix** - Check additional direct dictionary accesses i.e `var['value']` uses
+* **Fix** - Remove custom pyethash
+* **Feature** - Add `--client-log` option for specifying `polyswarmclient` module log level
+
+The update from 1.4.3 to 1.5.0 is a breaking change for the microengine producer backend and workers.
+Existing queued jobs will not be handled by the new worker.  
+
+### 1.4.3 (2019-05-03)
 
 * **Fix** - Reconnect to Redis on failure
 * **Fix** - Handle Redis OOM error
