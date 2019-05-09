@@ -1,7 +1,13 @@
+venv/
+*/__pycache__/
+.tox/
+.tox
+.pytest_cache
 .idea/
+.hypothesis
+.github/
+.git/
+.flake8
+.coverage
 *.swp
 *.pyc
-venv/
-__pycache__/
-.pytest_cache
-.tox

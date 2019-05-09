@@ -7,6 +7,7 @@ stages:
   - e2e
   - notifydependents
   - pypi
+  - container_test
   - postrelease
 
 variables:
@@ -34,57 +35,6 @@ test:
   except:
     - images
 
-
-#kick-e2e:
-#  image: $STAGE_IMAGE
-#  tags:
-#      - docker
-#  except:
-#    - images
-#  stage: e2e
-#  script:
-#    - set -e
-#
-#    # kick e2e
-#    - >-
-#      E2E_PIPELINE_ID=`curl
-#      --silent
-#      --request POST
-#      --form "token=$CI_JOB_TOKEN"
-#      --form "variables[SOURCE_PROJECT]=$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME"
-#      --form "variables[SOURCE_BRANCH]=$CI_COMMIT_REF_NAME"
-#      --form "ref=master"
-#      "https://gitlab.polyswarm.io/api/v4/projects/${CI_CUSTOM_PROJECT_ID_E2E}/trigger/pipeline" | jq -r ".id"`
-#
-#    # poll for it to finish
-#    - >-
-#      while [ -z $PIPELINE_STATUS ] || [ $PIPELINE_STATUS = "pending" ] || [ $PIPELINE_STATUS = "running" ]; do
-#        PIPELINE_STATUS=`curl \
-#          --silent \
-#          --header "PRIVATE-TOKEN: $CI_CUSTOM_CI_PAT" \
-#          "https://gitlab.polyswarm.io/api/v4/projects/${CI_CUSTOM_PROJECT_ID_E2E}/pipelines/$E2E_PIPELINE_ID" | jq -r ".status"`
-#        echo "waiting for e2e pipeline ...";
-#        sleep 5;
-#      done
-#
-#    # check for success
-#    - >-
-#      if [ $PIPELINE_STATUS != "success" ]; then
-#        echo "failure further down the pipeline"
-#        exit 1
-#      fi
-#
-#kickafterpacker:
-#  image: $STAGE_IMAGE
-#  stage: notifydependents
-#  tags:
-#    - docker
-#  only:
-#    - feature/windows-builds
-#    - master
-#  script:
-#    - python3 kick_downstream.py
-
 push-to-pypi:
   image: $STAGE_IMAGE
   stage: pypi
@@ -108,6 +58,18 @@ push-to-pypi:
     # using env variables from Gitlab: TWINE_USERNAME, TWINE_PASSWORD, TWINE_REPOSITORY_URL
     - twine upload dist/*
 
+windowsbase_container_test:
+  stage: container_test
+  tags:
+    - win-participants
+  only:
+    - feature/base-windows-build
+    - tags
+  script:
+    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
+    - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/Dockerfile .
+    - docker run -ti polyswarm/polyswarm-client-windows powershell -NoProfile -Command 'Set-Location C:/polyswarm/polyswarm-client; pip install tox; tox'
+
 windowsbase:
   stage: postrelease
   tags:
@@ -117,7 +79,7 @@ windowsbase:
     - tags
   script:
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
-    - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/base/Dockerfile docker/windows/base
+    - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/Dockerfile .
     - docker push polyswarm/polyswarm-client-windows
 
 linuxbase:
