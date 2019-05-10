@@ -5,10 +5,10 @@ stages:
   - ciimage
   - test
   - e2e
-  - notifydependents
   - pypi
   - container_test
   - postrelease
+  - notifydependents
 
 variables:
   STAGE_IMAGE: $CI_CUSTOM_DEV_REGISTRY_URI/ci-images/stage:latest
@@ -93,3 +93,13 @@ linuxbase:
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
     - docker build -t polyswarm/polyswarm-client -f docker/Dockerfile .
     - docker push polyswarm/polyswarm-client
+
+kickafterdepends:
+  image: $STAGE_IMAGE
+  stage: notifydependents
+  only:
+    - feature/base-windows-build
+    - feature/base-linux-build
+    - tags
+  script:
+    - python3 kick_downstream.py
