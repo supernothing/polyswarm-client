@@ -85,11 +85,10 @@ class AbstractArbiter(object):
                 nct_balance = await self.client.balances.get_nct_balance(chain)
                 if self.testing > 0 and nct_balance < min_stake - staking_balance and tries >= MAX_STAKE_RETRIES:
                     logger.error('Failed %d attempts to deposit due to low balance. Exiting', tries)
-                    self.client.exit_code = 1
-                    asyncio_stop()
+                    exit(1)
                 elif nct_balance < min_stake - staking_balance:
-                    logger.warning('Insufficient balance to deposit stake on %s. Have %s NCT. Need %s NCT', chain,
-                                   nct_balance, min_stake - staking_balance)
+                    logger.critical('Insufficient balance to deposit stake on %s. Have %s NCT. Need %s NCT', chain,
+                                    nct_balance, min_stake - staking_balance)
                     tries += 1
                     await asyncio.sleep(tries * tries)
                     continue

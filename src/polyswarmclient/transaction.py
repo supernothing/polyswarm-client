@@ -6,6 +6,15 @@ from polyswarmclient.utils import exit
 
 logger = logging.getLogger(__name__)
 
+LOG_MSG_ENGINE_TOO_SLOW = ('PLEASE REVIEW YOUR SCANNING LOGIC. '
+                           'Bounty inactive errors indicate that the microengine received the bounty, '
+                           'but was unable to respond to the bounty within the time window. '
+                           'Such errors are considered fatal during testing so you can easily identify them. '
+                           'If your engine is unable to respond within the time window on the live PolySwarm '
+                           'network, you risk losing the bid amount of the bounty at hand. We strongly '
+                           'encourage you to review your artifact scan process to identify areas where engine '
+                           'speed can be improved.')
+
 
 class NonceManager:
     """Manages the nonce for some Ethereum chain"""
@@ -42,7 +51,7 @@ class NonceManager:
             if nonce is not None:
                 self.base_nonce = nonce
 
-            logger.warning('Updated nonce to %s on %s', nonce, self.chain)
+            logger.debug('Updated nonce to %s on %s', nonce, self.chain)
             self.needs_update = False
 
     def all_finished(self):
@@ -141,9 +150,10 @@ class AbstractTransaction(metaclass=ABCMeta):
 
         transactions = results.get('transactions', [])
         if not self.verify(transactions):
-            logger.error("Transactions did not match expectations for the given request.",
-                         extra={'extra': transactions})
+            logger.critical("Transactions did not match expectations for the given request.",
+                            extra={'extra': transactions})
             if self.client.tx_error_fatal:
+                logger.critical(LOG_MSG_ENGINE_TOO_SLOW)
                 exit(1)
             return False, {}
 
@@ -210,7 +220,8 @@ class AbstractTransaction(metaclass=ABCMeta):
                                            r.get('is_error')])
 
                 if self.client.tx_error_fatal:
-                    logger.error('Received fatal transaction error during post', extra={'extra': results})
+                    logger.critical('Received fatal transaction error during post.', extra={'extra': results})
+                    logger.critical(LOG_MSG_ENGINE_TOO_SLOW)
                     exit(1)
                 elif not all_known_tx_errors:
                     logger.error('Received transaction error during post', extra={'extra': results})
@@ -281,7 +292,8 @@ class AbstractTransaction(metaclass=ABCMeta):
                                                               json={'transactions': txhashes}, api_key=api_key, tries=1)
             if not success:
                 if self.client.tx_error_fatal:
-                    logger.error('Received fatal transaction error during get', extra={'extra': results})
+                    logger.critical('Received fatal transaction error during get.', extra={'extra': results})
+                    logger.critical(LOG_MSG_ENGINE_TOO_SLOW)
                     exit(1)
                 else:
                     logger.error('Received transaction error during get', extra={'extra': results})
