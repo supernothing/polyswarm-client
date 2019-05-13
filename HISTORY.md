@@ -1,5 +1,9 @@
 # Release History
 
+### 1.5.4 (2019-05-14)
+
+* **Fix** - added correct image that runs the linuxbase job
+
 ### 1.5.3 (2019-05-14)
 
 * **Fix** - Fix docker build syntax
