@@ -64,6 +64,7 @@ windowsbase_container_test:
     - win-participants
   only:
     - feature/base-windows-build
+    - fix/impersonate-windows-tty
     - tags
   script:
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
