@@ -86,6 +86,7 @@ windowsbase:
     - docker push "polyswarm/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
 
 linuxbase:
+  image: $STAGE_IMAGE
   stage: postrelease
   tags:
     - docker
