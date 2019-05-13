@@ -51,7 +51,7 @@ class Ambassador(AbstractAmbassador):
 
                 await self.push_bounty(amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS, chain)
             except CancelledError:
-                logger.warning('Cancel requested')
+                logger.info('Cancel requested')
                 break
             except Exception:
                 logger.exception('Exception in bounty generation task, continuing')
