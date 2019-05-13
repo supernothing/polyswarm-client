@@ -64,11 +64,12 @@ windowsbase_container_test:
     - win-participants
   only:
     - feature/base-windows-build
+    - fix/impersonate-windows-tty
     - tags
   script:
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
     - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/Dockerfile .
-    - docker run -ti polyswarm/polyswarm-client-windows powershell -NoProfile -Command 'Set-Location C:/polyswarm/polyswarm-client; pip install tox; tox'
+    - docker run polyswarm/polyswarm-client-windows powershell -NoProfile -Command 'Set-Location C:/polyswarm/polyswarm-client; pip install tox; tox'
 
 windowsbase:
   stage: postrelease
@@ -79,7 +80,7 @@ windowsbase:
     - tags
   script:
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
-    - >
+    - >-
       docker build -t polyswarm/polyswarm-client-windows
                    -t "polyswarm/polyswarm-client-windows:$CI_COMMIT_SHA"
                    -t "polyswarm/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
@@ -97,7 +98,7 @@ linuxbase:
     - tags
   script:
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
-    - >
+    - >-
       docker build -t polyswarm/polyswarm-client
                    -t "polyswarm/polyswarm-client:$CI_COMMIT_SHA"
                    -t "polyswarm/polyswarm-client:$(git describe --tags --abbrev=0)"
