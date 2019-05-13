@@ -1,5 +1,11 @@
 # Release History
 
+### 1.5.1 (2019-05-13)
+
+* **Feature** Standardize exit and improve failure logging
+* **Feature** Build, test, and install from polyswarm-client root on Windows
+* **Feature** Add `--denomination` and `--all` options to balancemanager
+
 ### 1.5.0 (2019-05-08)
 
 * **Feature** - Skip expired jobs in worker, and unblock redis connection pool during worker response timeouts
