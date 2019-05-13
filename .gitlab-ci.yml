@@ -68,7 +68,7 @@ windowsbase_container_test:
   script:
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
     - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/Dockerfile .
-    - docker run -ti polyswarm/polyswarm-client-windows powershell -NoProfile -Command 'Set-Location C:/polyswarm/polyswarm-client; pip install tox; tox'
+    - docker run polyswarm/polyswarm-client-windows powershell -NoProfile -Command 'Set-Location C:/polyswarm/polyswarm-client; pip install tox; tox'
 
 windowsbase:
   stage: postrelease
