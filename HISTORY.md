@@ -1,5 +1,9 @@
 # Release History
 
+### 1.5.3 (2019-05-14)
+
+* **Fix** - Fix docker build syntax
+
 ### 1.5.2 (2019-05-14)
 
 * **Fix** - Fix Windows build
