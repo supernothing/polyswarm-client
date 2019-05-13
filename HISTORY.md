@@ -2,7 +2,7 @@
 
 ### 1.5.4 (2019-05-14)
 
- * added correct image that runs the linuxbase job
+* **Fix** - added correct image that runs the linuxbase job
 
 ### 1.5.3 (2019-05-14)
 
