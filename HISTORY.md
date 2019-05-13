@@ -1,10 +1,14 @@
 # Release History
 
+### 1.5.2 (2019-05-14)
+
+* **Fix** - Fix Windows build
+
 ### 1.5.1 (2019-05-13)
 
-* **Feature** Standardize exit and improve failure logging
-* **Feature** Build, test, and install from polyswarm-client root on Windows
-* **Feature** Add `--denomination` and `--all` options to balancemanager
+* **Feature** - Standardize exit and improve failure logging
+* **Feature** - Build, test, and install from polyswarm-client root on Windows
+* **Feature** - Add `--denomination` and `--all` options to balancemanager
 
 ### 1.5.0 (2019-05-08)
 
