@@ -1,5 +1,11 @@
 # Release History
 
+### 1.5.4 (2019-05-14)
+
+ * Merge pull request #279 from polyswarm/fix/linux-img
+ * added correct image that runs the linuxbase job
+ * Merge pull request #278 from polyswarm/feature/version-1-5-3
+
 ### 1.5.3 (2019-05-14)
 
 * **Fix** - Fix docker build syntax
