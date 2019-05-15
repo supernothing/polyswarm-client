@@ -1,7 +1,7 @@
 import logging
 import os
 
-from polyswarmclient.abstractmicroengine import AbstractMicroengine
+from polyswarmclient.abstractarbiter import AbstractArbiter
 from polyswarmclient.producer import Producer
 
 logger = logging.getLogger(__name__)
@@ -9,11 +9,10 @@ logger = logging.getLogger(__name__)
 REDIS_ADDR = os.getenv('REDIS_ADDR', 'localhost:6379')
 QUEUE = os.getenv('QUEUE')
 
-TIME_TO_POST_ASSERTION = 4
-KEY_TIMEOUT = 20
+TIME_TO_POST_VOTE = 4
 
 
-class Microengine(AbstractMicroengine):
+class Arbiter(AbstractArbiter):
     def __init__(self, client, testing=0, scanner=None, chains=None):
         super().__init__(client, testing, None, chains)
 
@@ -29,19 +28,19 @@ class Microengine(AbstractMicroengine):
         if self.redis is None:
             redis_uri = 'redis://' + REDIS_ADDR
 
-            self.producer = Producer(self.client, redis_uri, QUEUE, TIME_TO_POST_ASSERTION)
+            self.producer = Producer(self.client, redis_uri, QUEUE, TIME_TO_POST_VOTE)
             await self.producer.start()
 
-    async def fetch_and_scan_all(self, guid, uri, duration, chain):
+    async def fetch_and_scan_all(self, guid, uri, vote_round_end, chain):
         """Overrides the default fetch logic to embed the URI and index rather than downloading on producer side
 
         Args:
             guid (str): GUID of the associated bounty
             uri (str):  Base artifact URI
-            duration (int): Blocks until vote round ends
+            vote_round_end (int): Blocks until vote round ends
             chain (str): Chain we are operating on
 
         Returns:
             list(ScanResult): List of ScanResult objects
         """
-        return await self.producer.scan(guid, uri, duration, chain)
+        return await self.producer.scan(guid, uri, vote_round_end, chain)

@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from polyswarmclient import Client
+from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.events import VoteOnBounty, SettleBounty
 from polyswarmclient.utils import asyncio_stop
 
@@ -60,6 +61,29 @@ class AbstractArbiter(object):
             return await self.scanner.scan(guid, content, chain)
 
         raise NotImplementedError("You must subclass this class and override this method.")
+
+    async def fetch_and_scan_all(self, guid, uri, vote_round_end, chain):
+        """Fetch and scan all artifacts concurrently
+
+        Args:
+            guid (str): GUID of the associated bounty
+            uri (str):  Base artifact URI
+            vote_round_end (int): Max number of blocks to take
+            chain (str): Chain we are operating on
+
+        Returns:
+            (list(ScanResult)): Tuple of mask bits, verdicts, and metadatas
+        """
+
+        async def fetch_and_scan(index):
+            content = await self.client.get_artifact(uri, index)
+            if content is not None:
+                return await self.scan(guid, content, chain)
+
+            return ScanResult()
+
+        artifacts = await self.client.list_artifacts(uri)
+        return await asyncio.gather(*[fetch_and_scan(i) for i in range(len(artifacts))])
 
     def run(self):
         """
@@ -126,10 +150,15 @@ class AbstractArbiter(object):
                 return []
             logger.info('Testing mode, %s bounties remaining', self.testing - self.bounties_seen)
 
-        votes = []
-        async for content in self.client.get_artifacts(uri):
-            result = await self.scan(guid, content, chain)
-            votes.append(result.verdict)
+        expiration = int(expiration)
+        assertion_reveal_window = await self.client.bounties.parameters[chain].get('assertion_reveal_window')
+        arbiter_vote_window = await self.client.bounties.parameters[chain].get('arbiter_vote_window')
+
+        vote_start = expiration + assertion_reveal_window
+        settle_start = expiration + assertion_reveal_window + arbiter_vote_window
+
+        results = await self.fetch_and_scan_all(guid, uri, settle_start, chain)
+        votes = [result.verdict for result in results]
 
         bounty = await self.client.bounties.get_bounty(guid, chain)
         if bounty is None:
@@ -144,15 +173,11 @@ class AbstractArbiter(object):
         calculated_bloom = await self.client.bounties.calculate_bloom(uri)
         valid_bloom = bounty and bounty_bloom == calculated_bloom
 
-        expiration = int(expiration)
-        assertion_reveal_window = await self.client.bounties.parameters[chain].get('assertion_reveal_window')
-        arbiter_vote_window = await self.client.bounties.parameters[chain].get('arbiter_vote_window')
-
         vb = VoteOnBounty(guid, votes, valid_bloom)
-        self.client.schedule(expiration + assertion_reveal_window, vb, chain)
+        self.client.schedule(vote_start, vb, chain)
 
         sb = SettleBounty(guid)
-        self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
+        self.client.schedule(settle_start, sb, chain)
 
         return []
 
@@ -201,7 +226,7 @@ class AbstractArbiter(object):
             logger.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
-        if self.testing > 0 and self.settles_posted >= self.testing:
+        if 0 < self.testing <= self.settles_posted:
             logger.info("All testing bounties complete, exiting")
             asyncio_stop()
         return ret
