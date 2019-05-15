@@ -1,5 +1,10 @@
 # Release History
 
+### 1.5.5 (2019-05-14)
+
+* **Feature** - Add arbiter producer backend
+* **Fix** - Reduce CancelledError log severity
+
 ### 1.5.4 (2019-05-14)
 
 * **Fix** - added correct image that runs the linuxbase job
