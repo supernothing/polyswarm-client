@@ -1,5 +1,9 @@
 # Release History
 
+### 1.5.6 (2019-05-16)
+
+* **Fix** - Handle ServerDisconnectError
+
 ### 1.5.5 (2019-05-14)
 
 * **Feature** - Add arbiter producer backend

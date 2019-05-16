@@ -342,7 +342,7 @@ class Client(object):
 
                     if raw_response.status == 200:
                         return await raw_response.read()
-            except OSError:
+            except (OSError, aiohttp.ServerDisconnectedError):
                 logger.error('Connection to polyswarmd refused')
             except asyncio.TimeoutError:
                 logger.error('Connection to polyswarmd timed out')
@@ -462,7 +462,7 @@ class Client(object):
                             logger.error('Received non-json response from polyswarmd: %s', response)
                             response = {}
                             continue
-                except OSError:
+                except (OSError, aiohttp.ServerDisconnectedError):
                     logger.error('Connection to polyswarmd refused, files: %s', files)
                 except asyncio.TimeoutError:
                     logger.error('Connection to polyswarmd timed out, files: %s', files)
