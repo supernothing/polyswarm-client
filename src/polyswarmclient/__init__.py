@@ -226,7 +226,7 @@ class Client(object):
                         logger.error('Received non-json response from polyswarmd: %s', response)
                         response = {}
                         continue
-            except OSError:
+            except (OSError, aiohttp.ServerDisconnectedError):
                 logger.error('Connection to polyswarmd refused, retrying')
             except asyncio.TimeoutError:
                 logger.error('Connection to polyswarmd timed out, retrying')

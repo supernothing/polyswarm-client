@@ -67,20 +67,21 @@ class Producer:
             'duration': timeout,
             'polyswarmd_uri': self.client.polyswarmd_uri}) for i in range(num_artifacts)]
 
-        try:
-            await self.redis.rpush(self.queue, *jobs)
+        if jobs:
+            try:
+                await self.redis.rpush(self.queue, *jobs)
 
-            key = '{}_{}_{}_results'.format(self.queue, guid, chain)
-            results = await asyncio.gather(*[wait_for_result(key) for _ in jobs])
-            results = {r[0]: r[1] for r in results if r is not None}
+                key = '{}_{}_{}_results'.format(self.queue, guid, chain)
+                results = await asyncio.gather(*[wait_for_result(key) for _ in jobs])
+                results = {r[0]: r[1] for r in results if r is not None}
 
-            # Age off old result keys
-            await self.redis.expire(key, KEY_TIMEOUT)
+                # Age off old result keys
+                await self.redis.expire(key, KEY_TIMEOUT)
 
-            return [results.get(i, ScanResult()) for i in range(num_artifacts)]
-        except OSError:
-            logger.exception('Redis connection down')
-        except aioredis.errors.ReplyError:
-            logger.exception('Redis out of memory')
+                return [results.get(i, ScanResult()) for i in range(num_artifacts)]
+            except OSError:
+                logger.exception('Redis connection down')
+            except aioredis.errors.ReplyError:
+                logger.exception('Redis out of memory')
 
         return []
