@@ -1,5 +1,9 @@
 # Release History
 
+### 2.0.0rc0 (2019-05-21)
+
+* **Feature** - Add artifact type handling & filtering
+
 ### 1.5.6 (2019-05-16)
 
 * **Fix** - Handle ServerDisconnectError
