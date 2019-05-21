@@ -1,4 +1,7 @@
 import logging
+from enum import Enum
+
+from polyswarmartifact import ArtifactType
 
 from polyswarmclient import bloom
 from polyswarmclient.verifiers import NctApproveVerifier, \
@@ -12,13 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 class PostBountyTransaction(AbstractTransaction):
-    def __init__(self, client, amount, bounty_fee, artifact_uri, num_artifacts, duration, bloom):
+    def __init__(self, client, artifact_type, amount, bounty_fee, artifact_uri, num_artifacts, duration, bloom):
         self.amount = amount
+        self.artifact_type = artifact_type
         self.artifact_uri = artifact_uri
         self.duration = duration
 
         approve = NctApproveVerifier(amount + bounty_fee)
-        bounty = PostBountyVerifier(amount, artifact_uri, num_artifacts, duration, bloom)
+        bounty = PostBountyVerifier(artifact_type, amount, artifact_uri, num_artifacts, duration, bloom)
 
         super().__init__(client, [approve, bounty])
 
@@ -28,6 +32,7 @@ class PostBountyTransaction(AbstractTransaction):
     def get_body(self):
         return {
             "amount": str(self.amount),
+            "artifact_type": self. artifact_type,
             "uri": self.artifact_uri,
             "duration": self.duration
         }
@@ -223,10 +228,11 @@ class BountiesClient(object):
 
         return result
 
-    async def post_bounty(self, amount, artifact_uri, duration, chain, api_key=None):
+    async def post_bounty(self, artifact_type, amount, artifact_uri, duration, chain, api_key=None):
         """Post a bounty to polyswarmd.
 
         Args:
+            artifact_type (ArtifactType): The artifact type in this bounty
             amount (int): The amount to put up as a bounty
             artifact_uri (str): URI of artifacts
             duration (int): Number of blocks to accept new assertions
@@ -238,8 +244,8 @@ class BountiesClient(object):
         bounty_fee = await self.parameters[chain].get('bounty_fee')
         bloom = await self.calculate_bloom(artifact_uri)
         num_artifacts = await self.__client.get_artifact_count(artifact_uri)
-        transaction = PostBountyTransaction(self.__client, amount, bounty_fee, artifact_uri, num_artifacts, duration,
-                                            bloom)
+        transaction = PostBountyTransaction(self.__client, ArtifactType.to_string(artifact_type), amount, bounty_fee,
+                                            artifact_uri, num_artifacts, duration, bloom)
         success, result = await transaction.send(chain, api_key=api_key)
 
         if not success or 'bounties' not in result:

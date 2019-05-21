@@ -1,6 +1,8 @@
 import asyncio
 import logging
 
+from polyswarmartifact import ArtifactType
+
 from polyswarmclient import Client
 from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.events import VoteOnBounty, SettleBounty
@@ -11,10 +13,16 @@ MAX_STAKE_RETRIES = 10
 
 
 class AbstractArbiter(object):
-    def __init__(self, client, testing=0, scanner=None, chains=None):
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None):
         self.client = client
         self.chains = chains
         self.scanner = scanner
+
+        if artifact_types is None:
+            self.valid_artifact_types = [ArtifactType.FILE]
+        else:
+            self.valid_artifact_types = artifact_types
+
         self.client.on_run.register(self.__handle_run)
         self.client.on_new_bounty.register(self.__handle_new_bounty)
         self.client.on_vote_on_bounty_due.register(self.__handle_vote_on_bounty)
@@ -29,7 +37,7 @@ class AbstractArbiter(object):
 
     @classmethod
     def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False,
-                scanner=None, chains=None):
+                scanner=None, chains=None, artifact_types=None):
         """Connect the Arbiter to a Client.
 
         Args:
@@ -39,34 +47,38 @@ class AbstractArbiter(object):
             api_key (str): Your PolySwarm API key.
             testing (int): Number of testing bounties to use.
             insecure_transport (bool): Allow insecure transport such as HTTP?
+            scanner (AbstractScanner): Scanner for scanning artifacts
             chains (set(str)):  Set of chains you are acting on.
+            artifact_types (list(ArtifactType)): List of artifact types you support
 
         Returns:
             AbstractArbiter: Arbiter instantiated with a Client.
         """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
-        return cls(client, testing, scanner, chains)
+        return cls(client, testing, scanner, chains, artifact_types)
 
-    async def scan(self, guid, content, chain):
+    async def scan(self, guid, artifact_type, content, chain):
         """Override this to implement custom scanning logic
 
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
+            artifact_type (ArtifactType): Artifact type for the bounty being scanned
             content (bytes): Content of the artifact to be scan
             chain (str): Chain we are operating on
         Returns:
             ScanResult: Result of this scan
         """
         if self.scanner:
-            return await self.scanner.scan(guid, content, chain)
+            return await self.scanner.scan(guid, artifact_type, content, chain)
 
         raise NotImplementedError("You must subclass this class and override this method.")
 
-    async def fetch_and_scan_all(self, guid, uri, vote_round_end, chain):
+    async def fetch_and_scan_all(self, guid, artifact_type, uri, vote_round_end, chain):
         """Fetch and scan all artifacts concurrently
 
         Args:
             guid (str): GUID of the associated bounty
+            artifact_type (ArtifactType): Artifact type for the associated bounty
             uri (str):  Base artifact URI
             vote_round_end (int): Max number of blocks to take
             chain (str): Chain we are operating on
@@ -78,7 +90,7 @@ class AbstractArbiter(object):
         async def fetch_and_scan(index):
             content = await self.client.get_artifact(uri, index)
             if content is not None:
-                return await self.scan(guid, content, chain)
+                return await self.scan(guid, artifact_type, content, chain)
 
             return ScanResult()
 
@@ -121,11 +133,12 @@ class AbstractArbiter(object):
                 logger.info('Depositing stake: %s', deposits)
                 break
 
-    async def __handle_new_bounty(self, guid, author, amount, uri, expiration, block_number, txhash, chain):
+    async def __handle_new_bounty(self, guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain):
         """Scan and assert on a posted bounty
 
         Args:
             guid (str): The bounty to assert on
+            artifact_type (str): The type of artifacts in this bounty
             author (str): The bounty author
             amount (str): Amount of the bounty in base NCT units (10 ^ -18)
             uri (str): IPFS hash of the root artifact
@@ -136,6 +149,10 @@ class AbstractArbiter(object):
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
+        # Skip bounties for types we don't support
+        if artifact_type not in self.valid_artifact_types:
+            return []
+
         async with self.bounties_pending_locks[chain]:
             bounties_pending = self.bounties_pending.get(chain, set())
             if guid in bounties_pending:
@@ -157,7 +174,7 @@ class AbstractArbiter(object):
         vote_start = expiration + assertion_reveal_window
         settle_start = expiration + assertion_reveal_window + arbiter_vote_window
 
-        results = await self.fetch_and_scan_all(guid, uri, settle_start, chain)
+        results = await self.fetch_and_scan_all(guid, artifact_type, uri, settle_start, chain)
         votes = [result.verdict for result in results]
 
         bounty = await self.client.bounties.get_bounty(guid, chain)

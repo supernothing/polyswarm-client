@@ -1,6 +1,8 @@
 import logging
 import os
 
+from polyswarmartifact import ArtifactType
+
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
 from polyswarmclient.producer import Producer
 
@@ -14,8 +16,10 @@ KEY_TIMEOUT = 20
 
 
 class Microengine(AbstractMicroengine):
-    def __init__(self, client, testing=0, scanner=None, chains=None):
-        super().__init__(client, testing, None, chains)
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None):
+        if artifact_types is None:
+            artifact_types = [ArtifactType.FILE]
+        super().__init__(client, testing, None, chains, artifact_types)
 
         if QUEUE is None:
             raise ValueError('No queue configured, set the QUEUE environment variable')
@@ -32,11 +36,12 @@ class Microengine(AbstractMicroengine):
             self.producer = Producer(self.client, redis_uri, QUEUE, TIME_TO_POST_ASSERTION)
             await self.producer.start()
 
-    async def fetch_and_scan_all(self, guid, uri, duration, chain):
+    async def fetch_and_scan_all(self, guid, artifact_type, uri, duration, chain):
         """Overrides the default fetch logic to embed the URI and index rather than downloading on producer side
 
         Args:
             guid (str): GUID of the associated bounty
+            artifact_type (ArtifactType): Artifact type for the bounty being scanned
             uri (str):  Base artifact URI
             duration (int): Blocks until vote round ends
             chain (str): Chain we are operating on
@@ -44,4 +49,4 @@ class Microengine(AbstractMicroengine):
         Returns:
             list(ScanResult): List of ScanResult objects
         """
-        return await self.producer.scan(guid, uri, duration, chain)
+        return await self.producer.scan(guid, artifact_type, uri, duration, chain)

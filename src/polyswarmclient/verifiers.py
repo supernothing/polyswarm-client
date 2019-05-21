@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 from eth_abi import decode_abi
 from eth_abi.exceptions import InsufficientDataBytes
 from hexbytes import HexBytes
+from polyswarmartifact import ArtifactType
 
 from polyswarmclient.utils import int_to_bool_list, guid_as_string, sha3
 
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 UNKNOWN_PARAMETER = 'XXX'
 
 
-class DecodedTransaction():
+class DecodedTransaction:
     """This is a decoded representation of the transaction object returned by polyswarmd."""
 
     def __init__(self, to, value, data, abi, signature, parameters):
@@ -140,11 +141,12 @@ class NctTransferVerifier(AbstractTransactionVerifier):
 
 
 class PostBountyVerifier(AbstractTransactionVerifier):
-    ABI = ('postBounty', ['uint128', 'uint256', 'string', 'uint256', 'uint256', 'uint256[8]'])
+    ABI = ('postBounty', ['uint128', 'uint256', 'uint256', 'string', 'uint256', 'uint256', 'uint256[8]'])
 
-    def __init__(self, amount, artifact_uri, num_artifacts, duration, bloom):
+    def __init__(self, artifact_type, amount, artifact_uri, num_artifacts, duration, bloom):
         super().__init__((UNKNOWN_PARAMETER, amount, artifact_uri, num_artifacts, duration, bloom))
 
+        self.artifact_type = ArtifactType.from_string(artifact_type)
         self.amount = amount
         self.artifact_uri = artifact_uri
         self.num_artifacts = num_artifacts
@@ -159,20 +161,22 @@ class PostBountyVerifier(AbstractTransactionVerifier):
             return False
 
         logger.debug('Expected: %s, Actual: %s', self, decoded)
-        guid, amount, artifact_uri, num_artifacts, duration, bloom = decoded.parameters
+        guid, artifact_type, amount, artifact_uri, num_artifacts, duration, bloom = decoded.parameters
 
         bloom_value = 0
         for b in bloom:
             bloom_value = bloom_value << 256 | int(b)
 
+        artifact_type = ArtifactType(int(artifact_type))
         artifact_uri = artifact_uri.decode('utf-8')
 
         return decoded.value == 0 and \
-               artifact_uri == self.artifact_uri and \
-               num_artifacts == self.num_artifacts and \
-               duration == self.duration and \
-               bloom_value == self.bloom and \
-               amount == self.amount
+            artifact_type == self.artifact_type and \
+            artifact_uri == self.artifact_uri and \
+            num_artifacts == self.num_artifacts and \
+            duration == self.duration and \
+            bloom_value == self.bloom and \
+            amount == self.amount
 
 
 class PostAssertionVerifier(AbstractTransactionVerifier):
@@ -197,10 +201,10 @@ class PostAssertionVerifier(AbstractTransactionVerifier):
         bounty_guid, bid, mask, commitment = decoded.parameters
 
         return decoded.value == 0 and \
-               guid_as_string(bounty_guid) == self.bounty_guid and \
-               bid == self.bid and \
-               commitment == self.commitment and \
-               int_to_bool_list(mask, len(self.mask)) == self.mask
+            guid_as_string(bounty_guid) == self.bounty_guid and \
+            bid == self.bid and \
+            commitment == self.commitment and \
+            int_to_bool_list(mask, len(self.mask)) == self.mask
 
 
 class RevealAssertionVerifier(AbstractTransactionVerifier):
@@ -232,11 +236,11 @@ class RevealAssertionVerifier(AbstractTransactionVerifier):
             return False
 
         return decoded.value == 0 and \
-               guid_as_string(bounty_guid) == self.bounty_guid and \
-               index == self.index and \
-               nonce == self.nonce and \
-               int_to_bool_list(verdicts, len(self.verdicts)) == self.verdicts and \
-               metadata == self.metadata
+            guid_as_string(bounty_guid) == self.bounty_guid and \
+            index == self.index and \
+            nonce == self.nonce and \
+            int_to_bool_list(verdicts, len(self.verdicts)) == self.verdicts and \
+            metadata == self.metadata
 
 
 class PostVoteVerifier(AbstractTransactionVerifier):
@@ -260,9 +264,9 @@ class PostVoteVerifier(AbstractTransactionVerifier):
         bounty_guid, votes, valid_bloom = decoded.parameters
 
         return decoded.value == 0 and \
-               guid_as_string(bounty_guid) == self.bounty_guid and \
-               int_to_bool_list(votes, len(self.votes)) == self.votes and \
-               valid_bloom == self.valid_bloom
+            guid_as_string(bounty_guid) == self.bounty_guid and \
+            int_to_bool_list(votes, len(self.votes)) == self.votes and \
+            valid_bloom == self.valid_bloom
 
 
 class SettleBountyVerifier(AbstractTransactionVerifier):
@@ -283,7 +287,7 @@ class SettleBountyVerifier(AbstractTransactionVerifier):
         bounty_guid, = decoded.parameters
 
         return decoded.value == 0 and \
-               guid_as_string(bounty_guid) == self.bounty_guid
+            guid_as_string(bounty_guid) == self.bounty_guid
 
 
 class StakingDepositVerifier(AbstractTransactionVerifier):
@@ -304,7 +308,7 @@ class StakingDepositVerifier(AbstractTransactionVerifier):
         amount, = decoded.parameters
 
         return decoded.value == 0 and \
-               amount == self.amount
+            amount == self.amount
 
 
 class StakingWithdrawVerifier(AbstractTransactionVerifier):
@@ -325,4 +329,4 @@ class StakingWithdrawVerifier(AbstractTransactionVerifier):
         amount, = decoded.parameters
 
         return decoded.value == 0 and \
-               amount == self.amount
+            amount == self.amount

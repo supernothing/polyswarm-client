@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 
 def parse_requirements():
     with open('requirements.txt', 'r') as f:
-        return [r for r in f.read().splitlines() if not r.startswith('git')]
+        return [r for r in f.read().splitlines() if not r.startswith('git') and not r.startswith('.')]
 
 
 # The README.md will be used as the content for the PyPi package details page on the Python Package Index.
@@ -40,7 +40,6 @@ setup(
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: Implementation :: PyPy",

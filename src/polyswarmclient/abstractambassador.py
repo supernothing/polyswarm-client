@@ -16,14 +16,15 @@ BLOCK_DIVISOR = 1
 
 
 class QueuedBounty(object):
-    def __init__(self, amount, ipfs_uri, duration, api_key=None):
+    def __init__(self, artifact_type, amount, ipfs_uri, duration, api_key=None):
         self.amount = amount
         self.ipfs_uri = ipfs_uri
         self.duration = duration
         self.api_key = api_key
+        self.artifact_type = artifact_type
 
     def __repr__(self):
-        return '({0}, {1}, {2})'.format(self.amount, self.ipfs_uri, self.duration)
+        return f'({self.artifact_type}, {self.amount}, {self.ipfs_uri}, {self.duration})'
 
 
 class AbstractAmbassador(ABC):
@@ -83,16 +84,18 @@ class AbstractAmbassador(ABC):
         """
         pass
 
-    async def push_bounty(self, amount, ipfs_uri, duration, chain, api_key=None):
+    async def push_bounty(self, artifact_type, amount, ipfs_uri, duration, chain, api_key=None):
         """Push a bounty onto the queue for submission
 
         Args:
+            artifact_type (ArtifactType): Type of artifact being pushed
             amount (int): Amount of NCT to place on the bounty
             ipfs_uri (str): URI for artifact(s) to be analyzed
             duration (int): Duration in blocks to accept assertions
+            chain (str): Chain to submit the bounty
             api_key (str): API key to use to submit, if None use default from client
         """
-        bounty = QueuedBounty(amount, ipfs_uri, duration, api_key=api_key)
+        bounty = QueuedBounty(artifact_type, amount, ipfs_uri, duration, api_key=api_key)
         logger.info('Queueing bounty %s', bounty)
 
         await self.bounty_queues[chain].put(bounty)
@@ -142,7 +145,7 @@ class AbstractAmbassador(ABC):
                 # Exit if we are in testing mode
                 async with self.bounties_posted_locks[chain]:
                     bounties_posted = self.bounties_posted.get(chain, 0)
-                    if self.testing > 0 and bounties_posted >= self.testing:
+                    if 0 < self.testing <= bounties_posted:
                         logger.info('All testing bounties submitted')
                         return
 
@@ -186,14 +189,14 @@ class AbstractAmbassador(ABC):
                 else:
                     tries += 1
                     logger.critical('Insufficient balance to post bounty on %s. Have %s NCT. Need %s NCT.', chain,
-                                   balance, bounty.amount + bounty_fee, extra={'extra': bounty})
+                                    balance, bounty.amount + bounty_fee, extra={'extra': bounty})
                     await asyncio.sleep(tries * tries)
                     continue
 
             await self.on_before_bounty_posted(bounty.amount, bounty.ipfs_uri, bounty.duration, chain)
 
-            bounties = await self.client.bounties.post_bounty(bounty.amount, bounty.ipfs_uri, bounty.duration, chain,
-                                                              api_key=bounty.api_key)
+            bounties = await self.client.bounties.post_bounty(bounty.artifact_type, bounty.amount, bounty.ipfs_uri,
+                                                              bounty.duration, chain, api_key=bounty.api_key)
 
             if not bounties:
                 await self.on_bounty_post_failed(bounty.amount, bounty.ipfs_uri, bounty.duration, chain)

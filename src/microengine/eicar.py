@@ -1,6 +1,8 @@
 import base64
 import logging
 
+from polyswarmartifact import ArtifactType
+
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
 from polyswarmclient.abstractscanner import AbstractScanner, ScanResult
 
@@ -14,11 +16,12 @@ class Scanner(AbstractScanner):
     def __init__(self):
         super(Scanner, self).__init__()
 
-    async def scan(self, guid, content, chain):
+    async def scan(self, guid, artifact_type, content, chain):
         """Scan an artifact
 
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
+            artifact_type (ArtifactType): Artifact type for the bounty being scanned
             content (bytes): Content of the artifact to be scan
             chain (str): Chain we are operating on
         Returns:
@@ -40,7 +43,9 @@ class Microengine(AbstractMicroengine):
         chains (set[str]): Chain(s) to operate on
     """
 
-    def __init__(self, client, testing=0, scanner=None, chains=None):
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None):
         """Initialize Scanner"""
+        if artifact_types is None:
+            artifact_types = [ArtifactType.FILE]
         scanner = Scanner()
-        super().__init__(client, testing, scanner, chains)
+        super().__init__(client, testing, scanner, chains, artifact_types)

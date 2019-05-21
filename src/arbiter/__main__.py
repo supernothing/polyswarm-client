@@ -3,6 +3,8 @@ import importlib.util
 import logging
 import sys
 
+from polyswarmartifact import ArtifactType
+
 from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -65,7 +67,10 @@ def choose_backend(backend):
               help='Chain(s) to operate on')
 @click.option('--log-format', default='text',
               help='Log format. Can be `json` or `text` (default)')
-def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, log_format):
+@click.option('--artifact-type', multiple=True, default=['file'],
+              help='List of artifact types to scan')
+def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains,
+         log_format, artifact_type):
     """Entrypoint for the arbiter driver
 
     Args:
@@ -80,6 +85,7 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
         insecure_transport (bool): Connect to polyswarmd without TLS
         chains (List[str]): Chain(s) to operate on
         log_format (str): Format to output logs in. `text` or `json`
+        artifact_type (list[str]): List of artifact types to scan
     """
 
     loglevel = getattr(logging, log.upper(), None)
@@ -92,10 +98,16 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
 
     init_logging(['arbiter', logger_name], log_format, loglevel)
     init_logging(['polyswarmclient'], log_format, clientlevel)
+
+    artifact_types = None
+    if artifact_type:
+        artifact_types = [ArtifactType.from_string(artifact) for artifact in artifact_type]
+
     arbiter_class.connect(polyswarmd_addr, keyfile, password,
                           api_key=api_key, testing=testing,
                           insecure_transport=insecure_transport,
-                          chains=set(chains)).run()
+                          chains=set(chains),
+                          artifact_types=artifact_types).run()
 
 
 if __name__ == "__main__":

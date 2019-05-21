@@ -32,11 +32,12 @@ class AbstractScanner(ABC):
     """
 
     @abstractmethod
-    async def scan(self, guid, content, chain):
+    async def scan(self, guid, artifact_type, content, chain):
         """Override this to implement custom scanning logic
 
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
+            artifact_type (ArtifactType): Artifact type for the bounty being scanned
             content (bytes): Content of the artifact to scan
             chain (str): What chain are we operating on
         Returns:

@@ -1,4 +1,5 @@
 import pytest
+from polyswarmartifact import ArtifactType
 
 from polyswarmclient import events
 
@@ -82,23 +83,23 @@ async def test_on_new_block_callback():
 async def test_on_new_bounty_callback():
     cb = events.OnNewBountyCallback()
 
-    async def check_parameters(guid, author, amount, uri, expiration, block_number, txhash, chain):
-        return guid == 'guid' and author == 'author' and amount == 42 and uri == 'uri' and expiration == 100 and chain == 'home'
+    async def check_parameters(guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain):
+        return guid == 'guid' and artifact_type == ArtifactType.FILE and author == 'author' and amount == 42 and uri == 'uri' and expiration == 100 and chain == 'home'
 
     cb.register(check_parameters)
 
-    assert await cb.run(guid='guid', author='author', amount=42, uri='uri', expiration=100, block_number=0,
-                        txhash='0x0', chain='home') == [True]
-    assert await cb.run(guid='not guid', author='author', amount=42, uri='uri', expiration=100, block_number=0,
-                        txhash='0x0', chain='home') == [False]
+    assert await cb.run(guid='guid', artifact_type='file', author='author', amount=42, uri='uri',
+                        expiration=100, block_number=0, txhash='0x0', chain='home') == [True]
+    assert await cb.run(guid='not guid', artifact_type='file', author='author', amount=42, uri='uri',
+                        expiration=100, block_number=0, txhash='0x0', chain='home') == [False]
 
-    async def invalid_signature(guid, author, amount, uri, expiration, chain, block_number, txhash, foo):
+    async def invalid_signature(guid, artifact_type, author, amount, uri, expiration, chain, block_number, txhash, foo):
         return False
 
     cb.register(invalid_signature)
 
     with pytest.raises(TypeError):
-        await cb.run(guid='guid', author='author', amount=42, uri='uri', expiration=100, block_number=0, txhash='0x0',
+        await cb.run(guid='guid', artifact_type='file', author='author', amount=42, uri='uri', expiration=100, block_number=0, txhash='0x0',
                      chain='home')
 
 

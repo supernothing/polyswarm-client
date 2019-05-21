@@ -22,11 +22,12 @@ class Producer:
     async def start(self):
         self.redis = await aioredis.create_redis_pool(self.redis_uri)
 
-    async def scan(self, guid, uri, expiration_blocks, chain):
+    async def scan(self, guid, artifact_type, uri, expiration_blocks, chain):
         """Creates a set of jobs to scan all the artifacts at the given URI that are passed via Redis to workers
 
             Args:
                 guid (str): GUID of the associated bounty
+                artifact_type (ArtifactType): Artifact type for the bounty being scanned
                 uri (str):  Base artifact URI
                 expiration_blocks (int): Blocks until vote round ends
                 chain (str): Chain we are operating on
@@ -61,6 +62,7 @@ class Producer:
         jobs = [json.dumps({
             'ts': time.time() // 1,
             'guid': guid,
+            'artifact_type': artifact_type.value,
             'uri': uri,
             'index': i,
             'chain': chain,

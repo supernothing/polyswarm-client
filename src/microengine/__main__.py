@@ -3,6 +3,8 @@ import importlib.util
 import logging
 import sys
 
+from polyswarmartifact import ArtifactType
+
 from polyswarmclient.config import init_logging, validate_apikey
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -67,9 +69,12 @@ def choose_backend(backend):
               help='Chain(s) to operate on')
 @click.option('--log-format', default='text',
               help='Log format. Can be `json` or `text` (default)')
+@click.option('--artifact-type', multiple=True, default=['file'],
+              help='List of artifact types to scan')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')
-def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, log_format):
+def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains,
+         log_format, artifact_type):
     """Entrypoint for the microengine driver
 
     Args:
@@ -82,7 +87,9 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
         api_key(str): API key to use with polyswarmd
         testing (int): Mode to process N bounties then exit (optional)
         insecure_transport (bool): Connect to polyswarmd without TLS
+        chains (list[str]): List of chains on which to scan artifacts
         log_format (str): Format to output logs in. `text` or `json`
+        artifact_type (list[str]): List of artifact types to scan
     """
     loglevel = getattr(logging, log.upper(), None)
     clientlevel = getattr(logging, client_log.upper(), None)
@@ -92,12 +99,18 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
 
     logger_name, microengine_class = choose_backend(backend)
 
+    artifact_types = None
     init_logging(['microengine', logger_name], log_format, loglevel)
     init_logging(['polyswarmclient'], log_format, clientlevel)
+
+    if artifact_type:
+        artifact_types = [ArtifactType.from_string(artifact) for artifact in artifact_type]
+
     microengine_class.connect(polyswarmd_addr, keyfile, password,
                               api_key=api_key, testing=testing,
                               insecure_transport=insecure_transport,
-                              chains=set(chains)).run()
+                              chains=set(chains),
+                              artifact_types=artifact_types).run()
 
 
 if __name__ == '__main__':

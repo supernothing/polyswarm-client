@@ -1,5 +1,7 @@
 import logging
 
+from polyswarmartifact import ArtifactType
+
 from polyswarmclient.abstractarbiter import AbstractArbiter
 from microengine.clamav import Scanner
 
@@ -18,7 +20,9 @@ class Arbiter(AbstractArbiter):
         chains (set[str]): Chain(s) to operate on
     """
 
-    def __init__(self, client, testing=0, scanner=None, chains=None):
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None):
         """Initialize a ClamAV arbiter"""
+        if artifact_types is None:
+            artifact_types = [ArtifactType.FILE]
         scanner = Scanner()
-        super().__init__(client, testing, scanner, chains)
+        super().__init__(client, testing, scanner, chains, artifact_types)

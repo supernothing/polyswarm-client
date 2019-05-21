@@ -1,5 +1,7 @@
 import asyncio
 import pytest
+from polyswarmartifact import ArtifactType
+
 import polyswarmclient
 import random
 import uuid
@@ -113,6 +115,7 @@ async def test_on_new_bounty(mock_client):
     def make_bounty():
         return {
             'guid': str(uuid.uuid4()),
+            'artifact_type': ArtifactType.to_string(ArtifactType.FILE),
             'author': random_address(),
             'amount': random.randint(0, 10 ** 18),
             'uri': random_ipfs_uri(),
@@ -122,9 +125,10 @@ async def test_on_new_bounty(mock_client):
     home_bounty = make_bounty()
     side_bounty = make_bounty()
 
-    async def handle_new_bounty(guid, author, amount, uri, expiration, block_number, txhash, chain):
+    async def handle_new_bounty(guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain):
         new_bounty = {
             'guid': guid,
+            'artifact_type': ArtifactType.to_string(artifact_type),
             'author': author,
             'amount': amount,
             'uri': uri,

@@ -6,6 +6,7 @@ import time
 
 import aiohttp
 import aioredis
+from polyswarmartifact import ArtifactType
 
 from polyswarmclient.utils import asyncio_join, asyncio_stop, exit, MAX_WAIT
 
@@ -96,6 +97,7 @@ class Worker(object):
 
                     duration = job['duration']
                     timestamp = job['ts']
+                    artifact_type = ArtifactType(int(job['artifact_type']))
 
                     if timestamp + duration <= time.time() // 1:
                         raise ExpiredException()
@@ -135,7 +137,7 @@ class Worker(object):
                         continue
 
                 async with self.scan_lock:
-                    result = await self.scanner.scan(guid, content, chain)
+                    result = await self.scanner.scan(guid, artifact_type, content, chain)
 
                 j = json.dumps({
                     'index': index,
