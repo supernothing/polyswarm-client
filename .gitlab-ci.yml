@@ -55,6 +55,7 @@ push-to-pypi:
     - docker
   only:
     - tags
+    - master
   script:
     - python setup.py sdist bdist_wheel
 
@@ -79,6 +80,7 @@ windowsbase_container_test:
     - feature/base-windows-build
     - fix/impersonate-windows-tty
     - tags
+    - master
   script:
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
     - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/Dockerfile .
@@ -91,6 +93,7 @@ windowsbase:
   only:
     - feature/base-windows-build
     - tags
+    - master
   script:
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
     - docker build --pull -t polyswarm/polyswarm-client-windows -t "polyswarm/polyswarm-client-windows:$CI_COMMIT_SHA" -t "$REPO_URL/polyswarm-client-windows:latest" -t "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" -t "polyswarm/polyswarm-client-windows:$(git describe --tags --abbrev=0)" -f docker/windows/Dockerfile .
@@ -111,6 +114,7 @@ linuxbase:
   only:
     - feature/base-linux-build
     - tags
+    - master
   script:
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
     - docker build -t polyswarm/polyswarm-client -t "polyswarm/polyswarm-client:$CI_COMMIT_SHA" -t "polyswarm/polyswarm-client:$(git describe --tags --abbrev=0)" -t "$REPO_URL/polyswarm-client:latest" -t "$REPO_URL/polyswarm-client:$CI_COMMIT_SHA" -f docker/Dockerfile .
@@ -130,5 +134,6 @@ kickafterdepends:
     - feature/base-windows-build
     - feature/base-linux-build
     - tags
+    - master
   script:
     - python3 kick_downstream.py
