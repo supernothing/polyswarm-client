@@ -612,7 +612,7 @@ class Client(object):
                 logger.error('Websocket connection to polyswarmd timed out, retrying')
 
             retry += 1
-            wait = retry * retry
+            wait = min(MAX_WAIT, retry * retry)
 
             logger.error('Websocket connection to polyswarmd closed, sleeping for %s seconds then reconnecting', wait)
             await asyncio.sleep(wait)

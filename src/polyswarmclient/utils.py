@@ -12,7 +12,7 @@ import base58
 logger = logging.getLogger(__name__)
 
 TASK_TIMEOUT = 1.0
-MAX_WAIT = int(os.getenv("WORKER_BACKOFF", "3"))
+MAX_WAIT = int(os.getenv("WORKER_BACKOFF", "15"))
 MAX_WORKERS = 4
 
 def to_string(value):

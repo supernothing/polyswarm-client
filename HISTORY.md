@@ -1,7 +1,8 @@
 # Release History
 
-### 2.0.0 (2019-05-21)
+### 2.0.0 (2019-05-22)
 
+* **Fix** - Cap websocket retry connection backoff wait time
 * **Feature** - Add artifact type handling & filtering
 
 The update from 1.5.6 to 2.0.0 is a breaking change.
