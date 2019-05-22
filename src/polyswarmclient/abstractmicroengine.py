@@ -203,7 +203,7 @@ class AbstractMicroengine(object):
 
             return []
 
-        logger.info(f'Responding to {artifact_type.value} bounty {guid}')
+        logger.info(f'Responding to {artifact_type.name.lower()} bounty {guid}')
         nonce, assertions = await self.client.bounties.post_assertion(guid, bid, mask, verdicts, chain)
         for a in assertions:
             ra = RevealAssertion(guid, a['index'], nonce, verdicts, ';'.join(metadatas))

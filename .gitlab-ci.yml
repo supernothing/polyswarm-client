@@ -5,6 +5,7 @@ stages:
   - ciimage
   - test
   - e2e
+  - test_pypi
   - pypi
   - container_test
   - postrelease
@@ -34,6 +35,18 @@ test:
     - tox -e py36
   except:
     - images
+
+test-push-to-pypi:
+  image: $STAGE_IMAGE
+  stage: test_pypi
+  tags:
+    - docker
+  only:
+    - feature/test-pypi
+  script:
+    - python setup.py sdist bdist_wheel
+    # using env variables from Gitlab: TWINE_USERNAME, TWINE_PASSWORD, TWINE_REPOSITORY_URL
+    - twine upload --repository-url $TWINE_REPOSITORY_URL_TEST -u $TWINE_USERNAME_TEST -p $TWINE_PASSWORD_TEST dist/*
 
 push-to-pypi:
   image: $STAGE_IMAGE

@@ -193,13 +193,15 @@ class AbstractAmbassador(ABC):
                     await asyncio.sleep(tries * tries)
                     continue
 
-            await self.on_before_bounty_posted(bounty.amount, bounty.ipfs_uri, bounty.duration, chain)
+            await self.on_before_bounty_posted(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration,
+                                               chain)
 
             bounties = await self.client.bounties.post_bounty(bounty.artifact_type, bounty.amount, bounty.ipfs_uri,
                                                               bounty.duration, chain, api_key=bounty.api_key)
 
             if not bounties:
-                await self.on_bounty_post_failed(bounty.amount, bounty.ipfs_uri, bounty.duration, chain)
+                await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration,
+                                                 chain)
             else:
                 async with self.bounties_posted_locks[chain]:
                     bounties_posted = self.bounties_posted.get(chain, 0)
@@ -219,7 +221,8 @@ class AbstractAmbassador(ABC):
                     continue
 
                 # Handle any additional steps in derived implementations
-                await self.on_after_bounty_posted(guid, bounty.amount, bounty.ipfs_uri, expiration, chain)
+                await self.on_after_bounty_posted(guid, bounty.artifact_type, bounty.amount, bounty.ipfs_uri,
+                                                  expiration, chain)
 
                 sb = SettleBounty(guid)
                 self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
@@ -301,10 +304,11 @@ class AbstractAmbassador(ABC):
     async def __handle_settle_bounty(self, bounty_guid, chain):
         return await self.__do_handle_settle_bounty(bounty_guid, chain)
 
-    async def on_before_bounty_posted(self, amount, ipfs_uri, duration, chain):
+    async def on_before_bounty_posted(self, artifact_type, amount, ipfs_uri, duration, chain):
         """Override this to implement additional steps before the bounty is posted
 
         Args:
+            artifact_type (ArtifactType): Type of artifact for the soon to be posted bounty
             amount (int): Amount to place this bounty for
             ipfs_uri (str): IPFS URI of the artifact to post
             duration (int): Duration of the bounty in blocks
@@ -312,10 +316,11 @@ class AbstractAmbassador(ABC):
         """
         pass
 
-    async def on_bounty_post_failed(self, amount, ipfs_uri, duration, chain):
+    async def on_bounty_post_failed(self, artifact_type, amount, ipfs_uri, duration, chain):
         """Override this to implement additional steps when a bounty fails to post
 
         Args:
+            artifact_type (ArtifactType): Type of artifact for the failed bounty
             amount (int): Amount to place this bounty for
             ipfs_uri (str): IPFS URI of the artifact to post
             duration (int): Duration of the bounty in blocks
@@ -323,11 +328,12 @@ class AbstractAmbassador(ABC):
         """
         pass
 
-    async def on_after_bounty_posted(self, guid, amount, ipfs_uri, expiration, chain):
+    async def on_after_bounty_posted(self, guid, artifact_type, amount, ipfs_uri, expiration, chain):
         """Override this to implement additional steps after bounty is posted
 
         Args:
             guid (str): GUID of the posted bounty
+            artifact_type (ArtifactType): Type of artifact for the posted bounty
             amount (int): Amount of the posted bounty
             ipfs_uri (str): URI of the artifact submitted
             expiration (int): Block number of bounty expiration

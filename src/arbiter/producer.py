@@ -48,4 +48,4 @@ class Arbiter(AbstractArbiter):
         Returns:
             list(ScanResult): List of ScanResult objects
         """
-        return await self.producer.scan(guid, uri, vote_round_end, chain)
+        return await self.producer.scan(guid, artifact_type, uri, vote_round_end, chain)

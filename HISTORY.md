@@ -1,5 +1,21 @@
 # Release History
 
+### 2.0.0 (2019-05-21)
+
+* **Feature** - Add artifact type handling & filtering
+
+The update from 1.5.6 to 2.0.0 is a breaking change.
+1. `AbstractAmbassador.push_bounty()` parameters changed to `(self, artifact_type, amount, ipfs_uri, duration, chain, api_key)`
+1. `AbstractAmbassador.on_bounty_post_failed()` parameters changed to `(self, artifact_type, amount, ipfs_uri, expiration, chain)`
+1. `AbstractAmbassador.on_before_bounty_posted()` parameters changed to `(self, artifact_type, amount, ipfs_uri, expiration, chain)`
+1. `AbstractAmbassador.on_after_bounty_posted()` parameters changed to `(self, guid, artifact_type, amount, ipfs_uri, expiration, chain)`
+1. `AbstractMicroengine` and `AbstractArbiter` `.fetch_and_scan_all()` parameters changed to `(self, guid, artifact_type, uri, vote_round_end, chain)`
+1. `AbstractMicroengine` and `AbstractArbiter` `.scan()` parameters changed to `(self, guid, artifact_type, content, chain)`
+1. `AbstractScanner.scan()` parameters changed to `(self, guid, artifact_type, content, chain)`
+1. `PolyswarmClient.on_new_bounty` event parameters changed to `(self, guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain)`
+1. `Producer.scan()` parameters changed to ` (guid, artifact_type, uri, expiration_blocks, chain)`
+
+
 ### 1.5.6 (2019-05-16)
 
 * **Fix** - Handle ServerDisconnectError
