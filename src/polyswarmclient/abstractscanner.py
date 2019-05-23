@@ -44,3 +44,16 @@ class AbstractScanner(ABC):
             ScanResult: Result of this scan
         """
         pass
+
+    async def setup(self):
+        """Override this method to implement custom setup logic.
+
+        This is run immediately after the Scanner class is instantiated and before any calls to the scan() method.
+
+        Args:
+            None
+
+        Returns:
+            status (bool): Did setup complete successfully?
+        """
+        return True
