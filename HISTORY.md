@@ -1,5 +1,10 @@
 # Release History
 
+### 2.0.1 (2019-05-23)
+
+* **Fix** - Increment counter on scan results for use in horizontal scaling of workers
+* **Fix** - Reset failed tries counter on successful worker response
+
 ### 2.0.0 (2019-05-22)
 
 * **Fix** - Cap websocket retry connection backoff wait time
