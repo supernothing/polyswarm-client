@@ -48,6 +48,11 @@ class Producer:
                         return None
 
                     j = json.loads(result[1].decode('utf-8'))
+
+                    # increase perf counter for autoscaling
+                    q_counter = f'{self.queue}_scan_result_counter'
+                    redis.incr(q_counter)
+                    
                     return j['index'], ScanResult(bit=j['bit'], verdict=j['verdict'], confidence=j['confidence'],
                                                   metadata=j['metadata'])
             except aioredis.errors.ReplyError:
