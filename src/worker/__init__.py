@@ -76,7 +76,7 @@ class Worker(object):
             logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
             asyncio_stop()
             asyncio_join()
-            exit(0)
+            exit(1)
 
     async def run_task(self, task_index):
         conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
