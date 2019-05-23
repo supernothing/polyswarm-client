@@ -152,6 +152,7 @@ class Worker(object):
                 key = f'{self.queue}_{guid}_{chain}_results'
                 try:
                     await redis.rpush(key, j)
+                    self.tries = 0
                 except OSError:
                     logger.exception('Redis connection down')
                 except aioredis.errors.ReplyError:
