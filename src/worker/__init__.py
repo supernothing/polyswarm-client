@@ -72,6 +72,11 @@ class Worker(object):
     async def setup(self):
         self.scan_lock = asyncio.Semaphore(value=self.scan_limit)
         self.download_lock = asyncio.Semaphore(value=self.download_limit)
+        if not await self.scanner.setup():
+            logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
+            asyncio_stop()
+            asyncio_join()
+            exit(1)
 
     async def run_task(self, task_index):
         conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
