@@ -1,5 +1,9 @@
 # Release History
 
+### 2.0.2 (2019-05-24)
+
+* **Feature** - Add `setup()` to `AbstractScanner` for setting up AV services in a worker
+
 ### 2.0.1 (2019-05-23)
 
 * **Fix** - Increment counter on scan results for use in horizontal scaling of workers
