@@ -133,6 +133,10 @@ class AbstractArbiter(object):
                 logger.info('Depositing stake: %s', deposits)
                 break
 
+        if self.scanner is not None and not await self.scanner.setup():
+            logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
+            exit(1)
+
     async def __handle_new_bounty(self, guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain):
         """Scan and assert on a posted bounty
 
