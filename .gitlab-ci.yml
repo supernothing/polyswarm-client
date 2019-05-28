@@ -99,7 +99,7 @@ windowsbase:
     - docker push "polyswarm/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
     - docker logout
     - pip install awscli
-    - $(aws ecr get-login --no-include-email --region us-east-1)
+    - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     - docker push "$REPO_URL/polyswarm-client-windows:latest"
     - docker push "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
 
@@ -119,7 +119,8 @@ linuxbase:
     - docker push "polyswarm/polyswarm-client:$(git describe --tags --abbrev=0)"
     - docker logout
     - pip install awscli
-    - $(aws ecr get-login --no-include-email --region us-east-1)
+
+    - eval $(aws ecr get-login --no-include-email --region us-east-1)
     - docker push "$REPO_URL/polyswarm-client:latest"
     - docker push "$REPO_URL/polyswarm-client:$CI_COMMIT_SHA"
 
