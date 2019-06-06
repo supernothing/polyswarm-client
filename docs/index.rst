@@ -15,7 +15,7 @@ PolySwarm API Source-Based Documentation
 ``polyswarm-client`` is a convenient library on which to build PolySwarm market participants.
 
 Here you'll find auto-generated documentation based on the ``polyswarm-client`` source code.
-This may be useful for developers interested in the low-level details of ``polyswarm-client``s implementation.
+This may be useful for developers interested in the low-level details of ``polyswarm-client`` implementation.
 Such developers should navigate to "API Reference" over to the left.
 
 Consulting these low level details is unnecessary for developing a successful PolySwarm participant.
