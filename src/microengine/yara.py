@@ -2,6 +2,7 @@ import logging
 import os
 import yara
 from polyswarmartifact import ArtifactType
+from polyswarmartifact.schema.verdict import Verdict
 
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
 from polyswarmclient.abstractscanner import AbstractScanner, ScanResult
@@ -27,10 +28,17 @@ class Scanner(AbstractScanner):
             ScanResult: Result of this scan
         """
         matches = self.rules.match(data=content)
+        sysname, _, _, _, machine = os.uname()
+        metadata = Verdict().set_scanner(operating_system=sysname,
+                                         architecure=machine,
+                                         vendor_version=yara.__version__)
         if matches:
-            return ScanResult(bit=True, verdict=True)
+            # author responsible for distilling multiple metadata values into a value for ScanResult
+            metadata.set_malware_family(matches[0].rule)
+            return ScanResult(bit=True, verdict=True, metadata=metadata.json())
 
-        return ScanResult(bit=True, verdict=False)
+        metadata.set_malware_family('')
+        return ScanResult(bit=True, verdict=False, metadata=metadata.json())
 
 
 class Microengine(AbstractMicroengine):
@@ -41,7 +49,7 @@ class Microengine(AbstractMicroengine):
 
         Args:
             client (`Client`): Client to use
-            testing (int): How many test bounties to respond to
+            testing (int): How many test bounties to respond toq
             chains (set[str]): Chain(s) to operate on
             artifact_types (list(ArtifactType)): List of artifact types you support
         """

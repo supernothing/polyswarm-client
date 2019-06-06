@@ -3,8 +3,8 @@ import logging
 import os
 from io import BytesIO
 
-from polyswarmartifact import ArtifactType
-
+from polyswarmartifact import ArtifactType, __version__ as psa_version
+from polyswarmartifact.schema.verdict import Verdict
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
 from polyswarmclient.abstractscanner import AbstractScanner, ScanResult
 
@@ -32,10 +32,18 @@ class Scanner(AbstractScanner):
         """
         result = await self.clamd.instream(BytesIO(content))
         stream_result = result.get('stream', [])
-        if len(stream_result) >= 2 and stream_result[0] == 'FOUND':
-            return ScanResult(bit=True, verdict=True, confidence=1.0, metadata=stream_result[1])
 
-        return ScanResult(bit=True, verdict=False)
+        sysname, _, _, _, machine = os.uname()
+        vendor = await self.clamd.version()
+        metadata = Verdict().set_scanner(operating_system=sysname,
+                                         architecure=machine,
+                                         vendor_version=vendor)
+        if len(stream_result) >= 2 and stream_result[0] == 'FOUND':
+            metadata.set_malware_family(stream_result[1])
+            return ScanResult(bit=True, verdict=True, confidence=1.0, metadata=metadata.json())
+
+        metadata.set_malware_family('')
+        return ScanResult(bit=True, verdict=False, metadata=metadata.json())
 
 
 class Microengine(AbstractMicroengine):

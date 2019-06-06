@@ -27,8 +27,8 @@ def choose_backend(backend):
     module_name_string = backend_list[0]
 
     # determine if this string is a module that can be imported as-is or as sub-module of the worker package
-    mod_spec = importlib.util.find_spec(module_name_string) or importlib.util.find_spec(
-        "microengine.{0}".format(module_name_string))
+    mod_spec = importlib.util.find_spec("microengine.{0}".format(module_name_string)) or \
+        importlib.util.find_spec(module_name_string)
     if mod_spec is None:
         raise Exception("Scanner backend `{0}` cannot be imported as a python module.".format(backend))
 

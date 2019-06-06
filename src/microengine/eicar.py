@@ -1,7 +1,9 @@
 import base64
 import logging
+import os
 
 from polyswarmartifact import ArtifactType
+from polyswarmartifact.schema.verdict import Verdict
 
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
 from polyswarmclient.abstractscanner import AbstractScanner, ScanResult
@@ -27,10 +29,16 @@ class Scanner(AbstractScanner):
         Returns:
             ScanResult: Result of this scan
         """
-        if content == EICAR:
-            return ScanResult(bit=True, verdict=True)
+        sysname, _, _, _, machine = os.uname()
+        metadata = Verdict().set_scanner(operating_system=sysname,
+                                         architecure=machine)
 
-        return ScanResult(bit=True, verdict=False)
+        if content == EICAR:
+            metadata.set_malware_family('Eicar Test File')
+            return ScanResult(bit=True, verdict=True, metadata=metadata.json())
+
+        metadata.set_malware_family('')
+        return ScanResult(bit=True, verdict=False, metadata=metadata.json())
 
 
 class Microengine(AbstractMicroengine):

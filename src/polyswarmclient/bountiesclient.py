@@ -336,6 +336,22 @@ class BountiesClient(object):
 
         return result.get('reveals', [])
 
+    async def post_metadata(self, metadata, chain, api_key=None):
+        """Posts metadata to IPFS
+
+        Args:
+            metadata (str): metadata json that conforms to Assertion Schema in polyswarm-artifact
+            chain (str): Which chain to operate on
+            api_key (str): Override default API key
+
+        Returns: ipfs_hash or None
+
+        """
+        success, ipfs_hash = await self.__client.make_request('POST', '/bounties/metadata', chain,
+                                                              json=metadata,
+                                                              api_key=api_key)
+        return ipfs_hash if success else None
+
     async def get_vote(self, bounty_guid, index, chain, api_key=None):
         """
         Get a vote from polyswamrd

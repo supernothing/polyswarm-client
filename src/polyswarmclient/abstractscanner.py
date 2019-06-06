@@ -1,4 +1,6 @@
 import logging
+
+from polyswarmartifact.schema.verdict import Verdict
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -7,7 +9,7 @@ logger = logging.getLogger(__name__)  # Initialize logger
 class ScanResult(object):
     """Results from scanning one artifact"""
 
-    def __init__(self, bit=False, verdict=False, confidence=1.0, metadata=''):
+    def __init__(self, bit=False, verdict=False, confidence=1.0, metadata=Verdict().set_malware_family('').json()):
         """Report the results from scanning one artifact
 
         Args:

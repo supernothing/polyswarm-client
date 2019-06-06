@@ -1,7 +1,9 @@
 import asyncio
+import json
 import logging
 
 from polyswarmartifact import ArtifactType
+from polyswarmartifact.schema import verdict, assertion
 
 from polyswarmclient import Client
 from polyswarmclient.abstractscanner import ScanResult
@@ -187,6 +189,13 @@ class AbstractMicroengine(object):
         verdicts = [r.verdict for r in results]
         confidences = [r.confidence for r in results]
         metadatas = [r.metadata for r in results]
+        combined_metadata = ';'.join(metadatas)
+
+        try:
+            if all([metadata and verdict.Verdict.validate(json.loads(metadata)) for metadata in metadatas]):
+                combined_metadata = json.dumps([json.loads(metadata) for metadata in metadatas])
+        except json.JSONDecodeError:
+            logger.exception(f'Error decoding assertion metadata {metadatas}')
 
         if not any(mask):
             return []
@@ -209,7 +218,10 @@ class AbstractMicroengine(object):
         logger.info(f'Responding to {artifact_type.name.lower()} bounty {guid}')
         nonce, assertions = await self.client.bounties.post_assertion(guid, bid, mask, verdicts, chain)
         for a in assertions:
-            ra = RevealAssertion(guid, a['index'], nonce, verdicts, ';'.join(metadatas))
+            # Post metadata to IPFS and post ipfs_hash as metadata, if it exists
+            ipfs_hash = await self.client.bounties.post_metadata(combined_metadata, chain)
+            metadata = ipfs_hash if ipfs_hash is not None else combined_metadata
+            ra = RevealAssertion(guid, a['index'], nonce, verdicts, metadata)
             self.client.schedule(expiration, ra, chain)
 
             sb = SettleBounty(guid)
