@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from abc import ABC, abstractmethod
 
 from polyswarmclient import Client
@@ -8,11 +9,11 @@ from polyswarmclient.utils import asyncio_stop, exit
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
-MAX_TRIES = 10
-BOUNTY_QUEUE_SIZE = 10
-MAX_BOUNTIES_IN_FLIGHT = 10
-MAX_BOUNTIES_PER_BLOCK = 1
-BLOCK_DIVISOR = 1
+MAX_TRIES = int(os.environ.get('MAX_TRIES', 10))
+BOUNTY_QUEUE_SIZE = int(os.environ.get('BOUNTY_QUEUE_SIZE', 10))
+MAX_BOUNTIES_IN_FLIGHT = int(os.environ.get('MAX_BOUNTIES_IN_FLIGHT', 10))
+MAX_BOUNTIES_PER_BLOCK = int(os.environ.get('MAX_BOUNTIES_PER_BLOCK', 1))
+BLOCK_DIVISOR = int(os.environ.get('BLOCK_DIVISOR', 1))
 
 
 class QueuedBounty(object):

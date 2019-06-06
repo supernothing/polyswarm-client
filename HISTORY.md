@@ -1,5 +1,12 @@
 # Release History
 
+### 2.1.0 (2019-06-06)
+
+* **Feature** - Push metadata to IPFS if it matches the Verdict Schema in polyswarm-artifact (Not breaking)
+* **Feature** - Add Ambassador bounty submission env vars to dynamically set rate of bounty submissions.
+* **Fix** - Pass artifact type on second on_bounty_post_failed call
+* **Fix** - Remove stop and join when scanner setup fails
+
 ### 2.0.2 (2019-05-24)
 
 * **Feature** - Add `setup()` to `AbstractScanner` for setting up AV services in a worker
