@@ -1,5 +1,9 @@
 # Release History
 
+### 2.1.1 (2019-06-07)
+
+* **Fix** - Use polyswarm-artifact 1.1.1 with `architecture` fix
+
 ### 2.1.0 (2019-06-06)
 
 * **Feature** - Push metadata to IPFS if it matches the Verdict Schema in polyswarm-artifact (Not breaking)

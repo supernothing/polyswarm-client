@@ -36,7 +36,7 @@ class Scanner(AbstractScanner):
         sysname, _, _, _, machine = os.uname()
         vendor = await self.clamd.version()
         metadata = Verdict().set_scanner(operating_system=sysname,
-                                         architecure=machine,
+                                         architecture=machine,
                                          vendor_version=vendor)
         if len(stream_result) >= 2 and stream_result[0] == 'FOUND':
             metadata.set_malware_family(stream_result[1])

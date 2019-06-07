@@ -30,7 +30,7 @@ class Scanner(AbstractScanner):
         matches = self.rules.match(data=content)
         sysname, _, _, _, machine = os.uname()
         metadata = Verdict().set_scanner(operating_system=sysname,
-                                         architecure=machine,
+                                         architecture=machine,
                                          vendor_version=yara.__version__)
         if matches:
             # author responsible for distilling multiple metadata values into a value for ScanResult
