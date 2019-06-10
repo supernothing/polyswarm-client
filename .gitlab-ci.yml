@@ -12,7 +12,7 @@ stages:
   - notifydependents
 
 variables:
-  STAGE_IMAGE: $CI_CUSTOM_DEV_REGISTRY_URI/ci-images/stage:latest
+  STAGE_IMAGE: $$REPO_URL/stage:latest
 
 buildciimage:
   image: $STAGE_IMAGE
@@ -20,8 +20,8 @@ buildciimage:
     - docker
   stage: ciimage
   script:
-    - docker login -u "$CI_CUSTOM_DEV_REGISTRY_USERNAME" -p "$CI_CUSTOM_DEV_REGISTRY_PASSWORD" "$CI_CUSTOM_DEV_REGISTRY_URI"
-    - docker build -t $STAGE_IMAGE  docker/ci-image/
+    - eval $(aws ecr get-login --no-include-email --region us-east-1)
+    - docker build -t $STAGE_IMAGE  -f docker/ci-image/ .
     - docker push $STAGE_IMAGE
   only:
     - images
