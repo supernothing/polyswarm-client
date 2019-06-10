@@ -15,7 +15,7 @@ variables:
   STAGE_IMAGE: $REPO_URL/stage:latest
 
 buildciimage:
-  image: $STAGE_IMAGE
+  image: docker:stable
   tags:
     - docker
   stage: ciimage
@@ -35,6 +35,7 @@ test:
     - tox -e py36
   except:
     - images
+    - update/images
 
 test-push-to-pypi:
   image: $STAGE_IMAGE
