@@ -14,7 +14,6 @@ RUN apk --no-cache add \
         python3-dev \
         unzip && \
     pip3 install --upgrade pip setuptools twine wheel && \
-    pip3 install docker-compose tox && \
-    pip3 install awscli
-    ln -s /usr/bin/python3 /usr/bin/python
-    ln -s /usr/bin/pip3 /usr/bin/pip
+    pip3 install docker-compose tox awscli
+RUN ln -s /usr/bin/python3 /usr/bin/python
+RUN ln -s /usr/bin/pip3 /usr/bin/pip
