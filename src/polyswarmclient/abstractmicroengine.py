@@ -1,5 +1,9 @@
 import asyncio
+import json
 import logging
+
+from polyswarmartifact import ArtifactType
+from polyswarmartifact.schema import verdict, assertion
 
 from polyswarmclient import Client
 from polyswarmclient.abstractscanner import ScanResult
@@ -10,10 +14,15 @@ logger = logging.getLogger(__name__)
 
 
 class AbstractMicroengine(object):
-    def __init__(self, client, testing=0, scanner=None, chains=None):
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None):
         self.client = client
         self.chains = chains
         self.scanner = scanner
+        if artifact_types is None:
+            self.valid_artifact_types = [ArtifactType.FILE]
+        else:
+            self.valid_artifact_types = artifact_types
+
         self.client.on_run.register(self.__handle_run)
         self.client.on_new_bounty.register(self.__handle_new_bounty)
         self.client.on_reveal_assertion_due.register(self.__handle_reveal_assertion)
@@ -33,7 +42,7 @@ class AbstractMicroengine(object):
 
     @classmethod
     def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False,
-                scanner=None, chains=None):
+                scanner=None, chains=None, artifact_types=None):
         """Connect the Microengine to a Client.
 
         Args:
@@ -45,25 +54,27 @@ class AbstractMicroengine(object):
             insecure_transport (bool): Allow insecure transport such as HTTP?
             scanner (Scanner): `Scanner` instance to use.
             chains (set(str)):  Set of chains you are acting on.
+            artifact_types (list(ArtifactType)): List of artifact types you support
 
         Returns:
             AbstractMicroengine: Microengine instantiated with a Client.
         """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
-        return cls(client, testing, scanner, chains)
+        return cls(client, testing, scanner, chains, artifact_types)
 
-    async def scan(self, guid, content, chain):
+    async def scan(self, guid, artifact_type, content, chain):
         """Override this to implement custom scanning logic
 
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
+            artifact_type (ArtifactType): Artifact type for the bounty being scanned
             content (bytes): Content of the artifact to be scan
             chain (str): Chain we are operating on
         Returns:
             ScanResult: Result of this scan
         """
         if self.scanner:
-            return await self.scanner.scan(guid, content, chain)
+            return await self.scanner.scan(guid, artifact_type, content, chain)
 
         raise NotImplementedError(
             "You must 1) override this scan method OR 2) provide a scanner to your Microengine constructor")
@@ -73,7 +84,7 @@ class AbstractMicroengine(object):
 
         Args:
             guid (str): GUID of the bounty under analysis, use to correlate with artifacts in the same bounty
-            masks (list[bool]): mask for the from scanning the bounty files
+            mask (list[bool]): mask for the from scanning the bounty files
             verdicts (list[bool]): scan verdicts from scanning the bounty files
             confidences (list[float]): Measure of confidence of verdict per artifact ranging from 0.0 to 1.0
             metadatas (list[str]): metadata blurbs from scanning the bounty files
@@ -93,11 +104,12 @@ class AbstractMicroengine(object):
         # Clamp bid between min_bid and max_bid
         return max(min_bid, min(bid, max_bid))
 
-    async def fetch_and_scan_all(self, guid, uri, duration, chain):
+    async def fetch_and_scan_all(self, guid, artifact_type, uri, duration, chain):
         """Fetch and scan all artifacts concurrently
 
         Args:
             guid (str): GUID of the associated bounty
+            artifact_type (ArtifactType): Artifact type for the bounty being scanned
             uri (str):  Base artifact URI
             duration (int): Max number of blocks to take
             chain (str): Chain we are operating on
@@ -109,7 +121,7 @@ class AbstractMicroengine(object):
         async def fetch_and_scan(index):
             content = await self.client.get_artifact(uri, index)
             if content is not None:
-                return await self.scan(guid, content, chain)
+                return await self.scan(guid, artifact_type, content, chain)
 
             return ScanResult()
 
@@ -129,12 +141,16 @@ class AbstractMicroengine(object):
             chain (str): Chain we are operating on.
         """
         self.bounties_pending_locks[chain] = asyncio.Lock()
+        if self.scanner is not None and not await self.scanner.setup():
+            logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
+            exit(1)
 
-    async def __handle_new_bounty(self, guid, author, amount, uri, expiration, block_number, txhash, chain):
+    async def __handle_new_bounty(self, guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain):
         """Scan and assert on a posted bounty
 
         Args:
             guid (str): The bounty to assert on
+            artifact_type (ArtifactType): The type of artifacts in this bounty
             author (str): The bounty author
             amount (str): Amount of the bounty in base NCT units (10 ^ -18)
             uri (str): IPFS hash of the root artifact
@@ -146,6 +162,11 @@ class AbstractMicroengine(object):
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
+        # Skip bounties for types we don't support
+        if artifact_type not in self.valid_artifact_types:
+            logger.info(f'Bounty artifact type {artifact_type} is not supported')
+            return []
+
         async with self.bounties_pending_locks[chain]:
             bounties_pending = self.bounties_pending.get(chain, set())
             if guid in bounties_pending:
@@ -163,11 +184,18 @@ class AbstractMicroengine(object):
         expiration = int(expiration)
         duration = expiration - block_number
 
-        results = await self.fetch_and_scan_all(guid, uri, duration, chain)
+        results = await self.fetch_and_scan_all(guid, artifact_type, uri, duration, chain)
         mask = [r.bit for r in results]
         verdicts = [r.verdict for r in results]
         confidences = [r.confidence for r in results]
         metadatas = [r.metadata for r in results]
+        combined_metadata = ';'.join(metadatas)
+
+        try:
+            if all([metadata and verdict.Verdict.validate(json.loads(metadata)) for metadata in metadatas]):
+                combined_metadata = json.dumps([json.loads(metadata) for metadata in metadatas])
+        except json.JSONDecodeError:
+            logger.exception(f'Error decoding assertion metadata {metadatas}')
 
         if not any(mask):
             return []
@@ -181,16 +209,19 @@ class AbstractMicroengine(object):
         balance = await self.client.balances.get_nct_balance(chain)
         if balance < assertion_fee + bid:
             logger.critical('Insufficient balance to post assertion for bounty on %s. Have %s NCT. Need %s NCT', chain,
-                           balance, assertion_fee + bid, extra={'extra': guid})
+                            balance, assertion_fee + bid, extra={'extra': guid})
             if self.testing > 0:
-                self.client.exit_code = 1
-                asyncio_stop()
+                exit(1)
+
             return []
 
-        logger.info('Responding to bounty: %s', guid)
+        logger.info(f'Responding to {artifact_type.name.lower()} bounty {guid}')
         nonce, assertions = await self.client.bounties.post_assertion(guid, bid, mask, verdicts, chain)
         for a in assertions:
-            ra = RevealAssertion(guid, a['index'], nonce, verdicts, ';'.join(metadatas))
+            # Post metadata to IPFS and post ipfs_hash as metadata, if it exists
+            ipfs_hash = await self.client.bounties.post_metadata(combined_metadata, chain)
+            metadata = ipfs_hash if ipfs_hash is not None else combined_metadata
+            ra = RevealAssertion(guid, a['index'], nonce, verdicts, metadata)
             self.client.schedule(expiration, ra, chain)
 
             sb = SettleBounty(guid)

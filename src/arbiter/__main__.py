@@ -3,6 +3,8 @@ import importlib.util
 import logging
 import sys
 
+from polyswarmartifact import ArtifactType
+
 from polyswarmclient.config import init_logging
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -45,6 +47,8 @@ def choose_backend(backend):
 
 @click.command()
 @click.option('--log', default='WARNING', help='Logging level')
+@click.option('--client-log', default='WARNING',
+              help='PolySwarm Client log level')
 @click.option('--polyswarmd-addr', envvar='POLYSWARMD_ADDR', default='localhost:31337',
               help='Address (host:port) of polyswarmd instance')
 @click.option('--keyfile', envvar='KEYFILE', type=click.Path(exists=True), default='keyfile',
@@ -63,11 +67,15 @@ def choose_backend(backend):
               help='Chain(s) to operate on')
 @click.option('--log-format', default='text',
               help='Log format. Can be `json` or `text` (default)')
-def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, log_format):
+@click.option('--artifact-type', multiple=True, default=['file'],
+              help='List of artifact types to scan')
+def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains,
+         log_format, artifact_type):
     """Entrypoint for the arbiter driver
 
     Args:
-        log (str): Logging level
+        log (str): Logging level for all app logs
+        client_log (str): Logging level for all polyswarmclient logs
         polyswarmd_addr(str): Address of polyswarmd
         keyfile (str): Path to private key file to use to sign transactions
         password (str): Password to decrypt the encrypted private key
@@ -77,20 +85,29 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
         insecure_transport (bool): Connect to polyswarmd without TLS
         chains (List[str]): Chain(s) to operate on
         log_format (str): Format to output logs in. `text` or `json`
+        artifact_type (list[str]): List of artifact types to scan
     """
 
     loglevel = getattr(logging, log.upper(), None)
-    if not isinstance(loglevel, int):
+    clientlevel = getattr(logging, client_log.upper(), None)
+    if not isinstance(loglevel, int) or not isinstance(clientlevel, int):
         logging.error('invalid log level')
         sys.exit(-1)
 
     logger_name, arbiter_class = choose_backend(backend)
 
     init_logging(['arbiter', logger_name], log_format, loglevel)
+    init_logging(['polyswarmclient'], log_format, clientlevel)
+
+    artifact_types = None
+    if artifact_type:
+        artifact_types = [ArtifactType.from_string(artifact) for artifact in artifact_type]
+
     arbiter_class.connect(polyswarmd_addr, keyfile, password,
                           api_key=api_key, testing=testing,
                           insecure_transport=insecure_transport,
-                          chains=set(chains)).run()
+                          chains=set(chains),
+                          artifact_types=artifact_types).run()
 
 
 if __name__ == "__main__":

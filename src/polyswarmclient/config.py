@@ -1,7 +1,5 @@
 import click
-import functools
 import logging
-import signal
 import string
 
 from polyswarmclient.log_formatter import JSONFormatter, ExtraTextFormatter
@@ -39,7 +37,7 @@ class LoggerConfig:
     LEVELS = [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]
 
     def __init__(self, loggers, log_format, log_level=logging.WARNING):
-        self.loggers = loggers + ['polyswarmclient']
+        self.loggers = loggers
         self.log_format = log_format
         self.log_level = log_level
 
@@ -60,31 +58,8 @@ class LoggerConfig:
                 logger.setLevel(self.log_level)
                 logger.info("Logging in text format.")
 
-        signal.signal(signal.SIGUSR1, self.__signal_handler)
-        signal.signal(signal.SIGUSR2, self.__signal_handler)
-
     def set_level(self, new_level):
         self.log_level = new_level
         for name in self.loggers:
             logger = logging.getLogger(name)
             logger.setLevel(self.log_level)
-
-    def __signal_handler(self, signum, frame):
-        delta = 0
-        if signum == signal.SIGUSR1:
-            print('Incrementing logging level')
-            delta = 1
-        elif signum == signal.SIGUSR2:
-            print('Decrementing logging level')
-            delta = -1
-        else:
-            print('Unrecognized signal trapped, ignoring')
-            return
-
-        try:
-            cur_index = self.LEVELS.index(self.log_level)
-        except ValueError:
-            raise ValueError('Invalid logging level')
-
-        index = max(min(cur_index + delta, len(self.LEVELS) - 1), 0)
-        self.set_level(self.LEVELS[index])

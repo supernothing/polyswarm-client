@@ -1,8 +1,13 @@
 import asyncio
 import pytest
+from polyswarmartifact import ArtifactType
+
 import polyswarmclient
 import random
 import uuid
+from os import urandom
+
+from unittest.mock import patch
 
 import polyswarmclient.transaction
 import polyswarmclient.utils
@@ -27,6 +32,14 @@ def test_is_valid_ipfs_uri():
     valid_ipfs_uri = 'QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG'
     assert polyswarmclient.utils.is_valid_ipfs_uri(valid_ipfs_uri)
 
+@patch('os.urandom', return_value=0x41)
+def test_calculate_commitment(mock_fn):
+    nonce, commitment = polyswarmclient.utils.calculate_commitment(
+        "0x4141414141414141414141414141414141414141414141414141414141414141",
+        polyswarmclient.utils.bool_list_to_int([True, True, True])
+    )
+    assert nonce == 65
+    assert commitment == 16260335923677497924282686029038487427342546648292884828210727571478684022780
 
 @pytest.mark.asyncio
 async def test_update_base_nonce(mock_client):
@@ -102,6 +115,7 @@ async def test_on_new_bounty(mock_client):
     def make_bounty():
         return {
             'guid': str(uuid.uuid4()),
+            'artifact_type': ArtifactType.to_string(ArtifactType.FILE),
             'author': random_address(),
             'amount': random.randint(0, 10 ** 18),
             'uri': random_ipfs_uri(),
@@ -111,9 +125,10 @@ async def test_on_new_bounty(mock_client):
     home_bounty = make_bounty()
     side_bounty = make_bounty()
 
-    async def handle_new_bounty(guid, author, amount, uri, expiration, block_number, txhash, chain):
+    async def handle_new_bounty(guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain):
         new_bounty = {
             'guid': guid,
+            'artifact_type': ArtifactType.to_string(artifact_type),
             'author': author,
             'amount': amount,
             'uri': uri,

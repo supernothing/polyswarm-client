@@ -4,6 +4,9 @@ import random
 import os
 
 from concurrent.futures import CancelledError
+
+from polyswarmartifact import ArtifactType
+
 from polyswarmclient.abstractambassador import AbstractAmbassador
 
 logger = logging.getLogger(__name__)
@@ -17,6 +20,19 @@ BOUNTY_TEST_DURATION_BLOCKS = int(os.getenv('BOUNTY_TEST_DURATION_BLOCKS', 5))
 
 class Ambassador(AbstractAmbassador):
     """Ambassador which submits the EICAR test file"""
+
+    def __init__(self, client, testing=0, chains=None, watchdog=0, submission_rate=30):
+        """
+        Initialize {{ cookiecutter.participant_name }}
+
+        Args:
+            client (`Client`): Client to use
+            testing (int): How many test bounties to respond to
+            chains (set[str]): Chain(s) to operate on
+            watchdog: interval over which a watchdog thread should verify bounty placement on-chain (in number of blocks)
+            submission_rate: if nonzero, produce a sleep in the main event loop to prevent the ambassador from overloading `polyswarmd` during testing
+        """
+        super().__init__(client, testing, chains, watchdog, submission_rate)
 
     async def generate_bounties(self, chain):
         """Submit either the EICAR test string or a benign sample
@@ -36,9 +52,9 @@ class Ambassador(AbstractAmbassador):
                     logger.error('Error uploading artifact to IPFS, continuing')
                     continue
 
-                await self.push_bounty(amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS, chain)
+                await self.push_bounty(ArtifactType.FILE, amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS, chain)
             except CancelledError:
-                logger.warning('Cancel requested')
+                logger.info('Cancel requested')
                 break
             except Exception:
                 logger.exception('Exception in bounty generation task, continuing')

@@ -3,6 +3,8 @@ import logging
 from functools import total_ordering
 from queue import PriorityQueue
 
+from polyswarmartifact import ArtifactType
+
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
@@ -85,19 +87,22 @@ class OnNewBlockCallback(Callback):
 class OnNewBountyCallback(Callback):
     """Called upon receiving a new bounty"""
 
-    async def run(self, guid, author, amount, uri, expiration, block_number, txhash, chain):
+    async def run(self, guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain):
         """Run the registered callbacks
 
         Args:
             guid (str): Bounty GUID
+            artifact_type (str): String representation of artifact type
             author (str): Author of the bounty
+            amount (int): Bounty reward amount
             uri (str): URI of the artifacts in the bounty
             expiration (int): Block number the bounty expires on
             block_number (int): Block number the bounty was posted on
             txhash (str): Transaction hash which caused the event
             chain (str): Chain event received on
         """
-        return await super().run(guid, author, amount, uri, expiration, block_number, txhash, chain)
+        return await super().run(guid, ArtifactType.from_string(artifact_type), author, amount, uri, expiration,
+                                 block_number, txhash, chain)
 
 
 class OnNewAssertionCallback(Callback):

@@ -1,5 +1,98 @@
 # Release History
 
+### 2.1.1 (2019-06-07)
+
+* **Fix** - Use polyswarm-artifact 1.1.1 with `architecture` fix
+
+### 2.1.0 (2019-06-06)
+
+* **Feature** - Push metadata to IPFS if it matches the Verdict Schema in polyswarm-artifact (Not breaking)
+* **Feature** - Add Ambassador bounty submission env vars to dynamically set rate of bounty submissions.
+* **Fix** - Pass artifact type on second on_bounty_post_failed call
+* **Fix** - Remove stop and join when scanner setup fails
+
+### 2.0.2 (2019-05-24)
+
+* **Feature** - Add `setup()` to `AbstractScanner` for setting up AV services in a worker
+
+### 2.0.1 (2019-05-23)
+
+* **Fix** - Increment counter on scan results for use in horizontal scaling of workers
+* **Fix** - Reset failed tries counter on successful worker response
+
+### 2.0.0 (2019-05-22)
+
+* **Fix** - Cap websocket retry connection backoff wait time
+* **Feature** - Add artifact type handling & filtering
+
+The update from 1.5.6 to 2.0.0 is a breaking change.
+1. `AbstractAmbassador.push_bounty()` parameters changed to `(self, artifact_type, amount, ipfs_uri, duration, chain, api_key)`
+1. `AbstractAmbassador.on_bounty_post_failed()` parameters changed to `(self, artifact_type, amount, ipfs_uri, expiration, chain)`
+1. `AbstractAmbassador.on_before_bounty_posted()` parameters changed to `(self, artifact_type, amount, ipfs_uri, expiration, chain)`
+1. `AbstractAmbassador.on_after_bounty_posted()` parameters changed to `(self, guid, artifact_type, amount, ipfs_uri, expiration, chain)`
+1. `AbstractMicroengine` and `AbstractArbiter` `.fetch_and_scan_all()` parameters changed to `(self, guid, artifact_type, uri, vote_round_end, chain)`
+1. `AbstractMicroengine` and `AbstractArbiter` `.scan()` parameters changed to `(self, guid, artifact_type, content, chain)`
+1. `AbstractScanner.scan()` parameters changed to `(self, guid, artifact_type, content, chain)`
+1. `PolyswarmClient.on_new_bounty` event parameters changed to `(self, guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain)`
+1. `Producer.scan()` parameters changed to ` (guid, artifact_type, uri, expiration_blocks, chain)`
+
+
+### 1.5.6 (2019-05-16)
+
+* **Fix** - Handle ServerDisconnectError
+
+### 1.5.5 (2019-05-14)
+
+* **Feature** - Add arbiter producer backend
+* **Fix** - Reduce CancelledError log severity
+
+### 1.5.4 (2019-05-14)
+
+* **Fix** - added correct image that runs the linuxbase job
+
+### 1.5.3 (2019-05-14)
+
+* **Fix** - Fix docker build syntax
+
+### 1.5.2 (2019-05-14)
+
+* **Fix** - Fix Windows build
+
+### 1.5.1 (2019-05-13)
+
+* **Feature** - Standardize exit and improve failure logging
+* **Feature** - Build, test, and install from polyswarm-client root on Windows
+* **Feature** - Add `--denomination` and `--all` options to balancemanager
+
+### 1.5.0 (2019-05-08)
+
+* **Feature** - Skip expired jobs in worker, and unblock redis connection pool during worker response timeouts
+* **Fix** - Check additional direct dictionary accesses i.e `var['value']` uses
+* **Fix** - Remove custom pyethash
+* **Feature** - Add `--client-log` option for specifying `polyswarmclient` module log level
+
+The update from 1.4.3 to 1.5.0 is a breaking change for the microengine producer backend and workers.
+Existing queued jobs will not be handled by the new worker.  
+
+### 1.4.3 (2019-05-03)
+
+* **Fix** - Reconnect to Redis on failure
+* **Fix** - Handle Redis OOM error
+
+### 1.4.2 (2019-04-26)
+
+* **Feature** - Add Dockerfile to build a base Windows docker image containing polyswarm-client
+* **Fix** - Clean up logging; remove polyswarmclient from loggers
+* **Fix** - Clean up imports and dependencies to make polyswarm-client easier to build on Windows (remove pyethereum)
+
+### 1.4.1 (2019-04-12)
+
+* **Fix** - Add a timestamp (ts) key into the message payload in the producer
+* **Fix** - Add a sane backoff when worker fails to process a message
+* **Fix** - Error handling for mismatching keys on message processing
+* **Fix** - Remove dynamically increasing/decreasing log levels via SIGUSR1/SIGUSR2
+* **Fix** - Update versions for aiodns and aiohttp
+
 ### 1.4.0 (2019-04-05)
 
 * **Feature** - Move to python3.6 by default for both Docker and tests

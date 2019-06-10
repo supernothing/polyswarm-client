@@ -5,21 +5,25 @@ stages:
   - ciimage
   - test
   - e2e
-  - prebuildwindows
-  - notifydependents
+  - test_pypi
   - pypi
+  - container_test
+  - postrelease
+  - notifydependents
 
 variables:
-  STAGE_IMAGE: $CI_CUSTOM_DEV_REGISTRY_URI/ci-images/stage:latest
+  STAGE_IMAGE: $REPO_URL/stage:latest
 
 buildciimage:
-  image: $STAGE_IMAGE
+  image: docker:stable
   tags:
     - docker
   stage: ciimage
   script:
-    - docker login -u "$CI_CUSTOM_DEV_REGISTRY_USERNAME" -p "$CI_CUSTOM_DEV_REGISTRY_PASSWORD" "$CI_CUSTOM_DEV_REGISTRY_URI"
-    - docker build -t $STAGE_IMAGE  docker/ci-image/
+    - apk add --no-cache py-pip
+    - pip install awscli
+    - eval $(aws ecr get-login --no-include-email --region us-east-1)
+    - docker build -t $STAGE_IMAGE  -f docker/ci-image/ .
     - docker push $STAGE_IMAGE
   only:
     - images
@@ -33,68 +37,19 @@ test:
     - tox -e py36
   except:
     - images
+    - update/images
 
-kick-e2e:
+test-push-to-pypi:
   image: $STAGE_IMAGE
-  tags:
-      - docker
-  except:
-    - images
-  stage: e2e
-  script:
-    - set -e
-
-    # kick e2e
-    - >-
-      E2E_PIPELINE_ID=`curl
-      --silent
-      --request POST
-      --form "token=$CI_JOB_TOKEN"
-      --form "variables[SOURCE_PROJECT]=$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME"
-      --form "variables[SOURCE_BRANCH]=$CI_COMMIT_REF_NAME"
-      --form "ref=master"
-      "https://gitlab.polyswarm.io/api/v4/projects/${CI_CUSTOM_PROJECT_ID_E2E}/trigger/pipeline" | jq -r ".id"`
-
-    # poll for it to finish
-    - >-
-      while [ -z $PIPELINE_STATUS ] || [ $PIPELINE_STATUS = "pending" ] || [ $PIPELINE_STATUS = "running" ]; do
-        PIPELINE_STATUS=`curl \
-          --silent \
-          --header "PRIVATE-TOKEN: $CI_CUSTOM_CI_PAT" \
-          "https://gitlab.polyswarm.io/api/v4/projects/${CI_CUSTOM_PROJECT_ID_E2E}/pipelines/$E2E_PIPELINE_ID" | jq -r ".status"`
-        echo "waiting for e2e pipeline ...";
-        sleep 5;
-      done
-
-    # check for success
-    - >-
-      if [ $PIPELINE_STATUS != "success" ]; then
-        echo "failure further down the pipeline"
-        exit 1
-      fi
-
-wheels:
-  image: docker:stable
-  stage: prebuildwindows
-  tags:
-    - win2k16
-  only:
-    - feature/windows-builds
-    - master
-  script:
-    - docker build -t polyswarm/windows-builder -f docker/windows/choco/Dockerfile .
-    - docker run --rm -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -t polyswarm/windows-builder
-
-kickafterpacker:
-  image: $STAGE_IMAGE
-  stage: notifydependents
+  stage: test_pypi
   tags:
     - docker
   only:
-    - feature/windows-builds
-    - master
+    - feature/test-pypi
   script:
-    - python3 kick_downstream.py
+    - python setup.py sdist bdist_wheel
+    # using env variables from Gitlab: TWINE_USERNAME, TWINE_PASSWORD, TWINE_REPOSITORY_URL
+    - twine upload --repository-url $TWINE_REPOSITORY_URL_TEST -u $TWINE_USERNAME_TEST -p $TWINE_PASSWORD_TEST dist/*
 
 push-to-pypi:
   image: $STAGE_IMAGE
@@ -118,3 +73,66 @@ push-to-pypi:
 
     # using env variables from Gitlab: TWINE_USERNAME, TWINE_PASSWORD, TWINE_REPOSITORY_URL
     - twine upload dist/*
+
+windowsbase_container_test:
+  stage: container_test
+  tags:
+    - win-participants
+  only:
+    - feature/base-windows-build
+    - fix/impersonate-windows-tty
+    - tags
+  script:
+    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
+    - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/Dockerfile .
+    - docker run polyswarm/polyswarm-client-windows powershell -NoProfile -Command 'Set-Location C:/polyswarm/polyswarm-client; pip install tox; tox'
+
+windowsbase:
+  stage: postrelease
+  tags:
+    - win-participants
+  only:
+    - feature/base-windows-build
+    - tags
+  script:
+    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
+    - docker build --pull -t polyswarm/polyswarm-client-windows -t "polyswarm/polyswarm-client-windows:$CI_COMMIT_SHA" -t "$REPO_URL/polyswarm-client-windows:latest" -t "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" -t "polyswarm/polyswarm-client-windows:$(git describe --tags --abbrev=0)" -f docker/windows/Dockerfile .
+    - docker push polyswarm/polyswarm-client-windows:latest
+    - docker push "polyswarm/polyswarm-client-windows:$CI_COMMIT_SHA"
+    - docker push "polyswarm/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
+    - docker logout
+    - pip install awscli
+    - aws ecr get-login --no-include-email --region us-east-1 | Powershell
+    - docker push "$REPO_URL/polyswarm-client-windows:latest"
+    - docker push "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
+
+linuxbase:
+  image: $STAGE_IMAGE
+  stage: postrelease
+  tags:
+    - docker
+  only:
+    - feature/base-linux-build
+    - tags
+  script:
+    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
+    - docker build -t polyswarm/polyswarm-client -t "polyswarm/polyswarm-client:$CI_COMMIT_SHA" -t "polyswarm/polyswarm-client:$(git describe --tags --abbrev=0)" -t "$REPO_URL/polyswarm-client:latest" -t "$REPO_URL/polyswarm-client:$CI_COMMIT_SHA" -f docker/Dockerfile .
+    - docker push polyswarm/polyswarm-client:latest
+    - docker push "polyswarm/polyswarm-client:$CI_COMMIT_SHA"
+    - docker push "polyswarm/polyswarm-client:$(git describe --tags --abbrev=0)"
+    - docker logout
+    - pip install awscli
+
+    - eval $(aws ecr get-login --no-include-email --region us-east-1)
+    - docker push "$REPO_URL/polyswarm-client:latest"
+    - docker push "$REPO_URL/polyswarm-client:$CI_COMMIT_SHA"
+
+kickafterdepends:
+  image: $STAGE_IMAGE
+  stage: notifydependents
+  only:
+    - feature/base-windows-build
+    - feature/base-linux-build
+    - tags
+  script:
+    - python3 kick_downstream.py

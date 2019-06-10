@@ -50,24 +50,11 @@ class DownstreamKicker(object):
         return j['token']
 
     def kick_dependent_project(self, proj):
-
         project_id = self.resolve_project_id(proj)
-
         trigger_token = self.get_or_update_project_token(project_id)
-        ref_name = os.getenv("CI_COMMIT_REF_NAME")
-
-        r = None
-        try:
-            r = requests.post("{0}/api/v4/projects/{1}/trigger/pipeline".format(self.gitlab_url_base, project_id),
-                              data={'ref': ref_name, 'token': trigger_token},
-
-                              )
-            r.raise_for_status()
-        except HTTPError as e:
-            if os.getenv("CI_COMMIT_REF_NAME") != "master":
-                print("Matching branch {0} not found, skipping for project {1}".format(ref_name, proj))
-                return r
-            raise e
+        r = requests.post("{0}/api/v4/projects/{1}/trigger/pipeline".format(self.gitlab_url_base, project_id),
+                            data={'ref': 'master', 'token': trigger_token})
+        r.raise_for_status()
         return r
 
     def get_engine_projects(self):

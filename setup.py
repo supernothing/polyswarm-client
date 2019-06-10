@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 
 def parse_requirements():
     with open('requirements.txt', 'r') as f:
-        return [r for r in f.read().splitlines() if not r.startswith('git')]
+        return [r for r in f.read().splitlines() if not r.startswith('git') and not r.startswith('.')]
 
 
 # The README.md will be used as the content for the PyPi package details page on the Python Package Index.
@@ -13,7 +13,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='polyswarm-client',
-    version='1.4.0',
+    version='2.1.1',
     description='Client library to simplify interacting with a polyswarmd instance',
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -21,7 +21,7 @@ setup(
     author_email='info@polyswarm.io',
     url='https://github.com/polyswarm/polyswarm-client',
     license='MIT',
-    python_requires='>=3.5.4,<4',
+    python_requires='>=3.6.5,<4',
     install_requires=parse_requirements(),
     include_package_data=True,
     packages=find_packages('src'),
@@ -40,7 +40,6 @@ setup(
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: Implementation :: PyPy",
