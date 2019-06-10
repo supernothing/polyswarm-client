@@ -23,7 +23,7 @@ buildciimage:
     - apk add --no-cache py-pip
     - pip install awscli
     - eval $(aws ecr get-login --no-include-email --region us-east-1)
-    - docker build -t $STAGE_IMAGE  -f docker/ci-image/ .
+    - docker build -t $STAGE_IMAGE  -f docker/ci-image/Dockerfile .
     - docker push $STAGE_IMAGE
   only:
     - images
