@@ -12,7 +12,7 @@ stages:
   - notifydependents
 
 variables:
-  STAGE_IMAGE: $$REPO_URL/stage:latest
+  STAGE_IMAGE: $REPO_URL/stage:latest
 
 buildciimage:
   image: $STAGE_IMAGE
