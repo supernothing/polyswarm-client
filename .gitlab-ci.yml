@@ -2,7 +2,6 @@ services:
   - docker:dind
 
 stages:
-  - ciimage
   - test
   - e2e
   - test_pypi
@@ -14,20 +13,6 @@ stages:
 variables:
   STAGE_IMAGE: $REPO_URL/stage:latest
 
-buildciimage:
-  image: docker:stable
-  tags:
-    - docker
-  stage: ciimage
-  script:
-    - apk add --no-cache py-pip
-    - pip install awscli
-    - eval $(aws ecr get-login --no-include-email --region us-east-1)
-    - docker build -t $STAGE_IMAGE  -f docker/ci-image/Dockerfile .
-    - docker push $STAGE_IMAGE
-  only:
-    - images
-
 test:
   image: $STAGE_IMAGE
   stage: test
@@ -35,9 +20,6 @@ test:
     - docker
   script:
     - tox -e py36
-  except:
-    - images
-    - update/images
 
 test-push-to-pypi:
   image: $STAGE_IMAGE
