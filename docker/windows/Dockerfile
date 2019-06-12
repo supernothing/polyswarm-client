@@ -4,16 +4,17 @@ LABEL description="Base image for Polyswarm Windows Microengines"
 SHELL ["powershell", "-ExecutionPolicy bypass", "-NoProfile", "-command"]
 
 ## -- Install Choco -----------------------
+# Can not do multiple installations with one command at the moment
+# https://chocolatey.org/docs/commands-reference#how-to-pass-options--switches
 RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1')); `
     ## -- Microengine Dependencies ------------
     ## Needed to build native extensions
-    choco install -y `
-        git `
-        vcbuildtools --version 2015.4 `
-        ## Install basic polyswarm python pkgs
-        python --version 3.6.7 `
-        ## -- Utilities ---------------------------
-        vim-console
+    choco install -y git; `
+    choco install -y vcbuildtools --version 2015.4; `
+    ## Install basic polyswarm python pkgs
+    choco install -y python --version 3.6.7; `
+    ## -- Utilities ---------------------------
+    choco install -y vim-console
 
 ## -- Install polyswarm-client -----------
 COPY . C:/polyswarm/polyswarm-client
