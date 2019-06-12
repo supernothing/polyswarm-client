@@ -2,7 +2,6 @@ services:
   - docker:dind
 
 stages:
-  - ciimage
   - test
   - e2e
   - test_pypi
@@ -12,19 +11,7 @@ stages:
   - notifydependents
 
 variables:
-  STAGE_IMAGE: $CI_CUSTOM_DEV_REGISTRY_URI/ci-images/stage:latest
-
-buildciimage:
-  image: $STAGE_IMAGE
-  tags:
-    - docker
-  stage: ciimage
-  script:
-    - docker login -u "$CI_CUSTOM_DEV_REGISTRY_USERNAME" -p "$CI_CUSTOM_DEV_REGISTRY_PASSWORD" "$CI_CUSTOM_DEV_REGISTRY_URI"
-    - docker build -t $STAGE_IMAGE  docker/ci-image/
-    - docker push $STAGE_IMAGE
-  only:
-    - images
+  STAGE_IMAGE: $REPO_URL/stage:latest
 
 test:
   image: $STAGE_IMAGE
@@ -33,8 +20,6 @@ test:
     - docker
   script:
     - tox -e py36
-  except:
-    - images
 
 test-push-to-pypi:
   image: $STAGE_IMAGE
