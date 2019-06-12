@@ -3,8 +3,9 @@ import json
 import logging
 
 from polyswarmartifact import ArtifactType
-from polyswarmartifact.schema import verdict, assertion
+from polyswarmartifact.schema import verdict
 
+from polyswarmclient import BidStrategyBase
 from polyswarmclient import Client
 from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.events import RevealAssertion, SettleBounty
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class AbstractMicroengine(object):
-    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None):
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None):
         self.client = client
         self.chains = chains
         self.scanner = scanner
@@ -29,9 +30,7 @@ class AbstractMicroengine(object):
         self.client.on_quorum_reached.register(self.__handle_quorum_reached)
         self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
 
-        # Limits used by default bidding logic
-        self.min_bid = 0
-        self.max_bid = 0
+        self.bid_strategy = bid_strategy
 
         self.testing = testing
         self.bounties_pending = {}
@@ -42,7 +41,7 @@ class AbstractMicroengine(object):
 
     @classmethod
     def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False,
-                scanner=None, chains=None, artifact_types=None):
+                scanner=None, chains=None, artifact_types=None, bid_strategy=None):
         """Connect the Microengine to a Client.
 
         Args:
@@ -60,7 +59,7 @@ class AbstractMicroengine(object):
             AbstractMicroengine: Microengine instantiated with a Client.
         """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
-        return cls(client, testing, scanner, chains, artifact_types)
+        return cls(client, testing, scanner, chains, artifact_types, bid_strategy)
 
     async def scan(self, guid, artifact_type, content, chain):
         """Override this to implement custom scanning logic
@@ -93,12 +92,18 @@ class AbstractMicroengine(object):
         Returns:
             int: Amount of NCT to bid in base NCT units (10 ^ -18)
         """
+        min_bid_multiplier = 1
+        max_bid_multiplier = 1
+        if self.bid_strategy is not None and isinstance(self.bid_strategy, BidStrategyBase):
+            min_bid_multiplier = self.bid_strategy.min_bid_multiplier
+            max_bid_multiplier = self.bid_strategy.max_bid_multiplier
+
         min_allowed_bid = await self.client.bounties.parameters[chain].get('assertion_bid_minimum')
-        min_bid = max(self.min_bid, min_allowed_bid)
-        max_bid = max(self.max_bid, min_allowed_bid)
+        min_bid = max(min_allowed_bid * min_bid_multiplier, min_allowed_bid)
+        max_bid = max(min_allowed_bid * max_bid_multiplier, min_allowed_bid)
 
         asserted_confidences = [c for b, c in zip(mask, confidences) if b]
-        avg_confidence = sum(asserted_confidences) / len(asserted_confidences)
+        avg_confidence = sum(asserted_confidences) / len(asserted_confidences) if asserted_confidences else 0
         bid = int(min_bid + ((max_bid - min_bid) * avg_confidence))
 
         # Clamp bid between min_bid and max_bid

@@ -44,7 +44,7 @@ class Scanner(AbstractScanner):
 class Microengine(AbstractMicroengine):
     """Microengine which matches samples against yara rules"""
 
-    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None):
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None):
         """Initialize a Yara microengine
 
         Args:
@@ -56,4 +56,4 @@ class Microengine(AbstractMicroengine):
         if artifact_types is None:
             artifact_types = [ArtifactType.FILE]
         scanner = Scanner()
-        super().__init__(client, testing, scanner, chains, artifact_types)
+        super().__init__(client, testing, scanner, chains, artifact_types, bid_strategy)

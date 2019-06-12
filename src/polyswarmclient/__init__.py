@@ -7,6 +7,7 @@ import time
 import websockets
 
 from polyswarmclient import events
+from polyswarmclient.bidstrategy import BidStrategyBase
 from polyswarmclient.balanceclient import BalanceClient
 from polyswarmclient.bountiesclient import BountiesClient
 from polyswarmclient.stakingclient import StakingClient

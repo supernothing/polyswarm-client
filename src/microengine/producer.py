@@ -16,10 +16,10 @@ KEY_TIMEOUT = 20
 
 
 class Microengine(AbstractMicroengine):
-    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None):
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None):
         if artifact_types is None:
             artifact_types = [ArtifactType.FILE]
-        super().__init__(client, testing, None, chains, artifact_types)
+        super().__init__(client, testing, None, chains, artifact_types, bid_strategy)
 
         if QUEUE is None:
             raise ValueError('No queue configured, set the QUEUE environment variable')
