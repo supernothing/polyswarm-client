@@ -28,6 +28,7 @@ class AbstractMicroengine(object):
         self.client.on_new_bounty.register(self.__handle_new_bounty)
         self.client.on_reveal_assertion_due.register(self.__handle_reveal_assertion)
         self.client.on_quorum_reached.register(self.__handle_quorum_reached)
+        self.client.on_settled_bounty.register(self.__handle_settled_bounty)
         self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
 
         self.bid_strategy = bid_strategy
@@ -175,7 +176,7 @@ class AbstractMicroengine(object):
         async with self.bounties_pending_locks[chain]:
             bounties_pending = self.bounties_pending.get(chain, set())
             if guid in bounties_pending:
-                logger.info('Bounty %s already seen, not responding', guid)
+                logger.debug(f'Bounty {guid} already seen, not responding')
                 return []
             self.bounties_pending[chain] = bounties_pending | {guid}
 
@@ -184,7 +185,7 @@ class AbstractMicroengine(object):
             if self.bounties_seen > self.testing:
                 logger.warning('Received new bounty, but finished with testing mode')
                 return []
-            logger.info('Testing mode, %s bounties remaining', self.testing - self.bounties_seen)
+            logger.info(f'Testing mode, {self.testing - self.bounties_seen} bounties remaining')
 
         expiration = int(expiration)
         duration = expiration - block_number
@@ -213,8 +214,8 @@ class AbstractMicroengine(object):
         bid = await self.bid(guid, mask, verdicts, confidences, metadatas, chain)
         balance = await self.client.balances.get_nct_balance(chain)
         if balance < assertion_fee + bid:
-            logger.critical('Insufficient balance to post assertion for bounty on %s. Have %s NCT. Need %s NCT', chain,
-                            balance, assertion_fee + bid, extra={'extra': guid})
+            logger.critical(f'Insufficient balance to post assertion for bounty on {chain}. Have {balance} NCT. '
+                            f'Need {assertion_fee + bid} NCT', extra={'extra': guid})
             if self.testing > 0:
                 exit(1)
 
@@ -253,7 +254,7 @@ class AbstractMicroengine(object):
             if self.reveals_posted > self.testing:
                 logger.warning('Scheduled reveal, but finished with testing mode')
                 return []
-            logger.info('Testing mode, %s reveals remaining', self.testing - self.reveals_posted)
+            logger.info(f'Testing mode, {self.testing - self.reveals_posted} reveals remaining')
         return await self.client.bounties.post_reveal(bounty_guid, index, nonce, verdicts, metadata, chain)
 
     async def __do_handle_settle_bounty(self, bounty_guid, chain):
@@ -269,7 +270,7 @@ class AbstractMicroengine(object):
         async with self.bounties_pending_locks[chain]:
             bounties_pending = self.bounties_pending.get(chain, set())
             if bounty_guid not in bounties_pending:
-                logger.info('Bounty %s already settled', bounty_guid)
+                logger.debug(f'Bounty {bounty_guid} already settled')
                 return []
             self.bounties_pending[chain] = bounties_pending - {bounty_guid}
 
@@ -278,10 +279,10 @@ class AbstractMicroengine(object):
             if self.settles_posted > self.testing:
                 logger.warning('Scheduled settle, but finished with testing mode')
                 return []
-            logger.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
+            logger.info(f'Testing mode, {self.testing - self.settles_posted} settles remaining')
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
-        if self.testing > 0 and self.settles_posted >= self.testing:
+        if 0 < self.testing <= self.settles_posted:
             logger.info("All testing bounties complete, exiting")
             asyncio_stop()
         return ret
@@ -290,4 +291,7 @@ class AbstractMicroengine(object):
         return await self.__do_handle_settle_bounty(bounty_guid, chain)
 
     async def __handle_settle_bounty(self, bounty_guid, chain):
+        return await self.__do_handle_settle_bounty(bounty_guid, chain)
+
+    async def __handle_settled_bounty(self, bounty_guid, settler, payout, block_number, txhash, chain):
         return await self.__do_handle_settle_bounty(bounty_guid, chain)

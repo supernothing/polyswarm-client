@@ -35,6 +35,7 @@ class AbstractAmbassador(ABC):
         self.client.on_run.register(self.__handle_run)
         self.client.on_new_block.register(self.__handle_new_block)
         self.client.on_quorum_reached.register(self.__handle_quorum_reached)
+        self.client.on_settled_bounty.register(self.__handle_settled_bounty)
         self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
 
         # Initialize in run_task to ensure we're on the right loop
@@ -97,7 +98,7 @@ class AbstractAmbassador(ABC):
             api_key (str): API key to use to submit, if None use default from client
         """
         bounty = QueuedBounty(artifact_type, amount, ipfs_uri, duration, api_key=api_key)
-        logger.info('Queueing bounty %s', bounty)
+        logger.info(f'Queueing bounty {bounty}')
 
         await self.bounty_queues[chain].put(bounty)
 
@@ -184,13 +185,13 @@ class AbstractAmbassador(ABC):
             if balance < bounty.amount + bounty_fee:
                 # Skip to next bounty, so one ultra high value bounty doesn't DOS ambassador
                 if self.client.tx_error_fatal and tries >= MAX_TRIES:
-                    logger.error('Failed %d attempts to post bounty due to low balance. Exiting', tries)
+                    logger.error(f'Failed {tries} attempts to post bounty due to low balance. Exiting')
                     exit(1)
                     return
                 else:
                     tries += 1
-                    logger.critical('Insufficient balance to post bounty on %s. Have %s NCT. Need %s NCT.', chain,
-                                    balance, bounty.amount + bounty_fee, extra={'extra': bounty})
+                    logger.critical(f'Insufficient balance to post bounty on {chain}. Have {balance} NCT. '
+                                    f'Need {bounty.amount + bounty_fee} NCT.', extra={'extra': bounty})
                     await asyncio.sleep(tries * tries)
                     continue
 
@@ -206,7 +207,7 @@ class AbstractAmbassador(ABC):
             else:
                 async with self.bounties_posted_locks[chain]:
                     bounties_posted = self.bounties_posted.get(chain, 0)
-                    logger.info('Submitted bounty %s', bounties_posted, extra={'extra': bounty})
+                    logger.info(f'Submitted bounty {bounties_posted}', extra={'extra': bounty})
                     self.bounties_posted[chain] = bounties_posted + len(bounties)
 
                 async with self.bounties_pending_locks[chain]:
@@ -232,7 +233,7 @@ class AbstractAmbassador(ABC):
             self.bounty_semaphores[chain].release()
             return
 
-        logger.warning('Failed %d attempts to post bounty due to low balance. Skipping', tries, extra={'extra': bounty})
+        logger.warning(f'Failed {tries} attempts to post bounty due to low balance. Skipping', extra={'extra': bounty})
         await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration, chain)
 
     async def __handle_new_block(self, number, chain):
@@ -274,7 +275,7 @@ class AbstractAmbassador(ABC):
         async with self.bounties_pending_locks[chain]:
             bounties_pending = self.bounties_pending.get(chain, set())
             if bounty_guid not in bounties_pending:
-                logger.info('Bounty %s already settled', bounty_guid)
+                logger.debug(f'Bounty {bounty_guid} already settled')
                 return []
             self.bounties_pending[chain] = bounties_pending - {bounty_guid}
 
@@ -290,7 +291,7 @@ class AbstractAmbassador(ABC):
                 elif self.settles_posted[chain] == self.testing:
                     last_settle = True
 
-            logger.info('Testing mode, %s settles remaining', self.testing - self.settles_posted[chain])
+            logger.info(f'Testing mode, {self.testing - self.settles_posted[chain]} settles remaining')
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
         if last_settle:
@@ -303,6 +304,9 @@ class AbstractAmbassador(ABC):
         return await self.__do_handle_settle_bounty(bounty_guid, chain)
 
     async def __handle_settle_bounty(self, bounty_guid, chain):
+        return await self.__do_handle_settle_bounty(bounty_guid, chain)
+
+    async def __handle_settled_bounty(self, bounty_guid, settler, payout, block_number, txhash, chain):
         return await self.__do_handle_settle_bounty(bounty_guid, chain)
 
     async def on_before_bounty_posted(self, artifact_type, amount, ipfs_uri, duration, chain):
