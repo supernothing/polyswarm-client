@@ -110,7 +110,7 @@ release-latest-linux:
     - docker push "polyswarm/polyswarm-client:latest"
 
 push-to-pypi:
-  stage: pypi
+  stage: release
   tags:
     - kube
   only:
