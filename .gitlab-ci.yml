@@ -22,9 +22,9 @@ build-linux:
   tags:
     - kube
   script:
-    - docker pull "$REPO_URL/polyswarm-client:latest"
-    - docker build -t $REPO_URL/polyswarm-client:$CI_COMMIT_SHA -f docker/Dockerfile --cache-from="$REPO_URL/polyswarm-client:latest" .
-    - docker push "$REPO_URL/polyswarm-client:$CI_COMMIT_SHA"
+    - docker pull $REPO_URL/polyswarm-client:latest
+    - docker build -t $REPO_URL/polyswarm-client:$CI_COMMIT_SHA -f docker/Dockerfile --cache-from=$REPO_URL/polyswarm-client:latest .
+    - docker push $REPO_URL/polyswarm-client:$CI_COMMIT_SHA
 
 
 build-windows:
@@ -34,9 +34,9 @@ build-windows:
   script:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
-    - docker pull "$REPO_URL/polyswarm-client-windows:latest"
-    - docker build -t $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA -f docker/windows/Dockerfile --cache-from="$REPO_URL/polyswarm-client-windows:latest" .
-    - docker push "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
+    - docker pull $REPO_URL/polyswarm-client-windows:latest
+    - docker build -t $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA -f docker/windows/Dockerfile --cache-from=$REPO_URL/polyswarm-client-windows:latest .
+    - docker push $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA
 
 ###############################################################
 # Test Stage
