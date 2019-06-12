@@ -73,7 +73,7 @@ test-windows:
   script:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
-    - docker pull $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
+    - docker pull $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA
     - docker run $REPO_URL/polyswarm-client-windows powershell -NoProfile -Command 'Set-Location C:/polyswarm/polyswarm-client; tox'
 
 ###############################################################
