@@ -23,7 +23,7 @@ build-linux:
     - kube
   script:
     - docker pull "$REPO_URL/polyswarm-client:latest"
-    - docker build -t polyswarm/polyswarm-client:$CI_COMMIT_SHA -f docker/Dockerfile --cache-from="$REPO_URL/polyswarm-client:latest" .
+    - docker build -t $REPO_URL/polyswarm-client:$CI_COMMIT_SHA -f docker/Dockerfile --cache-from="$REPO_URL/polyswarm-client:latest" .
     - docker push "$REPO_URL/polyswarm-client:$CI_COMMIT_SHA"
 
 
@@ -35,7 +35,7 @@ build-windows:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     - docker pull "$REPO_URL/polyswarm-client-windows:latest"
-    - docker build -t polyswarm/polyswarm-client-windows:$CI_COMMIT_SHA -f docker/windows/Dockerfile --cache-from="$REPO_URL/polyswarm-client-windows:latest" .
+    - docker build -t $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA -f docker/windows/Dockerfile --cache-from="$REPO_URL/polyswarm-client-windows:latest" .
     - docker push "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
 
 ###############################################################
@@ -74,7 +74,7 @@ test-windows:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     - docker pull $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
-    - docker run polyswarm/polyswarm-client-windows powershell -NoProfile -Command 'Set-Location C:/polyswarm/polyswarm-client; tox'
+    - docker run $REPO_URL/polyswarm-client-windows powershell -NoProfile -Command 'Set-Location C:/polyswarm/polyswarm-client; tox'
 
 ###############################################################
 # Release Stage
