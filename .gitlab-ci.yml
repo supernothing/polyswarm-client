@@ -173,7 +173,7 @@ release-latest-windows:
 # Deployment Stage
 ###############################################################
 
-kickafterdepends:
+notify-engines:
   stage: deployment
   only:
     - master
