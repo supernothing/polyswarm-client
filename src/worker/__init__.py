@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import signal
 import sys
 import time
 
@@ -37,9 +38,14 @@ class Worker(object):
         self.download_lock = None
         self.scan_lock = None
         self.tries = 0
+        self.finished = False
+
+    def handle_signal(self):
+        logger.critical(f'Received SIGTERM. Gracefully shutting down.')
+        self.finished = True
 
     def run(self):
-        while True:
+        while not self.finished:
             loop = asyncio.SelectorEventLoop()
 
             # Default event loop does not support pipes on Windows
@@ -48,10 +54,11 @@ class Worker(object):
 
             asyncio.set_event_loop(loop)
 
+            signal.signal(signal.SIGTERM, self.handle_signal)
             try:
                 asyncio.get_event_loop().run_until_complete(self.setup())
-                asyncio.get_event_loop().run_until_complete(asyncio.gather(*[self.run_task(i)
-                                                                           for i in range(self.task_count)]))
+                gather_task = asyncio.gather(*[self.run_task(i) for i in range(self.task_count)])
+                asyncio.get_event_loop().run_until_complete(gather_task)
             except asyncio.CancelledError:
                 logger.info('Clean exit requested, exiting')
 
@@ -81,7 +88,7 @@ class Worker(object):
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
         async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
             redis = await aioredis.create_redis_pool(self.redis_uri)
-            while True:
+            while not self.finished:
                 try:
                     _, job = await redis.blpop(self.queue)
                     job = json.loads(job.decode('utf-8'))
