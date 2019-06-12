@@ -4,40 +4,112 @@ services:
   - docker:dind
 
 stages:
+  - build
   - test
   - e2e
-  - test_pypi
-  - pypi
-  - container_test
-  - postrelease
-  - notifydependents
+  - release
+  - deployment
 
 variables:
   STAGE_IMAGE: $REPO_URL/stage:latest
   DOCKER_HOST: tcp://localhost:2375/
 
-test:
-  image: $STAGE_IMAGE
+###############################################################
+# Build Stage (jobs inside a stage run in parallel)
+###############################################################
+
+build-linux:
+  stage: build
+  tags:
+    - kube
+  script:
+    - docker pull "$REPO_URL/polyswarm-client:latest"
+    - docker build -t polyswarm/polyswarm-client -f docker/Dockerfile --cache-from="$REPO_URL/polyswarm-client:latest" .
+    - docker push "$REPO_URL/polyswarm-client:$CI_COMMIT_SHA"
+
+
+build-windows:
+  stage: build
+  tags:
+    - win-participants
+  script:
+    - aws ecr get-login --no-include-email --region us-east-1 | Powershell
+    - docker pull "$REPO_URL/polyswarm-client-windows:latest"
+    - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/Dockerfile --cache-from="$REPO_URL/polyswarm-client-windows:latest" .
+    - docker push "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
+
+###############################################################
+# Test Stage
+###############################################################
+
+test-linux:
   stage: test
   tags:
     - kube
   script:
-    - tox -e py36
+    - docker pull $REPO_URL/polyswarm-client:$CI_COMMIT_SHA
+    - docker run $REPO_URL/polyswarm-client:$CI_COMMIT_SHA tox
 
 test-push-to-pypi:
-  image: $STAGE_IMAGE
-  stage: test_pypi
+  stage: test
   tags:
     - kube
-  only:
-    - feature/test-pypi
   script:
+    # TODO: Maybe consider executing this inside the polyswarm-client image we just built
     - python setup.py sdist bdist_wheel
     # using env variables from Gitlab: TWINE_USERNAME, TWINE_PASSWORD, TWINE_REPOSITORY_URL
     - twine upload --repository-url $TWINE_REPOSITORY_URL_TEST -u $TWINE_USERNAME_TEST -p $TWINE_PASSWORD_TEST dist/*
 
+test-windows:
+  stage: test
+  tags:
+    - win-participants
+  script:
+    - aws ecr get-login --no-include-email --region us-east-1 | Powershell
+    - docker pull $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
+    - docker run polyswarm/polyswarm-client-windows powershell -NoProfile -Command 'Set-Location C:/polyswarm/polyswarm-client; tox'
+
+###############################################################
+# Release Stage
+###############################################################
+
+release-tag-linux:
+  stage: release
+  tags:
+    - kube
+  only:
+    - tags
+  script:
+    # Gets the current image that was built in the CI for this commit
+    - docker pull $REPO_URL/polyswarm-client:$CI_COMMIT_SHA"
+    # Creates new tags for this image, one that should go to AWS and another to DockerHub with the tag from git
+    - docker tag "$REPO_URL/polyswarm-client:$CI_COMMIT_SHA" "$REPO_URL/polyswarm-client:$(git describe --tags --abbrev=0)" "polyswarm/polyswarm-client:$(git describe --tags --abbrev=0)"
+    # Pushes to AWS
+    - docker push "$REPO_URL/polyswarm-client:$(git describe --tags --abbrev=0)"
+    # Pushes to DockerHub
+    - docker logout
+    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
+    - docker push "polyswarm/polyswarm-client:$(git describe --tags --abbrev=0)"
+
+release-latest-linux:
+  stage: release
+  tags:
+    - kube
+  only:
+    - master
+  script:
+    # Gets the current image that was built in the CI for this commit
+    - docker pull $REPO_URL/polyswarm-client:$CI_COMMIT_SHA"
+    # Creates new tags for this image, one that should go to AWS and another to DockerHub with the tag "latest"
+    - docker tag "$REPO_URL/polyswarm-client:$CI_COMMIT_SHA" "$REPO_URL/polyswarm-client:latest" "polyswarm/polyswarm-client:latest"
+    # Pushes to AWS
+    - docker push "$REPO_URL/polyswarm-client:latest"
+    # Pushes to DockerHub
+    - docker logout
+    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
+    - docker push "polyswarm/polyswarm-client:latest"
+
 push-to-pypi:
-  image: $STAGE_IMAGE
   stage: pypi
   tags:
     - kube
@@ -59,62 +131,51 @@ push-to-pypi:
     # using env variables from Gitlab: TWINE_USERNAME, TWINE_PASSWORD, TWINE_REPOSITORY_URL
     - twine upload dist/*
 
-windowsbase_container_test:
-  stage: container_test
+release-tag-windows:
+  stage: release
   tags:
     - win-participants
   only:
-    - feature/base-windows-build
-    - fix/impersonate-windows-tty
     - tags
   script:
-    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
-    - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/Dockerfile .
-    - docker run polyswarm/polyswarm-client-windows powershell -NoProfile -Command 'Set-Location C:/polyswarm/polyswarm-client; pip install tox; tox'
-
-windowsbase:
-  stage: postrelease
-  tags:
-    - win-participants
-  only:
-    - feature/base-windows-build
-    - tags
-  script:
-    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
-    - docker build --pull -t polyswarm/polyswarm-client-windows -t "polyswarm/polyswarm-client-windows:$CI_COMMIT_SHA" -t "$REPO_URL/polyswarm-client-windows:latest" -t "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" -t "polyswarm/polyswarm-client-windows:$(git describe --tags --abbrev=0)" -f docker/windows/Dockerfile .
-    - docker push polyswarm/polyswarm-client-windows:latest
-    - docker push "polyswarm/polyswarm-client-windows:$CI_COMMIT_SHA"
-    - docker push "polyswarm/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
-    - docker logout
-    - pip install awscli
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
-    - docker push "$REPO_URL/polyswarm-client-windows:latest"
-    - docker push "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
-
-linuxbase:
-  image: $STAGE_IMAGE
-  stage: postrelease
-  tags:
-    - kube
-  only:
-    - feature/base-linux-build
-    - tags
-  script:
-    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
-    - docker build -t polyswarm/polyswarm-client -t "polyswarm/polyswarm-client:$CI_COMMIT_SHA" -t "polyswarm/polyswarm-client:$(git describe --tags --abbrev=0)" -t "$REPO_URL/polyswarm-client:latest" -t "$REPO_URL/polyswarm-client:$CI_COMMIT_SHA" -f docker/Dockerfile .
-    - docker push polyswarm/polyswarm-client:latest
-    - docker push "polyswarm/polyswarm-client:$CI_COMMIT_SHA"
-    - docker push "polyswarm/polyswarm-client:$(git describe --tags --abbrev=0)"
+    # Gets the current image that was built in the CI for this commit
+    - docker pull $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
+    # Creates new tags for this image, one that should go to AWS and another to DockerHub with the tag from git
+    - docker tag "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" "$REPO_URL/polyswarm-client:$(git describe --tags --abbrev=0)" "polyswarm/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
+    # Pushes to AWS
+    - docker push "$REPO_URL/polyswarm-client:$(git describe --tags --abbrev=0)"
+    # Pushes to DockerHub
     - docker logout
+    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
+    - docker push "polyswarm/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
+
+release-latest-windows:
+  stage: release
+  tags:
+    - win-participants
+  only:
+    - master
+  script:
+    - aws ecr get-login --no-include-email --region us-east-1 | Powershell
+    # Gets the current image that was built in the CI for this commit
+    - docker pull $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
+    # Creates new tags for this image, one that should go to AWS and another to DockerHub with the tag "latest"
+    - docker tag "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" "$REPO_URL/polyswarm-client:latest" "polyswarm/polyswarm-client-windows:latest"
+    # Pushes to AWS
     - docker push "$REPO_URL/polyswarm-client:latest"
-    - docker push "$REPO_URL/polyswarm-client:$CI_COMMIT_SHA"
+    # Pushes to DockerHub
+    - docker logout
+    - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
+    - docker push "polyswarm/polyswarm-client-windows:latest"
+
+###############################################################
+# Deployment Stage
+###############################################################
 
 kickafterdepends:
-  image: $STAGE_IMAGE
-  stage: notifydependents
+  stage: deployment
   only:
-    - feature/base-windows-build
-    - feature/base-linux-build
-    - tags
+    - master
   script:
     - python3 kick_downstream.py
