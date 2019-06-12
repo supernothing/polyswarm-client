@@ -11,7 +11,6 @@ stages:
   - deployment
 
 variables:
-  STAGE_IMAGE: $REPO_URL/stage:latest
   DOCKER_HOST: tcp://localhost:2375/
 
 ###############################################################
@@ -33,6 +32,7 @@ build-windows:
   tags:
     - win-participants
   script:
+    - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     - docker pull "$REPO_URL/polyswarm-client-windows:latest"
     - docker build -t polyswarm/polyswarm-client-windows -f docker/windows/Dockerfile --cache-from="$REPO_URL/polyswarm-client-windows:latest" .
@@ -65,6 +65,7 @@ test-windows:
   tags:
     - win-participants
   script:
+    - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     - docker pull $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
     - docker run polyswarm/polyswarm-client-windows powershell -NoProfile -Command 'Set-Location C:/polyswarm/polyswarm-client; tox'
@@ -138,6 +139,7 @@ release-tag-windows:
   only:
     - tags
   script:
+    - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     # Gets the current image that was built in the CI for this commit
     - docker pull $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
@@ -157,6 +159,7 @@ release-latest-windows:
   only:
     - master
   script:
+    - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     # Gets the current image that was built in the CI for this commit
     - docker pull $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
