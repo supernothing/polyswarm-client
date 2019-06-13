@@ -55,10 +55,7 @@ test-push-to-pypi:
   tags:
     - kube
   only:
-    - /^[0-9]+\.[0-9]+\.[0-9]+rc[0-9]+$/
-  except:
-    - branches
-    - triggers
+    - tags
   script:
     # TODO: Maybe consider executing this inside the polyswarm-client image we just built
     - python setup.py sdist bdist_wheel
@@ -121,10 +118,7 @@ push-to-pypi:
   tags:
     - kube
   only:
-    - /^[0-9]+\.[0-9]+\.[0-9]+$/
-  except:
-    - branches
-    - triggers
+    - tags
   script:
     - python setup.py sdist bdist_wheel
 
