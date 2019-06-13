@@ -23,7 +23,7 @@ build-linux:
   tags:
     - kube
   script:
-    - docker pull $REPO_URL/$BASE_IMAGE_NAME:latest
+    - docker pull $REPO_URL/$BASE_IMAGE_NAME:latest || true
     - docker build -t $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA -f docker/Dockerfile --cache-from=$REPO_URL/$BASE_IMAGE_NAME:latest .
     - docker push $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA
 
