@@ -12,6 +12,7 @@ stages:
 
 variables:
   DOCKER_HOST: tcp://localhost:2375/
+  BASE_IMAGE_NAME: polyswarm-client
 
 ###############################################################
 # Build Stage (jobs inside a stage run in parallel)
@@ -22,9 +23,9 @@ build-linux:
   tags:
     - kube
   script:
-    - docker pull $REPO_URL/polyswarm-client:latest
-    - docker build -t $REPO_URL/polyswarm-client:$CI_COMMIT_SHA -f docker/Dockerfile --cache-from=$REPO_URL/polyswarm-client:latest .
-    - docker push $REPO_URL/polyswarm-client:$CI_COMMIT_SHA
+    - docker pull $REPO_URL/$BASE_IMAGE_NAME:latest
+    - docker build -t $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA -f docker/Dockerfile --cache-from=$REPO_URL/$BASE_IMAGE_NAME:latest .
+    - docker push $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA
 
 
 build-windows:
@@ -34,9 +35,9 @@ build-windows:
   script:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
-    - docker pull $REPO_URL/polyswarm-client-windows:latest
-    - docker build -t $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA -f docker/windows/Dockerfile --cache-from=$REPO_URL/polyswarm-client-windows:latest .
-    - docker push $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA
+    - docker pull $REPO_URL/$BASE_IMAGE_NAME-windows:latest
+    - docker build -t $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA -f docker/windows/Dockerfile --cache-from=$REPO_URL/$BASE_IMAGE_NAME-windows:latest .
+    - docker push $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA
 
 ###############################################################
 # Test Stage
@@ -47,8 +48,8 @@ test-linux:
   tags:
     - kube
   script:
-    - docker pull $REPO_URL/polyswarm-client:$CI_COMMIT_SHA
-    - docker run $REPO_URL/polyswarm-client:$CI_COMMIT_SHA tox
+    - docker pull $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA
+    - docker run $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA tox
 
 test-push-to-pypi:
   stage: test
@@ -70,8 +71,8 @@ test-windows:
   script:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
-    - docker pull $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA
-    - docker run $REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA powershell -NoProfile -Command 'Set-Location C:/polyswarm/polyswarm-client; tox'
+    - docker pull $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA
+    - docker run $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA powershell -NoProfile -Command 'Set-Location C:/polyswarm/$BASE_IMAGE_NAME; tox'
 
 ###############################################################
 # Release Stage
@@ -85,16 +86,16 @@ release-tag-linux:
     - tags
   script:
     # Gets the current image that was built in the CI for this commit
-    - docker pull $REPO_URL/polyswarm-client:$CI_COMMIT_SHA
+    - docker pull $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA
     # Creates new tags for this image, one that should go to AWS and another to DockerHub with the tag from git
-    - docker tag $REPO_URL/polyswarm-client:$CI_COMMIT_SHA $REPO_URL/polyswarm-client:$(git describe --tags --abbrev=0)
-    - docker tag $REPO_URL/polyswarm-client:$CI_COMMIT_SHA polyswarm/polyswarm-client:$(git describe --tags --abbrev=0)
+    - docker tag $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA $REPO_URL/$BASE_IMAGE_NAME:$(git describe --tags --abbrev=0)
+    - docker tag $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA polyswarm/$BASE_IMAGE_NAME:$(git describe --tags --abbrev=0)
     # Pushes to AWS
-    - docker push $REPO_URL/polyswarm-client:$(git describe --tags --abbrev=0)
+    - docker push $REPO_URL/$BASE_IMAGE_NAME:$(git describe --tags --abbrev=0)
     # Pushes to DockerHub
     - docker logout
     - docker login -u $CI_CUSTOM_DOCKER_HUB_USERNAME -p $CI_CUSTOM_DOCKER_HUB_PASSWORD
-    - docker push polyswarm/polyswarm-client:$(git describe --tags --abbrev=0)
+    - docker push polyswarm/$BASE_IMAGE_NAME:$(git describe --tags --abbrev=0)
 
 release-latest-linux:
   stage: release
@@ -104,16 +105,16 @@ release-latest-linux:
     - master
   script:
     # Gets the current image that was built in the CI for this commit
-    - docker pull $REPO_URL/polyswarm-client:$CI_COMMIT_SHA
+    - docker pull $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA
     # Creates new tags for this image, one that should go to AWS and another to DockerHub with the tag "latest"
-    - docker tag $REPO_URL/polyswarm-client:$CI_COMMIT_SHA $REPO_URL/polyswarm-client:latest
-    - docker tag $REPO_URL/polyswarm-client:$CI_COMMIT_SHA polyswarm/polyswarm-client:latest
+    - docker tag $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA $REPO_URL/$BASE_IMAGE_NAME:latest
+    - docker tag $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA polyswarm/$BASE_IMAGE_NAME:latest
     # Pushes to AWS
-    - docker push $REPO_URL/polyswarm-client:latest
+    - docker push $REPO_URL/$BASE_IMAGE_NAME:latest
     # Pushes to DockerHub
     - docker logout
     - docker login -u $CI_CUSTOM_DOCKER_HUB_USERNAME -p $CI_CUSTOM_DOCKER_HUB_PASSWORD
-    - docker push polyswarm/polyswarm-client:latest
+    - docker push polyswarm/$BASE_IMAGE_NAME:latest
 
 push-to-pypi:
   stage: release
@@ -147,16 +148,16 @@ release-tag-windows:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     # Gets the current image that was built in the CI for this commit
-    - docker pull "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
+    - docker pull "$REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA"
     # Creates new tags for this image, one that should go to AWS and another to DockerHub with the tag from git
-    - docker tag "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" "$REPO_URL/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
-    - docker tag "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" "polyswarm/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
+    - docker tag "$REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA" "$REPO_URL/$BASE_IMAGE_NAME-windows:$(git describe --tags --abbrev=0)"
+    - docker tag "$REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA" "polyswarm/$BASE_IMAGE_NAME-windows:$(git describe --tags --abbrev=0)"
     # Pushes to AWS
-    - docker push "$REPO_URL/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
+    - docker push "$REPO_URL/$BASE_IMAGE_NAME-windows:$(git describe --tags --abbrev=0)"
     # Pushes to DockerHub
     - docker logout
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
-    - docker push "polyswarm/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
+    - docker push "polyswarm/$BASE_IMAGE_NAME-windows:$(git describe --tags --abbrev=0)"
 
 release-latest-windows:
   stage: release
@@ -168,16 +169,16 @@ release-latest-windows:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     # Gets the current image that was built in the CI for this commit
-    - docker pull "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
+    - docker pull "$REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA"
     # Creates new tags for this image, one that should go to AWS and another to DockerHub with the tag "latest"
-    - docker tag "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" "$REPO_URL/polyswarm-client-windows:latest"
-    - docker tag "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" "polyswarm/polyswarm-client-windows:latest"
+    - docker tag "$REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA" "$REPO_URL/$BASE_IMAGE_NAME-windows:latest"
+    - docker tag "$REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA" "polyswarm/$BASE_IMAGE_NAME-windows:latest"
     # Pushes to AWS
-    - docker push "$REPO_URL/polyswarm-client-windows:latest"
+    - docker push "$REPO_URL/$BASE_IMAGE_NAME-windows:latest"
     # Pushes to DockerHub
     - docker logout
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
-    - docker push "polyswarm/polyswarm-client-windows:latest"
+    - docker push "polyswarm/$BASE_IMAGE_NAME-windows:latest"
 
 ###############################################################
 # Deployment Stage
