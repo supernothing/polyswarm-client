@@ -72,7 +72,7 @@ test-windows:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     - docker pull $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA
-    - docker run $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA powershell -NoProfile -Command 'Set-Location C:/polyswarm/$BASE_IMAGE_NAME; tox'
+    - docker run $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA powershell -NoProfile -Command "Set-Location C:/polyswarm/$BASE_IMAGE_NAME; tox"
 
 ###############################################################
 # Release Stage
