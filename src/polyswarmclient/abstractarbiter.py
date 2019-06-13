@@ -26,8 +26,6 @@ class AbstractArbiter(object):
         self.client.on_run.register(self.__handle_run)
         self.client.on_new_bounty.register(self.__handle_new_bounty)
         self.client.on_vote_on_bounty_due.register(self.__handle_vote_on_bounty)
-        self.client.on_quorum_reached.register(self.__handle_quorum_reached)
-        self.client.on_settled_bounty.register(self.__handle_settled_bounty)
         self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
 
         self.testing = testing
@@ -224,7 +222,7 @@ class AbstractArbiter(object):
             logger.info(f'Testing mode, {self.testing - self.votes_posted} votes remaining')
         return await self.client.bounties.post_vote(bounty_guid, votes, valid_bloom, chain)
 
-    async def __do_handle_settle_bounty(self, bounty_guid, chain):
+    async def __handle_settle_bounty(self, bounty_guid, chain):
         """
         Settle the given bounty on the given chain.
 
@@ -253,12 +251,3 @@ class AbstractArbiter(object):
             logger.info("All testing bounties complete, exiting")
             asyncio_stop()
         return ret
-
-    async def __handle_quorum_reached(self, bounty_guid, block_number, txhash, chain):
-        return await self.__do_handle_settle_bounty(bounty_guid, chain)
-
-    async def __handle_settle_bounty(self, bounty_guid, chain):
-        return await self.__do_handle_settle_bounty(bounty_guid, chain)
-
-    async def __handle_settled_bounty(self, bounty_guid, settler, payout, block_number, txhash, chain):
-        return await self.__do_handle_settle_bounty(bounty_guid, chain)
