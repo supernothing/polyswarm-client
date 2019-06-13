@@ -12,10 +12,11 @@ WORKDIR /usr/src/app
 
 COPY requirements.txt ./
 
-RUN set -x && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN set -x && pip install .
 
-# Build truth db for arbiter verbatim
-RUN cd docker && verbatimdbgen
+RUN pip install --no-cache-dir  . \
+    # Build truth db for arbiter verbatim
+    && cd docker \
+    && verbatimdbgen
