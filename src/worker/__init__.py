@@ -54,7 +54,7 @@ class Worker(object):
 
             asyncio.set_event_loop(loop)
 
-            signal.signal(signal.SIGTERM, self.handle_signal)
+            loop.add_signal_handler(signal.SIGTERM, self.handle_signal)
             try:
                 asyncio.get_event_loop().run_until_complete(self.setup())
                 gather_task = asyncio.gather(*[self.run_task(i) for i in range(self.task_count)])
@@ -90,7 +90,11 @@ class Worker(object):
             redis = await aioredis.create_redis_pool(self.redis_uri)
             while not self.finished:
                 try:
-                    _, job = await redis.blpop(self.queue)
+                    next_job = await redis.blpop(self.queue, timeout=1)
+                    if next_job is None:
+                        continue
+
+                    _, job = next_job
                     job = json.loads(job.decode('utf-8'))
                     logger.info(f'Got job on task {task_index}', extra={'extra': job})
 
