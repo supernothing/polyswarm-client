@@ -1,5 +1,14 @@
 # Release History
 
+### 2.2.0 (2019-06-13)
+
+* **Feature** - All Microengines and Ambassadors attempt settle on quorum event, and other participant settle events.
+* **Feature** - Exit Worker gracefully on SIGTERM.
+* **Feature** - Add BidStrategyBase & default implementations for scaling bids with confidence.
+
+The update from 2.1.1 to 2.2.0 has a breaking change.
+1. `AbstractMicroengine` subclasses must add `bid_strategy` as the last arg in `__init__(self, ...)`
+
 ### 2.1.1 (2019-06-07)
 
 * **Fix** - Use polyswarm-artifact 1.1.1 with `architecture` fix
@@ -7,7 +16,7 @@
 ### 2.1.0 (2019-06-06)
 
 * **Feature** - Push metadata to IPFS if it matches the Verdict Schema in polyswarm-artifact (Not breaking)
-* **Feature** - Add Ambassador bounty submission env vars to dynamically set rate of bounty submissions.
+* **Feature** - Add Ambassador bounty submission env vars to dynamically set rate of bounty submissions
 * **Fix** - Pass artifact type on second on_bounty_post_failed call
 * **Fix** - Remove stop and join when scanner setup fails
 
