@@ -149,10 +149,10 @@ release-tag-windows:
     # Gets the current image that was built in the CI for this commit
     - docker pull "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
     # Creates new tags for this image, one that should go to AWS and another to DockerHub with the tag from git
-    - docker tag "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" "$REPO_URL/polyswarm-client:$(git describe --tags --abbrev=0)"
+    - docker tag "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" "$REPO_URL/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
     - docker tag "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" "polyswarm/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
     # Pushes to AWS
-    - docker push "$REPO_URL/polyswarm-client:$(git describe --tags --abbrev=0)"
+    - docker push "$REPO_URL/polyswarm-client-windows:$(git describe --tags --abbrev=0)"
     # Pushes to DockerHub
     - docker logout
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
@@ -170,10 +170,10 @@ release-latest-windows:
     # Gets the current image that was built in the CI for this commit
     - docker pull "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA"
     # Creates new tags for this image, one that should go to AWS and another to DockerHub with the tag "latest"
-    - docker tag "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" "$REPO_URL/polyswarm-client:latest"
+    - docker tag "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" "$REPO_URL/polyswarm-client-windows:latest"
     - docker tag "$REPO_URL/polyswarm-client-windows:$CI_COMMIT_SHA" "polyswarm/polyswarm-client-windows:latest"
     # Pushes to AWS
-    - docker push "$REPO_URL/polyswarm-client:latest"
+    - docker push "$REPO_URL/polyswarm-client-windows:latest"
     # Pushes to DockerHub
     - docker logout
     - docker login -u "$CI_CUSTOM_DOCKER_HUB_USERNAME" -p "$CI_CUSTOM_DOCKER_HUB_PASSWORD"
