@@ -185,6 +185,8 @@ release-latest-windows:
 
 notify-engines:
   stage: deployment
+  tags:
+    - kube
   only:
     - master
   script:
