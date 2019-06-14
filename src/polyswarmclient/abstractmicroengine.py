@@ -83,7 +83,7 @@ class AbstractMicroengine(object):
         """Override this to implement custom bid calculation logic
 
         Args:
-            guid (str): GUID of the bounty under analysis, use to correlate with artifacts in the same bounty
+            guid (str): GUID of the bounty under analysis
             mask (list[bool]): mask for the from scanning the bounty files
             verdicts (list[bool]): scan verdicts from scanning the bounty files
             confidences (list[float]): Measure of confidence of verdict per artifact ranging from 0.0 to 1.0
