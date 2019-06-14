@@ -16,6 +16,17 @@ class BidStrategy(BidStrategyBase):
     async def bid(self, guid, mask, verdicts, confidences, metadatas, min_allowed_bid, chain):
         return 11
 
+
+@pytest.mark.asyncio
+async def test_aggressive_bid_strategy_directly():
+    # arrange
+    bid_strategy = AggressiveStrategy()
+    # act
+    bid = await bid_strategy.bid('test', [True], [True], [1.0], [''], .0625 * 10 ** 18, 'side')
+    # assert
+    assert bid == 2 * 10 ** 18
+
+
 @pytest.mark.asyncio
 async def test_single_file_bid_aggressive(mock_client):
     # arrange
@@ -57,6 +68,16 @@ async def test_single_bid_0_aggressive(mock_client):
 
 
 @pytest.mark.asyncio
+async def test_default_bid_strategy_directly():
+    # arrange
+    bid_strategy = DefaultStrategy()
+    # act
+    bid = await bid_strategy.bid('test', [True], [True], [1.0], [''], .0625 * 10 ** 18, 'side')
+    # assert
+    assert bid == .5 * 10 ** 18
+
+
+@pytest.mark.asyncio
 async def test_single_file_bid_default(mock_client):
     # arrange
     engine = Microengine(mock_client, bid_strategy=DefaultStrategy())
@@ -92,6 +113,16 @@ async def test_single_bid_0_default(mock_client):
     engine = Microengine(mock_client, bid_strategy=DefaultStrategy())
     # act
     bid = await engine.bid('test', [True], [True], [0], [''], 'side')
+    # assert
+    assert bid == .0625 * 10 ** 18
+
+
+@pytest.mark.asyncio
+async def test_conservative_bid_strategy_directly():
+    # arrange
+    bid_strategy = ConservativeStrategy()
+    # act
+    bid = await bid_strategy.bid('test', [True], [True], [1.0], [''], .0625 * 10 ** 18, 'side')
     # assert
     assert bid == .0625 * 10 ** 18
 
@@ -202,10 +233,10 @@ async def test_256_files_mixed_75_confidence(mock_client):
 async def test_no_bid_strategy(mock_client):
     # arrange
     engine = Microengine(mock_client, bid_strategy=None)
-    # act
     # assert
     with pytest.raises(NotImplementedError):
         await engine.bid('test', [True], [True], [1.0], [''], 'side')
+
 
 @pytest.mark.asyncio
 async def test_custom_bid_strategy(mock_client):
@@ -213,5 +244,15 @@ async def test_custom_bid_strategy(mock_client):
     engine = Microengine(mock_client, bid_strategy=BidStrategy())
     # act
     bid = await engine.bid('test', [True], [True], [1.0], [''], 'side')
+    # assert
+    assert bid == 11
+
+
+@pytest.mark.asyncio
+async def test_custom_bid_strategy_directly():
+    # arrange
+    bid_strategy = BidStrategy()
+    # act
+    bid = await bid_strategy.bid('test', [True], [True], [1.0], [''], .0625 * 10 ** 18, 'side')
     # assert
     assert bid == 11
