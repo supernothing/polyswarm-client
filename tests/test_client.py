@@ -81,7 +81,7 @@ async def test_list_artifacts(mock_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(15)
 async def test_on_new_block(mock_client):
     home_done = asyncio.Event()
     side_done = asyncio.Event()
@@ -107,7 +107,7 @@ async def test_on_new_block(mock_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(15)
 async def test_on_new_bounty(mock_client):
     home_done = asyncio.Event()
     side_done = asyncio.Event()
@@ -152,7 +152,7 @@ async def test_on_new_bounty(mock_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(15)
 async def test_on_new_assertion(mock_client):
     home_done = asyncio.Event()
     side_done = asyncio.Event()
@@ -197,7 +197,7 @@ async def test_on_new_assertion(mock_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(15)
 async def test_on_reveal_assertion(mock_client):
     home_done = asyncio.Event()
     side_done = asyncio.Event()
@@ -243,7 +243,7 @@ async def test_on_reveal_assertion(mock_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(15)
 async def test_on_new_vote(mock_client):
     home_done = asyncio.Event()
     side_done = asyncio.Event()
@@ -282,7 +282,7 @@ async def test_on_new_vote(mock_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(15)
 async def test_on_quorum_reached(mock_client):
     home_done = asyncio.Event()
     side_done = asyncio.Event()
@@ -317,7 +317,7 @@ async def test_on_quorum_reached(mock_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(15)
 async def test_on_settled_bounty(mock_client):
     home_done = asyncio.Event()
     side_done = asyncio.Event()
@@ -356,7 +356,7 @@ async def test_on_settled_bounty(mock_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(15)
 async def test_on_initialized_channel(mock_client):
     done = asyncio.Event()
 
