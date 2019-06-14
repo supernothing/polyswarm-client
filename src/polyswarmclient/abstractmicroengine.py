@@ -5,7 +5,6 @@ import logging
 from polyswarmartifact import ArtifactType
 from polyswarmartifact.schema import verdict
 
-from polyswarmclient import BidStrategyBase
 from polyswarmclient import Client
 from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.events import RevealAssertion, SettleBounty
@@ -55,6 +54,7 @@ class AbstractMicroengine(object):
             scanner (Scanner): `Scanner` instance to use.
             chains (set(str)):  Set of chains you are acting on.
             artifact_types (list(ArtifactType)): List of artifact types you support
+            bid_strategy (BidStrategyBase): Bid Strategy for bounties
 
         Returns:
             AbstractMicroengine: Microengine instantiated with a Client.
@@ -93,22 +93,12 @@ class AbstractMicroengine(object):
         Returns:
             int: Amount of NCT to bid in base NCT units (10 ^ -18)
         """
-        min_bid_multiplier = 1
-        max_bid_multiplier = 1
-        if self.bid_strategy is not None and isinstance(self.bid_strategy, BidStrategyBase):
-            min_bid_multiplier = self.bid_strategy.min_bid_multiplier
-            max_bid_multiplier = self.bid_strategy.max_bid_multiplier
-
         min_allowed_bid = await self.client.bounties.parameters[chain].get('assertion_bid_minimum')
-        min_bid = max(min_allowed_bid * min_bid_multiplier, min_allowed_bid)
-        max_bid = max(min_allowed_bid * max_bid_multiplier, min_allowed_bid)
+        if self.bid_strategy is not None:
+            return await self.bid_strategy.bid(guid, mask, verdicts, confidences, metadatas, min_allowed_bid, chain)
 
-        asserted_confidences = [c for b, c in zip(mask, confidences) if b]
-        avg_confidence = sum(asserted_confidences) / len(asserted_confidences) if asserted_confidences else 0
-        bid = int(min_bid + ((max_bid - min_bid) * avg_confidence))
-
-        # Clamp bid between min_bid and max_bid
-        return max(min_bid, min(bid, max_bid))
+        raise NotImplementedError(
+            "You must 1) override this bid method OR 2) provide a bid_strategy to your Microengine constructor")
 
     async def fetch_and_scan_all(self, guid, artifact_type, uri, duration, chain):
         """Fetch and scan all artifacts concurrently
