@@ -1,5 +1,6 @@
 import pytest
 
+from polyswarmclient import BidStrategyBase
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
 from microengine.bidstrategy.conservative import BidStrategy as ConservativeStrategy
 from microengine.bidstrategy.default import BidStrategy as DefaultStrategy
@@ -10,6 +11,10 @@ class Microengine(AbstractMicroengine):
     def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None):
         super().__init__(client, testing, scanner, chains, artifact_types, bid_strategy)
 
+
+class BidStrategy(BidStrategyBase):
+    async def bid(self, guid, mask, verdicts, confidences, metadatas, min_allowed_bid, chain):
+        return 11
 
 @pytest.mark.asyncio
 async def test_single_file_bid_aggressive(mock_client):
@@ -191,3 +196,22 @@ async def test_256_files_mixed_75_confidence(mock_client):
     bid = await engine.bid('test', [True] * 256, [True] * 256, confidences, [''] * 256, 'side')
     # assert
     assert bid == .390625 * 10 ** 18
+
+
+@pytest.mark.asyncio
+async def test_no_bid_strategy(mock_client):
+    # arrange
+    engine = Microengine(mock_client, bid_strategy=None)
+    # act
+    # assert
+    with pytest.raises(NotImplementedError):
+        await engine.bid('test', [True], [True], [1.0], [''], 'side')
+
+@pytest.mark.asyncio
+async def test_custom_bid_strategy(mock_client):
+    # arrange
+    engine = Microengine(mock_client, bid_strategy=BidStrategy())
+    # act
+    bid = await engine.bid('test', [True], [True], [1.0], [''], 'side')
+    # assert
+    assert bid == 11
