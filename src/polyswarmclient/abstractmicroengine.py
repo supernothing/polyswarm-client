@@ -95,7 +95,10 @@ class AbstractMicroengine(object):
         """
         min_allowed_bid = await self.client.bounties.parameters[chain].get('assertion_bid_minimum')
         if self.bid_strategy is not None:
-            return await self.bid_strategy.bid(guid, mask, verdicts, confidences, metadatas, min_allowed_bid, chain)
+            return max(
+                min_allowed_bid,
+                await self.bid_strategy.bid(guid, mask, verdicts, confidences, metadatas, min_allowed_bid, chain)
+            )
 
         raise NotImplementedError(
             "You must 1) override this bid method OR 2) provide a bid_strategy to your Microengine constructor")

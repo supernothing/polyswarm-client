@@ -245,7 +245,7 @@ async def test_custom_bid_strategy(mock_client):
     # act
     bid = await engine.bid('test', [True], [True], [1.0], [''], 'side')
     # assert
-    assert bid == 11
+    assert bid == .0625 * 10 ** 18
 
 
 @pytest.mark.asyncio
