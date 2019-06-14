@@ -1,10 +1,14 @@
 # Release History
 
+### 2.2.1 (2019-06-14)
+
+* **Fix** - Catch `NotImplementedError` for windows when adding up signal handler in worker event loop
+
 ### 2.2.0 (2019-06-13)
 
-* **Feature** - All Microengines and Ambassadors attempt settle on quorum event, and other participant settle events.
-* **Feature** - Exit Worker gracefully on SIGTERM.
-* **Feature** - Add BidStrategyBase & default implementations for scaling bids with confidence.
+* **Feature** - All Microengines and Ambassadors attempt settle on quorum event, and other participant settle events
+* **Feature** - Exit Worker gracefully on SIGTERM
+* **Feature** - Add BidStrategyBase & default implementations for scaling bids with confidence
 
 The update from 2.1.1 to 2.2.0 has a breaking change.
 1. `AbstractMicroengine` subclasses must add `bid_strategy` as the last arg in `__init__(self, ...)`
