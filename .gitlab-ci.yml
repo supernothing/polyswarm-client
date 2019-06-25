@@ -75,6 +75,19 @@ test-windows:
     - docker run $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA powershell -NoProfile -Command "Set-Location C:/polyswarm/$BASE_IMAGE_NAME; tox"
 
 ###############################################################
+# End-to-end Stage
+###############################################################
+
+e2e:
+  stage: e2e
+  tags:
+    - kube
+  script:
+    - pip install $END_TO_END_LIB
+    - e2e init
+    - e2e run
+
+###############################################################
 # Release Stage
 ###############################################################
 
