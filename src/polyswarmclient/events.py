@@ -193,6 +193,21 @@ class OnSettledBountyCallback(Callback):
         return await super().run(bounty_guid, settler, payout, block_number, txhash, chain)
 
 
+class OnDeprecatedCallback(Callback):
+    """Called upon the BountyRegistry contract being deprecated"""
+
+    async def run(self, address, block_number, txhash, chain):
+        """Run the registered callbacks
+
+        Args:
+            address (str): Address of the BountyRegistry contract that is deprecated
+            block_number (int): Block number the channel was initialized on
+            txhash (str): Transaction hash which caused the event
+            chain (str): Chain event received on
+        """
+        return await super().run(address, block_number, txhash, chain)
+
+
 class OnInitializedChannelCallback(Callback):
     """Called upon a channel being initialized"""
 
@@ -206,6 +221,7 @@ class OnInitializedChannelCallback(Callback):
             multi_signature (str): Address of the multi sig contract
             block_number (int): Block number the channel was initialized on
             txhash (str): Transaction hash which caused the event
+            chain (str): Chain event received on
         """
 
         return await super().run(guid, ambassador, expert, multi_signature, block_number, txhash)
@@ -259,7 +275,7 @@ class Event(object):
     Generic Event class. Stores GUID and can compare for equality and order Events.
 
     Args:
-        guid (str): GUID of the event.
+        guid (str, None): GUID of the event.
     """
 
     def __init__(self, guid):
@@ -362,3 +378,28 @@ class OnSettleBountyDueCallback(Callback):
             chain (str): Chain event received on
         """
         return await super().run(bounty_guid, chain)
+
+
+class WithdrawStake(Event):
+    """A scheduled stake withdrawal from an arbiter
+
+    Args:
+        amount (int): Amount to withdraw from stake
+    """
+
+    def __init__(self, amount):
+        super().__init__(None)
+        self.amount = amount
+
+
+class OnWithdrawStakeDueCallback(Callback):
+    """Called when a an arbiter needs to withdraw stake (due to deprecation)"""
+
+    async def run(self, amount, chain):
+        """Run the registered callbacks
+
+        Args:
+            amount (int): Amount to withdraw
+            chain (str): Chain event received on
+        """
+        return await super().run(amount, chain)

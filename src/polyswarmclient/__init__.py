@@ -84,11 +84,13 @@ class Client(object):
         self.on_quorum_reached = events.OnQuorumReachedCallback()
         self.on_settled_bounty = events.OnSettledBountyCallback()
         self.on_initialized_channel = events.OnInitializedChannelCallback()
+        self.on_deprecated = events.OnDeprecatedCallback()
 
         # Events scheduled on block deadlines
         self.on_reveal_assertion_due = events.OnRevealAssertionDueCallback()
         self.on_vote_on_bounty_due = events.OnVoteOnBountyDueCallback()
         self.on_settle_bounty_due = events.OnSettleBountyDueCallback()
+        self.on_withdraw_stake_due = events.OnWithdrawStakeDueCallback()
 
     def run(self, chains=None):
         """Run the main event loop
@@ -517,6 +519,9 @@ class Client(object):
                 asyncio.get_event_loop().create_task(
                     self.on_vote_on_bounty_due.run(bounty_guid=task.guid, votes=task.votes,
                                                    valid_bloom=task.valid_bloom, chain=chain))
+            elif isinstance(task, events.WithdrawStake):
+                asyncio.get_event_loop().create_task(
+                    self.on_withdraw_stake_due.run(amount=task.amount, chain=chain))
 
     async def listen_for_events(self, chain):
         """Listen for events via websocket connection to polyswarmd
@@ -601,6 +606,11 @@ class Client(object):
                             asyncio.get_event_loop().create_task(
                                 self.on_settled_bounty.run(**data, block_number=block_number, txhash=txhash,
                                                            chain=chain))
+                        elif event == 'deprecated':
+                            asyncio.get_event_loop().create_task(
+                                self.on_deprecated.run(**data, block_number=block_number, txhash=txhash,
+                                                       chain=chain))
+
                         elif event == 'initialized_channel':
                             asyncio.get_event_loop().create_task(
                                 self.on_initialized_channel.run(**data, block_number=block_number, txhash=txhash))

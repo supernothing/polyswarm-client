@@ -5,7 +5,7 @@ from polyswarmartifact import ArtifactType
 
 from polyswarmclient import Client
 from polyswarmclient.abstractscanner import ScanResult
-from polyswarmclient.events import VoteOnBounty, SettleBounty
+from polyswarmclient.events import VoteOnBounty, SettleBounty, WithdrawStake
 from polyswarmclient.utils import asyncio_stop
 
 logger = logging.getLogger(__name__)  # Initialize logger
@@ -25,8 +25,10 @@ class AbstractArbiter(object):
 
         self.client.on_run.register(self.__handle_run)
         self.client.on_new_bounty.register(self.__handle_new_bounty)
+        self.client.on_deprecated.register(self.__handle_deprecated)
         self.client.on_vote_on_bounty_due.register(self.__handle_vote_on_bounty)
         self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
+        self.client.on_withdraw_stake_due.register(self.__handle_withdraw_stake_due)
 
         self.testing = testing
         self.bounties_pending = {}
@@ -120,22 +122,44 @@ class AbstractArbiter(object):
             while True:
                 nct_balance = await self.client.balances.get_nct_balance(chain)
                 if self.testing > 0 and nct_balance < min_stake - staking_balance and tries >= MAX_STAKE_RETRIES:
-                    logger.error(f'Failed {tries} attempts to deposit due to low balance. Exiting')
+                    logger.error('Failed %s attempts to deposit due to low balance. Exiting', tries)
                     exit(1)
                 elif nct_balance < min_stake - staking_balance:
-                    logger.critical(f'Insufficient balance to deposit stake on {chain}. Have {nct_balance} NCT. '
-                                    f'Need {min_stake - staking_balance} NCT')
+                    logger.critical('Insufficient balance to deposit stake on %s. Have %s NCT. Need %s NCT',
+                                    chain,
+                                    nct_balance,
+                                    min_stake - staking_balance)
                     tries += 1
                     await asyncio.sleep(tries * tries)
                     continue
 
                 deposits = await self.client.staking.post_deposit(min_stake - staking_balance, chain)
-                logger.info(f'Depositing stake: {deposits}')
+                logger.info('Depositing stake: %s', deposits)
                 break
 
         if self.scanner is not None and not await self.scanner.setup():
             logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
             exit(1)
+
+    async def __handle_deprecated(self, address, block_number, txhash, chain):
+        """Schedule Withdraw stake for when the last settles are due
+
+        Args:
+            address: address of the contract being deprecated
+
+        Returns: Empty list
+
+        """
+        logger.info('BountyRegistry contract at %s is now deprecated. Scheduling staking withdrawal.', address)
+        parameters = self.client.bounties.parameters[chain]
+        assertion_reveal_window = await parameters.get('assertion_reveal_window')
+        arbiter_vote_window = await parameters.get('arbiter_vote_window')
+        max_duration = await parameters.get('max_duration')
+        withdraw_start = block_number + max_duration + assertion_reveal_window + arbiter_vote_window
+        staking_balance = await self.client.staking.get_total_balance(chain)
+        ws = WithdrawStake(staking_balance)
+        self.client.schedule(withdraw_start, ws, chain)
+        return []
 
     async def __handle_new_bounty(self, guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain):
         """Scan and assert on a posted bounty
@@ -160,7 +184,7 @@ class AbstractArbiter(object):
         async with self.bounties_pending_locks[chain]:
             bounties_pending = self.bounties_pending.get(chain, set())
             if guid in bounties_pending:
-                logger.debug(f'Bounty {guid} already seen, not responding')
+                logger.debug('Bounty %s already seen, not responding', guid)
                 return []
             self.bounties_pending[chain] = bounties_pending | {guid}
 
@@ -169,7 +193,7 @@ class AbstractArbiter(object):
             if self.bounties_seen > self.testing:
                 logger.info('Received new bounty, but finished with testing mode')
                 return []
-            logger.info(f'Testing mode, {self.testing - self.bounties_seen} bounties remaining')
+            logger.info('Testing mode, %s bounties remaining', self.testing - self.bounties_seen)
 
         expiration = int(expiration)
         assertion_reveal_window = await self.client.bounties.parameters[chain].get('assertion_reveal_window')
@@ -219,7 +243,7 @@ class AbstractArbiter(object):
             if self.votes_posted > self.testing:
                 logger.warning('Scheduled vote, but finished with testing mode')
                 return []
-            logger.info(f'Testing mode, {self.testing - self.votes_posted} votes remaining')
+            logger.info('Testing mode, %s votes remaining', self.testing - self.votes_posted)
         return await self.client.bounties.post_vote(bounty_guid, votes, valid_bloom, chain)
 
     async def __handle_settle_bounty(self, bounty_guid, chain):
@@ -235,7 +259,7 @@ class AbstractArbiter(object):
         async with self.bounties_pending_locks[chain]:
             bounties_pending = self.bounties_pending.get(chain, set())
             if bounty_guid not in bounties_pending:
-                logger.debug(f'Bounty {bounty_guid} already settled')
+                logger.debug('Bounty %s already settled', bounty_guid)
                 return []
             self.bounties_pending[chain] = bounties_pending - {bounty_guid}
 
@@ -244,10 +268,24 @@ class AbstractArbiter(object):
             if self.settles_posted > self.testing:
                 logger.warning('Scheduled settle, but finished with testing mode')
                 return []
-            logger.info(f'Testing mode, {self.testing - self.settles_posted} settles remaining')
+            logger.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
         if 0 < self.testing <= self.settles_posted:
             logger.info("All testing bounties complete, exiting")
             asyncio_stop()
         return ret
+
+    async def __handle_withdraw_stake_due(self, amount, chain):
+        """
+        Withdraw given amount from the stake on the given chain
+
+        Args:
+            amount (int): Amount to withdraw
+            chain (str): Which chain to operate on.
+
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events.
+        """
+        logger.info('No more in-progress bounties. Withdrawing %s', amount)
+        return await self.client.staking.post_withdraw(amount, chain)

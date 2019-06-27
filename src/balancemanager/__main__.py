@@ -3,7 +3,7 @@ import logging
 import sys
 import functools
 
-from balancemanager import Deposit, Withdraw, Maintainer
+from balancemanager import Deposit, Withdraw, Maintainer, DepositStake, WithdrawStake
 from polyswarmclient.config import init_logging, validate_apikey
 from polyswarmclient import Client
 
@@ -128,6 +128,64 @@ def withdraw(polyswarmd_addr, keyfile, password, api_key, testing, insecure_tran
     sys.exit(w.exit_code)
 
 
+@cli.command('deposit-stake')
+@polyswarm_client
+@click.option('--denomination', type=click.Choice(['nct', 'nct-gwei', 'nct-wei']), default='nct')
+@click.option('--all', is_flag=True)
+@click.option('--chain', type=click.Choice(['side', 'home']), default='side')
+@click.argument('amount', type=float, callback=validate_transfer_amount, required=False, default=None)
+def deposit_stake(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, denomination, all, chain, amount):
+    """
+    Entrypoint to deposit NCT into a sidechain
+
+    Args:
+        polyswarmd_addr (str): Address for the polyswarmd server
+        keyfile (str): Path to the keyfile
+        password (str): Password to unlock keyfile
+        api_key (str): ApiKey to access polyswarmd
+        testing (int): Number of tests to run
+        insecure_transport (bool): Flag to allow use of http instead of https
+        denomination (str): Choose to interpret amount as nct, nct-gwei, or nct-wei
+        all (bool): Choose to deposit the entire homechain balance
+        amount (float): Amount of Nectar (NCT) to transfer
+    """
+    if amount is None and not all:
+        raise click.BadArgumentUsage('Must specify either an amount or --all')
+    client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
+    d = DepositStake(client, denomination, all, amount, testing=testing, chain=chain)
+    d.run_oneshot()
+    sys.exit(d.exit_code)
+
+
+@cli.command('withdraw-stake')
+@polyswarm_client
+@click.option('--denomination', type=click.Choice(['nct', 'nct-gwei', 'nct-wei']), default='nct')
+@click.option('--all', is_flag=True)
+@click.option('--chain', type=click.Choice(['side', 'home']), default='side')
+@click.argument('amount', type=float, callback=validate_transfer_amount, required=False, default=None)
+def withdraw_stake(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, denomination, all, chain, amount):
+    """
+    Entrypoint to withdraw NCT from a sidechain into the homechain
+
+    Args:
+        polyswarmd_addr (str): Address for the polyswarmd server
+        keyfile (str): Path to the keyfile
+        password (str): Password to unlock keyfile
+        api_key (str): ApiKey to access polyswarmd
+        testing (int): Number of tests to run
+        insecure_transport (bool): Flag to allow use of http instead of https
+        denomination (str): Choose to interpret amount as nct, nct-gwei, or nct-wei
+        all (bool): Choose to withdraw the entire sidechain balance
+        amount (float): Amount of Nectar (NCT) to transfer (if not all)
+    """
+    if amount is None and not all:
+        raise click.BadArgumentUsage('Must specify either an amount or --all')
+    client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
+    w = WithdrawStake(client, denomination, all, amount, testing=testing, chain=chain)
+    w.run_oneshot()
+    sys.exit(w.exit_code)
+
+
 @cli.command()
 @polyswarm_client
 @click.option('--denomination', type=click.Choice(['nct', 'nct-gwei', 'nct-wei']), default='nct')
@@ -158,8 +216,11 @@ def maintain(polyswarmd_addr, keyfile, password, api_key, testing, insecure_tran
         minimum (float): Value of NCT on sidechain where you want to transfer more NCT
         refill_amount (float): Value of NCT to transfer anytime the balance falls below the minimum
     """
-    logger.info(f'Maintaining the minimum balance by depositing {refill_amount} {denomination} when it falls below '
-                f'{minimum} {denomination}')
+    logger.info('Maintaining the minimum balance by depositing %s %s when it falls below %s %s',
+                refill_amount,
+                denomination,
+                minimum,
+                denomination)
     if maximum > 0 and withdraw_target < 0:
         logger.warning('Must set a withdraw target when using a maximum')
         return
@@ -173,8 +234,11 @@ def maintain(polyswarmd_addr, keyfile, password, api_key, testing, insecure_tran
         return
 
     if maximum > 0 and withdraw_target > 0:
-        logger.info(f'Maintaining the minimum balance by withdrawing to {withdraw_target} {denomination} when it '
-                    f'exceeds {maximum} {denomination}')
+        logger.info('Maintaining the minimum balance by withdrawing to %s %s when it exceeds %s %s',
+                    withdraw_target,
+                    denomination,
+                    maximum,
+                    denomination)
 
     client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
     Maintainer(client, denomination, confirmations, minimum, refill_amount, maximum, withdraw_target, testing).run()

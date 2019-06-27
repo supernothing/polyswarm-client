@@ -251,6 +251,7 @@ def test_schedule():
     assert s.empty()
 
     s.put(2, events.VoteOnBounty('guid', [True], True))
+    s.put(4, events.WithdrawStake(100))
     s.put(1, events.RevealAssertion('guid', 1, 42, [True], ''))
     s.put(3, events.SettleBounty('guid'))
 
@@ -261,6 +262,7 @@ def test_schedule():
     assert type(s.get()[1]) == events.RevealAssertion
     assert type(s.get()[1]) == events.VoteOnBounty
     assert type(s.get()[1]) == events.SettleBounty
+    assert type(s.get()[1]) == events.WithdrawStake
 
 
 @pytest.mark.asyncio
