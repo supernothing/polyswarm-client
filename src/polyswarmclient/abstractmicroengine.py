@@ -3,7 +3,7 @@ import json
 import logging
 
 from polyswarmartifact import ArtifactType
-from polyswarmartifact.schema import verdict
+from polyswarmartifact.schema import verdict, Bounty
 
 from polyswarmclient import Client
 from polyswarmclient.abstractscanner import ScanResult
@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class AbstractMicroengine(object):
-    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None):
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None,
+                 accept_mimetypes=None, exclude_mimetypes=None):
         self.client = client
         self.chains = chains
         self.scanner = scanner
@@ -22,6 +23,9 @@ class AbstractMicroengine(object):
             self.valid_artifact_types = [ArtifactType.FILE]
         else:
             self.valid_artifact_types = artifact_types
+
+        self.exclude_mimetypes = exclude_mimetypes
+        self.accept_mimetypes = accept_mimetypes
 
         self.client.on_run.register(self.__handle_run)
         self.client.on_new_bounty.register(self.__handle_new_bounty)
@@ -41,7 +45,8 @@ class AbstractMicroengine(object):
 
     @classmethod
     def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False,
-                scanner=None, chains=None, artifact_types=None, bid_strategy=None):
+                scanner=None, chains=None, artifact_types=None, bid_strategy=None,
+                accept_mimetypes=None, exclude_mimetypes=None):
         """Connect the Microengine to a Client.
 
         Args:
@@ -55,26 +60,30 @@ class AbstractMicroengine(object):
             chains (set(str)):  Set of chains you are acting on.
             artifact_types (list(ArtifactType)): List of artifact types you support
             bid_strategy (BidStrategyBase): Bid Strategy for bounties
+            accept_mimetypes (list[str]): List of accepted mimetypes
+            exclude_mimetypes (list[str]): List of excluded mimetypes
 
         Returns:
             AbstractMicroengine: Microengine instantiated with a Client.
         """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
-        return cls(client, testing, scanner, chains, artifact_types, bid_strategy)
+        return cls(client, testing, scanner, chains, artifact_types, bid_strategy=bid_strategy,
+                   accept_mimetypes=accept_mimetypes, exclude_mimetypes=exclude_mimetypes)
 
-    async def scan(self, guid, artifact_type, content, chain):
+    async def scan(self, guid, artifact_type, content, metadata, chain):
         """Override this to implement custom scanning logic
 
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
             artifact_type (ArtifactType): Artifact type for the bounty being scanned
             content (bytes): Content of the artifact to be scan
+            metadata (dict): Metadata about the artifact being scanned
             chain (str): Chain we are operating on
         Returns:
             ScanResult: Result of this scan
         """
         if self.scanner:
-            return await self.scanner.scan(guid, artifact_type, content, chain)
+            return await self.scanner.scan(guid, artifact_type, content, metadata, chain)
 
         raise NotImplementedError(
             "You must 1) override this scan method OR 2) provide a scanner to your Microengine constructor")
@@ -103,7 +112,7 @@ class AbstractMicroengine(object):
         raise NotImplementedError(
             "You must 1) override this bid method OR 2) provide a bid_strategy to your Microengine constructor")
 
-    async def fetch_and_scan_all(self, guid, artifact_type, uri, duration, chain):
+    async def fetch_and_scan_all(self, guid, artifact_type, uri, duration, metadata, chain):
         """Fetch and scan all artifacts concurrently
 
         Args:
@@ -111,21 +120,36 @@ class AbstractMicroengine(object):
             artifact_type (ArtifactType): Artifact type for the bounty being scanned
             uri (str):  Base artifact URI
             duration (int): Max number of blocks to take
+            metadata (list[dict]) List of metadata json blobs for artifacts
             chain (str): Chain we are operating on
 
         Returns:
             (list(bool), list(bool), list(str)): Tuple of mask bits, verdicts, and metadatas
         """
-
-        async def fetch_and_scan(index):
+        async def fetch_and_scan(accept, exclude, artifact_metadata, index):
             content = await self.client.get_artifact(uri, index)
+
+            if accept or exclude:
+                mimetype = artifact_metadata.get('mimetype', None)
+                if (accept and mimetype not in accept) or mimetype in exclude:
+                    logger.info('Mimetype %s is not supported. Skipping artifact', mimetype)
+                    return ScanResult()
+
             if content is not None:
-                return await self.scan(guid, artifact_type, content, chain)
+                return await self.scan(guid, artifact_type, content, artifact_metadata, chain)
 
             return ScanResult()
 
         artifacts = await self.client.list_artifacts(uri)
-        return await asyncio.gather(*[fetch_and_scan(i) for i in range(len(artifacts))])
+
+        logger.critical('Metadata array: %s', metadata)
+
+        if metadata is None or not Bounty.validate(metadata):
+            metadata = [None] * len(artifacts)
+
+        return await asyncio.gather(*[
+            fetch_and_scan(self.accept_mimetypes, self.exclude_mimetypes, metadata[i], i) for i in range(len(artifacts))
+        ])
 
     def run(self):
         """
@@ -164,7 +188,7 @@ class AbstractMicroengine(object):
         """
         # Skip bounties for types we don't support
         if artifact_type not in self.valid_artifact_types:
-            logger.info(f'Bounty artifact type {artifact_type} is not supported')
+            logger.info('Bounty artifact type %s is not supported', artifact_type)
             return []
 
         async with self.bounties_pending_locks[chain]:
@@ -184,7 +208,7 @@ class AbstractMicroengine(object):
         expiration = int(expiration)
         duration = expiration - block_number
 
-        results = await self.fetch_and_scan_all(guid, artifact_type, uri, duration, chain)
+        results = await self.fetch_and_scan_all(guid, artifact_type, uri, duration, metadata, chain)
         mask = [r.bit for r in results]
         verdicts = [r.verdict for r in results]
         confidences = [r.confidence for r in results]

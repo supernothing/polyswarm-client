@@ -36,9 +36,9 @@ class Microengine(AbstractMicroengine):
         testing (int): How many test bounties to respond to
         chains (set[str]): Chain(s) to operate on
     """
-    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None):
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, **kwargs):
         """Initialize Scanner"""
         if artifact_types is None:
             artifact_types = [ArtifactType.FILE]
         scanner = Scanner()
-        super().__init__(client, testing, scanner, chains, artifact_types, bid_strategy)
+        super().__init__(client, testing, scanner, chains, artifact_types, **kwargs)

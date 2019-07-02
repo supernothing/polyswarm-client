@@ -18,7 +18,7 @@ class Scanner(AbstractScanner):
     def __init__(self):
         super(Scanner, self).__init__()
 
-    async def scan(self, guid, artifact_type, content, chain):
+    async def scan(self, guid, artifact_type, content, metadata, chain):
         """Scan an artifact
 
         Args:
@@ -51,9 +51,9 @@ class Microengine(AbstractMicroengine):
         chains (set[str]): Chain(s) to operate on
     """
 
-    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None):
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, **kwargs):
         """Initialize Scanner"""
         if artifact_types is None:
             artifact_types = [ArtifactType.FILE]
         scanner = Scanner()
-        super().__init__(client, testing, scanner, chains, artifact_types, bid_strategy)
+        super().__init__(client, testing, scanner, chains, artifact_types, **kwargs)

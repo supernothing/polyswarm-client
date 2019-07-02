@@ -104,10 +104,14 @@ def choose_bid_strategy(bid_strategy):
               help='List of artifact types to scan')
 @click.option('--bid-strategy', envvar='BID_STRATEGY', default='default',
               help='Bid strategy for bounties')
+@click.option('--accept-mimetype', multiple=True, default=[],
+              help='Exclusively allow the specified mimetype(s) to be scanned')
+@click.option('--exclude-mimetype', multiple=True, default=[],
+              help='Mimetype to never scan.')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')
 def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains,
-         log_format, artifact_type, bid_strategy):
+         log_format, artifact_type, bid_strategy, accept_mimetype, exclude_mimetype):
     """Entrypoint for the microengine driver
 
     Args:
@@ -124,6 +128,8 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
         log_format (str): Format to output logs in. `text` or `json`
         artifact_type (list[str]): List of artifact types to scan
         bid_strategy (str): Bid strategy module name
+        accept_mimetype (list[str]): List of accepted mimetypes
+        exclude_mimetype (list[str]): List of excluded mimetypes
     """
     loglevel = getattr(logging, log.upper(), None)
     clientlevel = getattr(logging, client_log.upper(), None)
@@ -141,11 +147,18 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
     if artifact_type:
         artifact_types = [ArtifactType.from_string(artifact) for artifact in artifact_type]
 
+    if bool(accept_mimetype) and bool(exclude_mimetype):
+        raise click.exceptions.BadOptionUsage(
+            "--exlcude-mimetype and --accept-mimetype are mutually exclusive"
+        )
+
     microengine_class.connect(polyswarmd_addr, keyfile, password,
                               api_key=api_key, testing=testing,
                               insecure_transport=insecure_transport,
                               chains=set(chains),
                               artifact_types=artifact_types,
+                              exclude_mimetypes=exclude_mimetype,
+                              accept_mimetypes=accept_mimetype,
                               bid_strategy=bid_strategy_class()).run()
 
 
