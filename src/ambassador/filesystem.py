@@ -5,6 +5,7 @@ import os
 from concurrent.futures import CancelledError
 
 from polyswarmartifact import ArtifactType
+from polyswarmartifact.schema import Bounty as BountyMetadata
 
 from polyswarmclient.abstractambassador import AbstractAmbassador
 from polyswarmclient.corpus import DownloadToFileSystemCorpus
@@ -62,7 +63,15 @@ class Ambassador(AbstractAmbassador):
                     logger.error('Error uploading artifact to IPFS, continuing')
                     continue
 
-                await self.push_bounty(ArtifactType.FILE, amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS, chain)
+                metadata = BountyMetadata()
+                with open(filename, 'rb') as f:
+                    computed = Ambassador.generate_metadata(f.read())
+
+                metadata.add_file_artifact(computed['mimetype'], filename=filename, filesize=str(computed['size']),
+                                           sha256=computed['sha256'], sha1=computed['sha1'], md5=computed['md5'])
+
+                await self.push_bounty(ArtifactType.FILE, amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS, chain,
+                                       metadata=metadata.json())
             except CancelledError:
                 logger.warning('Cancel requested')
                 break

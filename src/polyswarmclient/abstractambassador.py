@@ -1,6 +1,9 @@
 import asyncio
+import hashlib
 import logging
+import magic
 import os
+
 from abc import ABC, abstractmethod
 
 from polyswarmclient import Client
@@ -77,6 +80,26 @@ class AbstractAmbassador(ABC):
         """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
         return cls(client, testing, chains, watchdog, submission_rate)
+
+    @staticmethod
+    def generate_metadata(content):
+        """ Generate a bunch of metadata for a a given bytestream from a file
+
+        Args:
+            content: bytes-like object
+
+        Returns:
+            dictionary of metadata about a file
+
+        """
+        return {
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "md5": hashlib.md5(content).hexdigest(),
+            "size": len(content),
+            "sha1": hashlib.sha1(content).hexdigest(),
+            "mimetype": magic.from_buffer(content, mime=True),
+            "extended_type" : magic.from_buffer(content),
+        }
 
     @abstractmethod
     async def generate_bounties(self, chain):
