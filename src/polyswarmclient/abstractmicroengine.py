@@ -154,7 +154,7 @@ class AbstractMicroengine(object):
             amount (str): Amount of the bounty in base NCT units (10 ^ -18)
             uri (str): IPFS hash of the root artifact
             expiration (str): Block number of the bounty's expiration
-            metadata (dict): Dictionary or string of metadata
+            metadata (dict): Dictionary of metadata or None
             block_number (int): Block number the bounty was placed on
             txhash (str): Transaction hash which caused the event
             chain (str): Is this on the home or side chain?
