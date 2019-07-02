@@ -1,5 +1,4 @@
 import logging
-from enum import Enum
 
 from polyswarmartifact import ArtifactType
 
@@ -15,14 +14,15 @@ logger = logging.getLogger(__name__)
 
 
 class PostBountyTransaction(AbstractTransaction):
-    def __init__(self, client, artifact_type, amount, bounty_fee, artifact_uri, num_artifacts, duration, bloom):
+    def __init__(self, client, artifact_type, amount, bounty_fee, artifact_uri, num_artifacts, duration, bloom, metadata):
         self.amount = amount
         self.artifact_type = artifact_type
         self.artifact_uri = artifact_uri
         self.duration = duration
+        self.metadata = metadata
 
         approve = NctApproveVerifier(amount + bounty_fee)
-        bounty = PostBountyVerifier(artifact_type, amount, artifact_uri, num_artifacts, duration, bloom)
+        bounty = PostBountyVerifier(artifact_type, amount, artifact_uri, num_artifacts, duration, bloom, metadata)
 
         super().__init__(client, [approve, bounty])
 
@@ -30,12 +30,16 @@ class PostBountyTransaction(AbstractTransaction):
         return "/bounties"
 
     def get_body(self):
-        return {
+        body = {
             "amount": str(self.amount),
             "artifact_type": self. artifact_type,
             "uri": self.artifact_uri,
             "duration": self.duration
         }
+        if self.metadata is not None:
+            body['metadata'] = self.metadata
+
+        return body
 
     def has_required_event(self, transaction_events):
         bounties = transaction_events.get('bounties', [])
@@ -228,7 +232,7 @@ class BountiesClient(object):
 
         return result
 
-    async def post_bounty(self, artifact_type, amount, artifact_uri, duration, chain, api_key=None):
+    async def post_bounty(self, artifact_type, amount, artifact_uri, duration, chain, api_key=None, metadata=None):
         """Post a bounty to polyswarmd.
 
         Args:
@@ -238,6 +242,7 @@ class BountiesClient(object):
             duration (int): Number of blocks to accept new assertions
             chain (str): Which chain to operate on
             api_key (str): Override default API key
+            metadata (str): Optional IPFS hash for metadata
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -245,7 +250,7 @@ class BountiesClient(object):
         bloom = await self.calculate_bloom(artifact_uri)
         num_artifacts = await self.__client.get_artifact_count(artifact_uri)
         transaction = PostBountyTransaction(self.__client, ArtifactType.to_string(artifact_type), amount, bounty_fee,
-                                            artifact_uri, num_artifacts, duration, bloom)
+                                            artifact_uri, num_artifacts, duration, bloom, metadata)
         success, result = await transaction.send(chain, api_key=api_key)
 
         if not success or 'bounties' not in result:
