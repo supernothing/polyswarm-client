@@ -49,6 +49,7 @@ class Producer:
                             logger.critical('Timeout waiting for result in bounty %s', guid)
                             return None
                         else:
+                            remaining -= 1
                             await asyncio.sleep(1)
 
                     j = json.loads(result[1].decode('utf-8'))
