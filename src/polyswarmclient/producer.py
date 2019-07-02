@@ -40,12 +40,16 @@ class Producer:
         logger.info(f' timeout set to {timeout}')
 
         async def wait_for_result(result_key):
+            remaining = KEY_TIMEOUT
             try:
                 with await self.redis as redis:
-                    result = await redis.blpop(result_key, timeout=timeout)
+                    result = await redis.blpop(result_key, timeout=0)
                     if result is None:
-                        logger.critical('Timeout waiting for result in bounty %s', guid)
-                        return None
+                        if remaining == 0:
+                            logger.critical('Timeout waiting for result in bounty %s', guid)
+                            return None
+                        else:
+                            await asyncio.sleep(1)
 
                     j = json.loads(result[1].decode('utf-8'))
 
