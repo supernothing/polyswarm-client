@@ -144,7 +144,7 @@ class AbstractMicroengine(object):
             logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
             exit(1)
 
-    async def __handle_new_bounty(self, guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain):
+    async def __handle_new_bounty(self, guid, artifact_type, author, amount, uri, expiration, metadata, block_number, txhash, chain):
         """Scan and assert on a posted bounty
 
         Args:
@@ -154,6 +154,7 @@ class AbstractMicroengine(object):
             amount (str): Amount of the bounty in base NCT units (10 ^ -18)
             uri (str): IPFS hash of the root artifact
             expiration (str): Block number of the bounty's expiration
+            metadata (dict): Dictionary or string of metadata
             block_number (int): Block number the bounty was placed on
             txhash (str): Transaction hash which caused the event
             chain (str): Is this on the home or side chain?
