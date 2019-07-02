@@ -14,15 +14,19 @@ logger = logging.getLogger(__name__)
 
 
 class PostBountyTransaction(AbstractTransaction):
-    def __init__(self, client, artifact_type, amount, bounty_fee, artifact_uri, num_artifacts, duration, bloom, metadata):
+    def __init__(self, client, artifact_type, amount, bounty_fee, artifact_uri, num_artifacts, duration, bloom,
+                 metadata):
         self.amount = amount
         self.artifact_type = artifact_type
         self.artifact_uri = artifact_uri
         self.duration = duration
-        self.metadata = metadata
+        if metadata is not None:
+            self.metadata = metadata
+        else:
+            self.metadata = ''
 
         approve = NctApproveVerifier(amount + bounty_fee)
-        bounty = PostBountyVerifier(artifact_type, amount, artifact_uri, num_artifacts, duration, bloom, metadata)
+        bounty = PostBountyVerifier(artifact_type, amount, artifact_uri, num_artifacts, duration, bloom, self.metadata)
 
         super().__init__(client, [approve, bounty])
 
@@ -36,7 +40,7 @@ class PostBountyTransaction(AbstractTransaction):
             "uri": self.artifact_uri,
             "duration": self.duration
         }
-        if self.metadata is not None:
+        if self.metadata:
             body['metadata'] = self.metadata
 
         return body

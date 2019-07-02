@@ -179,9 +179,6 @@ class AbstractAmbassador(ABC):
         arbiter_vote_window = await self.client.bounties.parameters[chain].get('arbiter_vote_window')
         bounty_fee = await self.client.bounties.parameters[chain].get('bounty_fee')
 
-        ipfs_hash = await self.client.bounties.post_metadata(bounty.metadata, chain)
-        metadata = ipfs_hash if ipfs_hash is not None else None
-
         tries = 0
         while tries < MAX_TRIES:
             balance = await self.client.balances.get_nct_balance(chain)
@@ -200,6 +197,11 @@ class AbstractAmbassador(ABC):
                     await asyncio.sleep(tries * tries)
                     continue
 
+            metadata = None
+            if bounty.metadata is not None:
+                ipfs_hash = await self.client.bounties.post_metadata(bounty.metadata, chain)
+                metadata = ipfs_hash if ipfs_hash is not None else None
+
             await self.on_before_bounty_posted(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration,
                                                chain)
             bounties = await self.client.bounties.post_bounty(bounty.artifact_type, bounty.amount, bounty.ipfs_uri,
@@ -207,7 +209,7 @@ class AbstractAmbassador(ABC):
                                                               metadata=metadata)
             if not bounties:
                 await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration,
-                                                 chain, metadata=metadata)
+                                                 chain, metadata=bounty.metadata)
             else:
                 async with self.bounties_posted_locks[chain]:
                     bounties_posted = self.bounties_posted.get(chain, 0)
@@ -228,7 +230,7 @@ class AbstractAmbassador(ABC):
 
                 # Handle any additional steps in derived implementations
                 await self.on_after_bounty_posted(guid, bounty.artifact_type, bounty.amount, bounty.ipfs_uri,
-                                                  expiration, chain, metadata=metadata)
+                                                  expiration, chain, metadata=bounty.metadata)
 
                 sb = SettleBounty(guid)
                 self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
@@ -239,7 +241,7 @@ class AbstractAmbassador(ABC):
 
         logger.warning(f'Failed {tries} attempts to post bounty due to low balance. Skipping', extra={'extra': bounty})
         await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration, chain,
-                                         metadata=metadata)
+                                         metadata=bounty.metadata)
 
     async def __handle_new_block(self, number, chain):
         if number <= self.last_block:

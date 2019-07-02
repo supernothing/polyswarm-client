@@ -178,7 +178,7 @@ class PostBountyVerifier(AbstractTransactionVerifier):
             duration == self.duration and \
             bloom_value == self.bloom and \
             amount == self.amount and \
-            metadata == self.metadata
+            metadata.decode('utf-8') == self.metadata
 
 
 class PostAssertionVerifier(AbstractTransactionVerifier):
