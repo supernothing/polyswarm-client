@@ -32,6 +32,7 @@ def test_is_valid_ipfs_uri():
     valid_ipfs_uri = 'QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG'
     assert polyswarmclient.utils.is_valid_ipfs_uri(valid_ipfs_uri)
 
+
 @patch('os.urandom', return_value=0x41)
 def test_calculate_commitment(mock_fn):
     nonce, commitment = polyswarmclient.utils.calculate_commitment(
@@ -40,6 +41,7 @@ def test_calculate_commitment(mock_fn):
     )
     assert nonce == 65
     assert commitment == 16260335923677497924282686029038487427342546648292884828210727571478684022780
+
 
 @pytest.mark.asyncio
 async def test_update_base_nonce(mock_client):
@@ -120,12 +122,13 @@ async def test_on_new_bounty(mock_client):
             'amount': random.randint(0, 10 ** 18),
             'uri': random_ipfs_uri(),
             'expiration': random.randint(0, 1000),
+            'metadata': None,
         }
 
     home_bounty = make_bounty()
     side_bounty = make_bounty()
 
-    async def handle_new_bounty(guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain):
+    async def handle_new_bounty(guid, artifact_type, author, amount, uri, expiration, metadata, block_number, txhash, chain):
         new_bounty = {
             'guid': guid,
             'artifact_type': ArtifactType.to_string(artifact_type),
@@ -133,6 +136,7 @@ async def test_on_new_bounty(mock_client):
             'amount': amount,
             'uri': uri,
             'expiration': expiration,
+            'metadata': metadata,
         }
 
         if chain == 'home':
