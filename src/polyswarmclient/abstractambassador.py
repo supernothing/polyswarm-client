@@ -86,12 +86,18 @@ class AbstractAmbassador(ABC):
         """ Generate a bunch of metadata for a a given bytestream from a file
 
         Args:
-            content: bytes-like object
+            content: bytes-like object (or string)
 
         Returns:
             dictionary of metadata about a file
 
         """
+        # Force to be bytes-like
+        try:
+            content = content.encode()
+        except AttributeError:
+            pass
+
         return {
             "sha256": hashlib.sha256(content).hexdigest(),
             "md5": hashlib.md5(content).hexdigest(),
