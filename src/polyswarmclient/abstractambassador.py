@@ -104,7 +104,7 @@ class AbstractAmbassador(ABC):
             "size": len(content),
             "sha1": hashlib.sha1(content).hexdigest(),
             "mimetype": magic.from_buffer(content, mime=True),
-            "extended_type" : magic.from_buffer(content),
+            "extended_type": magic.from_buffer(content),
         }
 
     @abstractmethod
