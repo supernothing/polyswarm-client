@@ -1,11 +1,6 @@
 from setuptools import find_packages, setup
 
 
-def parse_requirements():
-    with open('requirements.txt', 'r') as f:
-        return [r for r in f.read().splitlines() if not r.startswith('git') and not r.startswith('.')]
-
-
 # The README.md will be used as the content for the PyPi package details page on the Python Package Index.
 with open("README.md", "r") as readme:
     long_description = readme.read()
@@ -22,7 +17,22 @@ setup(
     url='https://github.com/polyswarm/polyswarm-client',
     license='MIT',
     python_requires='>=3.6.5,<4',
-    install_requires=parse_requirements(),
+    install_requires=[
+        'aiodns==1.2.0',
+        'aiohttp==3.5.4',
+        'aioredis==1.2.0',
+        'aioresponses==0.6.0',
+        'aiorwlock==0.6.0',
+        'base58==0.2.5',
+        'click==6.7',
+        'polyswarm-artifact>=1.2.0'
+        'python-json-logger==0.1.9'
+        'python-magic-bin==0.4.14;platform_system=="Windows"',
+        'python-magic==0.4.15;platform_system=="Linux"',
+        'web3==4.8.2',
+        'websockets==6.0',
+        'yara-python==3.7.0',
+    ],
     include_package_data=True,
     packages=find_packages('src'),
     package_dir={'': 'src'},
