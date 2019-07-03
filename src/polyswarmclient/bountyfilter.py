@@ -16,16 +16,18 @@ def split_filter(ctx, param, value):
     Returns:
         list[tuple] list of exclude|accept values as tuple key, value
     """
-    if value is not None:
-        result = []
-        for item in value:
-            # Split only the first:
-            kv = item.split(':', 1)
-            if len(kv) != 2:
-                raise click.BadParameter('Accept and exclude arguments must be formatted `key:value`')
-            else:
-                result.append((kv[0], kv[1]))
-        return result
+    if value is None:
+        return value
+
+    result = []
+    for item in value:
+        # Split only the first:
+        kv = item.split(':', 1)
+        if len(kv) != 2:
+            raise click.BadParameter('Accept and exclude arguments must be formatted `key:value`')
+
+        result.append((kv[0], kv[1]))
+    return result
 
 
 class BountyFilter:
@@ -40,21 +42,22 @@ class BountyFilter:
         self.exclude = exclude
 
     def is_valid(self, metadata):
-        if self.accept or self.exclude:
-            for accept_pair, exclude_pair in itertools.zip_longest(self.accept, self.exclude):
-                if accept_pair:
-                    k, v = accept_pair
-                    metadata_value = metadata.get(k, None)
-                    if v != metadata_value:
-                        logger.info('%s %s is not supported. Skipping artifact', k, metadata_value)
-                        return False
+        if not self.accept and not self.exclude:
+            return True
 
-                if exclude_pair:
-                    k, v = exclude_pair
-                    metadata_value = metadata.get(k, None)
-                    if v == metadata_value:
-                        logger.info('%s %s is excluded. Skipping artifact', k, metadata_value)
-                        return False
+        for accept_pair, exclude_pair in itertools.zip_longest(self.accept, self.exclude):
+            if accept_pair:
+                k, v = accept_pair
+                metadata_value = metadata.get(k, None)
+                if v != metadata_value:
+                    logger.info('%s %s is not supported. Skipping artifact', k, metadata_value)
+                    return False
+
+            if exclude_pair:
+                k, v = exclude_pair
+                metadata_value = metadata.get(k, None)
+                if v == metadata_value:
+                    logger.info('%s %s is excluded. Skipping artifact', k, metadata_value)
+                    return False
 
         return True
-
