@@ -71,7 +71,7 @@ class BountyFilter:
         return result
 
     def is_allowed(self, metadata):
-        """ Test if an artifact with given metadata the given metadata is allowed past the filter
+        """Check metadata against the accept and exclude filters, returning True if it passes all checks
 
         Args:
             metadata (dict): metadata dict to test

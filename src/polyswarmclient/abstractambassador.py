@@ -83,7 +83,7 @@ class AbstractAmbassador(ABC):
 
     @staticmethod
     def generate_metadata(content):
-        """ Generate a bunch of metadata for a a given bytestream from a file
+        """ Generate a bunch of metadata for a given bytestream from a file
 
         Args:
             content: bytes-like object (or string)
@@ -268,7 +268,7 @@ class AbstractAmbassador(ABC):
             self.bounty_semaphores[chain].release()
             return
 
-        logger.warning(f'Failed {tries} attempts to post bounty due to low balance. Skipping', extra={'extra': bounty})
+        logger.warning('Failed %s attempts to post bounty due to low balance. Skipping', tries, extra={'extra': bounty})
         await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration, chain,
                                          metadata=bounty.metadata)
 
