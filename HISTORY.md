@@ -1,11 +1,25 @@
 # Release History
 
+### 2.3.0 (2019-07-03)
+
+* **Feature** - Add `--accept` and `--exclude` options in microengine to filter based on bounty metadata
+* **Feature** - Add helper function `AbstractAmbassador.generate_metadata()` to make adding metadata easy.
+* **Feature** - Handle changes to bounty in contracts (additional metadata)
+
+The update from 2.2.2 to 2.3.0 is a breaking change.
+1. `AbstractMicroengine.connect()` passes `accept` and `except` as kwargs to Microengine objects. Suggest add `**kwargs` to `__init__()` definition and `super().__init__()`
+1. `AbstractMicroengine.fetch_and_scan_all()` parameters changed to `(self, guid, artifact_type, uri, duration, metadata, chain)`
+1. `AbstractMicroengine.scan()` parameters changed to `(self, guid, artifact_type, content, metadata, chain)`
+1. `AbstractArbiter.fetch_and_scan_all()` parameters changed to `(self, guid, artifact_type, uri, vote_round_end, metadata, chain)`
+1. `AbstractArbiter.scan()` parameters changed to `(self, guid, artifact_type, content, metadata, chain)`
+1. `AbstractScanner.scan()` parameters changed to `(self, guid, artifact_type, content, metadata, chain)`
+1. `OnNewBountyCallback.run()` parameters changed to `(guid, artifact_type, author, amount, uri, expiration, metadata, block_number, txhash, chain)`
+
 ### 2.2.2 (2019-07-02)
 
 * **Fix** - Don't block Redis connections when waiting on results in producer/consumer mode.
 * **Fix** - Improved E2E
 * **Feature** - Add support for contract deprecation.
-
 
 ### 2.2.1 (2019-06-14)
 
@@ -55,7 +69,6 @@ The update from 1.5.6 to 2.0.0 is a breaking change.
 1. `AbstractScanner.scan()` parameters changed to `(self, guid, artifact_type, content, chain)`
 1. `PolyswarmClient.on_new_bounty` event parameters changed to `(self, guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain)`
 1. `Producer.scan()` parameters changed to ` (guid, artifact_type, uri, expiration_blocks, chain)`
-
 
 ### 1.5.6 (2019-05-16)
 
