@@ -76,6 +76,30 @@ def choose_bid_strategy(bid_strategy):
     return bid_strategy_module.__name__, bid_strategy_class
 
 
+def split_kv(ctx, param, value):
+    """ Split some accept or exlcude arg from `key:value` to a tuple
+
+    Args:
+        ctx:
+        param:
+        value: list of exclude or accept values
+
+    Returns:
+        list[tuple] list of exclude|accept values as tuple key, value
+    """
+    if value is not None:
+        result = []
+        for item in value:
+            # Split only the first:
+            kv = item.split(':', 1)
+            if len(kv) != 2:
+                raise click.BadParameter('Accept and exclude arguments must be formatted `key:value`')
+            else:
+                result.append((kv[0], kv[1]))
+        return result
+
+
+
 @click.command()
 @click.option('--log', default='WARNING',
               help='App Log level')
@@ -104,14 +128,14 @@ def choose_bid_strategy(bid_strategy):
               help='List of artifact types to scan')
 @click.option('--bid-strategy', envvar='BID_STRATEGY', default='default',
               help='Bid strategy for bounties')
-@click.option('--accept-mimetype', multiple=True, default=[],
-              help='Exclusively allow the specified mimetype(s) to be scanned')
-@click.option('--exclude-mimetype', multiple=True, default=[],
-              help='Mimetype to never scan.')
+@click.option('--accept', multiple=True, default=[], callback=split_kv,
+              help='Declared metadata in format key:value that is required to allow scans on any artifact.')
+@click.option('--exclude', multiple=True, default=[], callback=split_kv,
+              help='Declared metadata in format key:value that cannot be present to allow scans on any artifact.')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')
 def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains,
-         log_format, artifact_type, bid_strategy, accept_mimetype, exclude_mimetype):
+         log_format, artifact_type, bid_strategy, accept, exclude):
     """Entrypoint for the microengine driver
 
     Args:
@@ -128,8 +152,8 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
         log_format (str): Format to output logs in. `text` or `json`
         artifact_type (list[str]): List of artifact types to scan
         bid_strategy (str): Bid strategy module name
-        accept_mimetype (list[str]): List of accepted mimetypes
-        exclude_mimetype (list[str]): List of excluded mimetypes
+        accept (list[tuple[str]]): List of excluded mimetypes
+        exclude (list[tuple[str]]): List of excluded mimetypes
     """
     loglevel = getattr(logging, log.upper(), None)
     clientlevel = getattr(logging, client_log.upper(), None)
@@ -147,18 +171,13 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
     if artifact_type:
         artifact_types = [ArtifactType.from_string(artifact) for artifact in artifact_type]
 
-    if bool(accept_mimetype) and bool(exclude_mimetype):
-        raise click.exceptions.BadOptionUsage(
-            "--exlcude-mimetype and --accept-mimetype are mutually exclusive"
-        )
-
     microengine_class.connect(polyswarmd_addr, keyfile, password,
                               api_key=api_key, testing=testing,
                               insecure_transport=insecure_transport,
                               chains=set(chains),
                               artifact_types=artifact_types,
-                              exclude_mimetypes=exclude_mimetype,
-                              accept_mimetypes=accept_mimetype,
+                              exclude=exclude,
+                              accept=accept,
                               bid_strategy=bid_strategy_class()).run()
 
 

@@ -1,4 +1,5 @@
 import asyncio
+import itertools
 import json
 import logging
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class AbstractMicroengine(object):
     def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None,
-                 accept_mimetypes=None, exclude_mimetypes=None):
+                 accept=None, exclude=None):
         self.client = client
         self.chains = chains
         self.scanner = scanner
@@ -24,8 +25,8 @@ class AbstractMicroengine(object):
         else:
             self.valid_artifact_types = artifact_types
 
-        self.exclude_mimetypes = exclude_mimetypes
-        self.accept_mimetypes = accept_mimetypes
+        self.exclude = exclude
+        self.accept = accept
 
         self.client.on_run.register(self.__handle_run)
         self.client.on_new_bounty.register(self.__handle_new_bounty)
@@ -45,8 +46,7 @@ class AbstractMicroengine(object):
 
     @classmethod
     def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False,
-                scanner=None, chains=None, artifact_types=None, bid_strategy=None,
-                accept_mimetypes=None, exclude_mimetypes=None):
+                scanner=None, chains=None, artifact_types=None, bid_strategy=None, accept=None, exclude=None):
         """Connect the Microengine to a Client.
 
         Args:
@@ -60,15 +60,15 @@ class AbstractMicroengine(object):
             chains (set(str)):  Set of chains you are acting on.
             artifact_types (list(ArtifactType)): List of artifact types you support
             bid_strategy (BidStrategyBase): Bid Strategy for bounties
-            accept_mimetypes (list[str]): List of accepted mimetypes
-            exclude_mimetypes (list[str]): List of excluded mimetypes
+            accept (list[tuple[str]]): List of accepted mimetypes
+            exclude (list[tuple[str]]): List of excluded mimetypes
 
         Returns:
             AbstractMicroengine: Microengine instantiated with a Client.
         """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
         return cls(client, testing, scanner, chains, artifact_types, bid_strategy=bid_strategy,
-                   accept_mimetypes=accept_mimetypes, exclude_mimetypes=exclude_mimetypes)
+                   accept=accept, exclude=exclude)
 
     async def scan(self, guid, artifact_type, content, metadata, chain):
         """Override this to implement custom scanning logic
@@ -130,10 +130,19 @@ class AbstractMicroengine(object):
             content = await self.client.get_artifact(uri, index)
 
             if accept or exclude:
-                mimetype = artifact_metadata.get('mimetype', None)
-                if (accept and mimetype not in accept) or mimetype in exclude:
-                    logger.info('Mimetype %s is not supported. Skipping artifact', mimetype)
-                    return ScanResult()
+                for accept_pair, exclude_pair in itertools.zip_longest(accept, exclude):
+                    if accept_pair:
+                        k, v = accept_pair
+                        metadata_value = artifact_metadata.get(k, None)
+                        if v != metadata_value:
+                            logger.info('%s %s is not supported. Skipping artifact', k, metadata_value)
+                            return ScanResult()
+                    if exclude_pair:
+                        k, v = exclude_pair
+                        metadata_value = artifact_metadata.get(k, None)
+                        if metadata_value is not None or metadata_value == v:
+                            logger.info('%s %s is excluded. Skipping artifact', k, metadata_value)
+                            return ScanResult()
 
             if content is not None:
                 return await self.scan(guid, artifact_type, content, artifact_metadata, chain)
@@ -148,7 +157,7 @@ class AbstractMicroengine(object):
             metadata = [None] * len(artifacts)
 
         return await asyncio.gather(*[
-            fetch_and_scan(self.accept_mimetypes, self.exclude_mimetypes, metadata[i], i) for i in range(len(artifacts))
+            fetch_and_scan(self.accept, self.exclude, metadata[i], i) for i in range(len(artifacts))
         ])
 
     def run(self):
