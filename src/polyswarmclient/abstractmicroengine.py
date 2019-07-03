@@ -127,7 +127,7 @@ class AbstractMicroengine(object):
         """
         async def fetch_and_scan(artifact_metadata, index):
             content = await self.client.get_artifact(uri, index)
-            if not self.bounty_filter.is_valid(artifact_metadata):
+            if not self.bounty_filter.is_allowed(artifact_metadata):
                 return ScanResult()
 
             if content is not None:
@@ -136,11 +136,7 @@ class AbstractMicroengine(object):
             return ScanResult()
 
         artifacts = await self.client.list_artifacts(uri)
-
-        if metadata is None or not Bounty.validate(metadata):
-            metadata = [None] * len(artifacts)
-        elif len(metadata) < len(artifacts):
-            metadata = metadata + [None] * (len(artifacts) - len(metadata))
+        metadata = BountyFilter.pad_metadata(metadata, len(artifacts))
 
         return await asyncio.gather(*[
             fetch_and_scan(metadata[i], i) for i in range(len(artifacts))

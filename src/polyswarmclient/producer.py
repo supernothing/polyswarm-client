@@ -6,6 +6,7 @@ import time
 from polyswarmartifact.schema import Bounty
 
 from polyswarmclient.abstractscanner import ScanResult
+from polyswarmclient.bountyfilter import BountyFilter
 
 logger = logging.getLogger(__name__)
 
@@ -76,16 +77,12 @@ class Producer:
                 return None
 
         num_artifacts = len(await self.client.list_artifacts(uri))
-
         # Fill out metadata to match same number of artifacts
-        if metadata is None or not Bounty.validate(metadata):
-            metadata = [None] * num_artifacts
-        elif len(metadata) < num_artifacts:
-            metadata = metadata + [None] * (num_artifacts - len(metadata))
+        metadata = BountyFilter.pad_metadata(metadata, num_artifacts)
 
         jobs = []
         for i in range(num_artifacts):
-            if self.bounty_filter is None or self.bounty_filter.is_valid(metadata[i]):
+            if self.bounty_filter is None or self.bounty_filter.is_allowed(metadata[i]):
                 jobs.append(json.dumps({
                     'ts': time.time() // 1,
                     'guid': guid,
