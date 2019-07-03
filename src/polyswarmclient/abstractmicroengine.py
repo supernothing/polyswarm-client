@@ -137,8 +137,6 @@ class AbstractMicroengine(object):
 
         artifacts = await self.client.list_artifacts(uri)
 
-        logger.critical('Metadata array: %s', metadata)
-
         if metadata is None or not Bounty.validate(metadata):
             metadata = [None] * len(artifacts)
         elif len(metadata) < len(artifacts):
