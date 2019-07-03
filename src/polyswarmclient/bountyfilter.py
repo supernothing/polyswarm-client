@@ -83,16 +83,14 @@ class BountyFilter:
             return True
 
         accepted = any([v == metadata.get(k, None) for k, v in self.accept])
-
         if self.accept and not accepted:
-            logger.info('Metadata not accepted. Skipping artifact', extra={"extra": {"metadata": metadata,
-                                                                                     "accept": self.accept}})
+            logger.info('Metadata is not supported. Skipping artifact', extra={"extra": metadata})
             return False
 
-        rejected = any([v == metadata.get(k, None) for k, v in self.exclude])
-        if self.exclude and rejected:
-            logger.info('Metadata excluded. Skipping artifact', extra={"extra": {"metadata": metadata,
-                                                                                 "exclude": self.exclude}})
-            return False
+        for k, v in self.exclude:
+            metadata_value = metadata.get(k, None)
+            if v == metadata_value:
+                logger.info('%s %s is excluded. Skipping artifact', k, metadata_value)
+                return False
 
         return True
