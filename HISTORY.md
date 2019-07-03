@@ -1,5 +1,12 @@
 # Release History
 
+### 2.2.2 (2019-07-02)
+
+* **Fix** - Don't block Redis connections when waiting on results in producer/consumer mode.
+* **Fix** - Improved E2E
+* **Feature** - Add support for contract deprecation.
+
+
 ### 2.2.1 (2019-06-14)
 
 * **Fix** - Catch `NotImplementedError` for windows when adding up signal handler in worker event loop
