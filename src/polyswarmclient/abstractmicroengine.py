@@ -8,6 +8,7 @@ from polyswarmartifact.schema import verdict, Bounty
 
 from polyswarmclient import Client
 from polyswarmclient.abstractscanner import ScanResult
+from polyswarmclient.bountyfilter import BountyFilter
 from polyswarmclient.events import RevealAssertion, SettleBounty
 from polyswarmclient.utils import asyncio_stop
 
@@ -25,8 +26,7 @@ class AbstractMicroengine(object):
         else:
             self.valid_artifact_types = artifact_types
 
-        self.exclude = exclude
-        self.accept = accept
+        self.bounty_filter = BountyFilter(accept, exclude)
 
         self.client.on_run.register(self.__handle_run)
         self.client.on_new_bounty.register(self.__handle_new_bounty)
@@ -126,23 +126,10 @@ class AbstractMicroengine(object):
         Returns:
             (list(bool), list(bool), list(str)): Tuple of mask bits, verdicts, and metadatas
         """
-        async def fetch_and_scan(accept, exclude, artifact_metadata, index):
+        async def fetch_and_scan(artifact_metadata, index):
             content = await self.client.get_artifact(uri, index)
-
-            if accept or exclude:
-                for accept_pair, exclude_pair in itertools.zip_longest(accept, exclude):
-                    if accept_pair:
-                        k, v = accept_pair
-                        metadata_value = artifact_metadata.get(k, None)
-                        if v != metadata_value:
-                            logger.info('%s %s is not supported. Skipping artifact', k, metadata_value)
-                            return ScanResult()
-                    if exclude_pair:
-                        k, v = exclude_pair
-                        metadata_value = artifact_metadata.get(k, None)
-                        if metadata_value is not None or metadata_value == v:
-                            logger.info('%s %s is excluded. Skipping artifact', k, metadata_value)
-                            return ScanResult()
+            if not self.bounty_filter.is_valid(artifact_metadata):
+                return ScanResult()
 
             if content is not None:
                 return await self.scan(guid, artifact_type, content, artifact_metadata, chain)
@@ -155,9 +142,11 @@ class AbstractMicroengine(object):
 
         if metadata is None or not Bounty.validate(metadata):
             metadata = [None] * len(artifacts)
+        elif len(metadata) < len(artifacts):
+            metadata = metadata + [None] * (len(artifacts) - len(metadata))
 
         return await asyncio.gather(*[
-            fetch_and_scan(self.accept, self.exclude, metadata[i], i) for i in range(len(artifacts))
+            fetch_and_scan(metadata[i], i) for i in range(len(artifacts))
         ])
 
     def run(self):

@@ -13,13 +13,14 @@ class Scanner(AbstractScanner):
     def __init__(self):
         super(Scanner, self).__init__()
 
-    async def scan(self, guid, artifact_type, content, chain):
+    async def scan(self, guid, artifact_type, content, metadata, chain):
         """Scan an artifact
 
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
             artifact_type (ArtifactType): Artifact type for the bounty being scanned
             content (bytes): Content of the artifact to be scan
+            metadata (dict) Dict of metadata for the artifact
             chain (str): Chain we are operating on
         Returns:
             ScanResult: Result of this scan

@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import time
+from polyswarmartifact.schema import Bounty
 
 from polyswarmclient.abstractscanner import ScanResult
 
@@ -12,17 +13,18 @@ KEY_TIMEOUT = 20
 
 
 class Producer:
-    def __init__(self, client, redis_uri, queue, time_to_post):
+    def __init__(self, client, redis_uri, queue, time_to_post, bounty_filter=None):
         self.client = client
         self.redis_uri = redis_uri
         self.queue = queue
         self.time_to_post = time_to_post
+        self.bounty_filter = bounty_filter
         self.redis = None
 
     async def start(self):
         self.redis = await aioredis.create_redis_pool(self.redis_uri)
 
-    async def scan(self, guid, artifact_type, uri, expiration_blocks, chain):
+    async def scan(self, guid, artifact_type, uri, expiration_blocks, metadata, chain):
         """Creates a set of jobs to scan all the artifacts at the given URI that are passed via Redis to workers
 
             Args:
@@ -30,6 +32,7 @@ class Producer:
                 artifact_type (ArtifactType): Artifact type for the bounty being scanned
                 uri (str):  Base artifact URI
                 expiration_blocks (int): Blocks until vote round ends
+                metadata (list[dict]) List of metadata json blobs for artifacts
                 chain (str): Chain we are operating on
 
             Returns:
@@ -73,15 +76,27 @@ class Producer:
                 return None
 
         num_artifacts = len(await self.client.list_artifacts(uri))
-        jobs = [json.dumps({
-            'ts': time.time() // 1,
-            'guid': guid,
-            'artifact_type': artifact_type.value,
-            'uri': uri,
-            'index': i,
-            'chain': chain,
-            'duration': timeout,
-            'polyswarmd_uri': self.client.polyswarmd_uri}) for i in range(num_artifacts)]
+
+        # Fill out metadata to match same number of artifacts
+        if metadata is None or not Bounty.validate(metadata):
+            metadata = [None] * num_artifacts
+        elif len(metadata) < num_artifacts:
+            metadata = metadata + [None] * (num_artifacts - len(metadata))
+
+        jobs = []
+        for i in range(num_artifacts):
+            if self.bounty_filter is None or self.bounty_filter.is_valid(metadata[i]):
+                jobs.append(json.dumps({
+                    'ts': time.time() // 1,
+                    'guid': guid,
+                    'artifact_type': artifact_type.value,
+                    'uri': uri,
+                    'index': i,
+                    'chain': chain,
+                    'duration': timeout,
+                    'polyswarmd_uri': self.client.polyswarmd_uri,
+                    'metadata': metadata[i]}
+                ))
 
         if jobs:
             try:
