@@ -1,7 +1,31 @@
+import click
 import itertools
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def split_filter(ctx, param, value):
+    """ Split some accept or exlcude arg from `key:value` to a tuple
+
+    Args:
+        ctx:
+        param:
+        value: list of exclude or accept values
+
+    Returns:
+        list[tuple] list of exclude|accept values as tuple key, value
+    """
+    if value is not None:
+        result = []
+        for item in value:
+            # Split only the first:
+            kv = item.split(':', 1)
+            if len(kv) != 2:
+                raise click.BadParameter('Accept and exclude arguments must be formatted `key:value`')
+            else:
+                result.append((kv[0], kv[1]))
+        return result
 
 
 class BountyFilter:

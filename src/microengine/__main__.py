@@ -6,6 +6,7 @@ import sys
 from polyswarmartifact import ArtifactType
 
 from polyswarmclient.config import init_logging, validate_apikey
+from polyswarmclient.bountyfilter import split_filter
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -76,30 +77,6 @@ def choose_bid_strategy(bid_strategy):
     return bid_strategy_module.__name__, bid_strategy_class
 
 
-def split_kv(ctx, param, value):
-    """ Split some accept or exlcude arg from `key:value` to a tuple
-
-    Args:
-        ctx:
-        param:
-        value: list of exclude or accept values
-
-    Returns:
-        list[tuple] list of exclude|accept values as tuple key, value
-    """
-    if value is not None:
-        result = []
-        for item in value:
-            # Split only the first:
-            kv = item.split(':', 1)
-            if len(kv) != 2:
-                raise click.BadParameter('Accept and exclude arguments must be formatted `key:value`')
-            else:
-                result.append((kv[0], kv[1]))
-        return result
-
-
-
 @click.command()
 @click.option('--log', default='WARNING',
               help='App Log level')
@@ -128,9 +105,9 @@ def split_kv(ctx, param, value):
               help='List of artifact types to scan')
 @click.option('--bid-strategy', envvar='BID_STRATEGY', default='default',
               help='Bid strategy for bounties')
-@click.option('--accept', multiple=True, default=[], callback=split_kv,
+@click.option('--accept', multiple=True, default=[], callback=split_filter,
               help='Declared metadata in format key:value that is required to allow scans on any artifact.')
-@click.option('--exclude', multiple=True, default=[], callback=split_kv,
+@click.option('--exclude', multiple=True, default=[], callback=split_filter,
               help='Declared metadata in format key:value that cannot be present to allow scans on any artifact.')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')
