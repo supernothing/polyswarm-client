@@ -20,7 +20,7 @@ RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.or
 COPY . C:/polyswarm/polyswarm-client
 RUN pip install                                       `
     --no-warn-script-location                         `
-    -r C:/polyswarm/polyswarm-client/requirements.windows.txt `
+    -r C:/polyswarm/polyswarm-client/requirements.txt `
     C:/polyswarm/polyswarm-client/; `
     ## -- Remove Various Caches --------------
     Remove-Item -Path "$env:TMP\*","$env:LocalAppData\pip\*" -Recurse -Force
