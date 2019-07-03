@@ -1,5 +1,4 @@
 import click
-import itertools
 import logging
 
 logger = logging.getLogger(__name__)
@@ -45,19 +44,16 @@ class BountyFilter:
         if not self.accept and not self.exclude:
             return True
 
-        for accept_pair, exclude_pair in itertools.zip_longest(self.accept, self.exclude):
-            if accept_pair:
-                k, v = accept_pair
-                metadata_value = metadata.get(k, None)
-                if v != metadata_value:
-                    logger.info('%s %s is not supported. Skipping artifact', k, metadata_value)
-                    return False
+        for k, v in self.accept:
+            metadata_value = metadata.get(k, None)
+            if v != metadata_value:
+                logger.info('%s %s is not supported. Skipping artifact', k, metadata_value)
+                return False
 
-            if exclude_pair:
-                k, v = exclude_pair
-                metadata_value = metadata.get(k, None)
-                if v == metadata_value:
-                    logger.info('%s %s is excluded. Skipping artifact', k, metadata_value)
-                    return False
+        for k, v in self.exclude:
+            metadata_value = metadata.get(k, None)
+            if v == metadata_value:
+                logger.info('%s %s is excluded. Skipping artifact', k, metadata_value)
+                return False
 
         return True
