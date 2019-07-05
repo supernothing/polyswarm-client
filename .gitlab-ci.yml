@@ -176,7 +176,7 @@ release-tag-windows:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     # Gets the current image that was built in the CI for this commit
-    - docker pull "$REPO_URL/$BASE_IMAGE_NAME-windows:${MANUAL_IMAGE_TAG:-$CI_COMMIT_SHA}"
+    - docker pull "$REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA"
     # Creates new tags for this image, one that should go to AWS and another to DockerHub with the tag from git
     - docker tag "$REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA" "$REPO_URL/$BASE_IMAGE_NAME-windows:$(git describe --tags --abbrev=0)"
     - docker tag "$REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA" "polyswarm/$BASE_IMAGE_NAME-windows:$(git describe --tags --abbrev=0)"
@@ -197,7 +197,7 @@ release-latest-windows:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     # Gets the current image that was built in the CI for this commit
-    - docker pull "$REPO_URL/$BASE_IMAGE_NAME-windows:${MANUAL_IMAGE_TAG:-$CI_COMMIT_SHA}"
+    - docker pull "$REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA"
     # Creates new tags for this image, one that should go to AWS and another to DockerHub with the tag "latest"
     - docker tag "$REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA" "$REPO_URL/$BASE_IMAGE_NAME-windows:latest"
     - docker tag "$REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA" "polyswarm/$BASE_IMAGE_NAME-windows:latest"
