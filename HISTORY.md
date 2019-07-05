@@ -14,6 +14,9 @@ The update from 2.2.2 to 2.3.0 is a breaking change.
 1. `AbstractArbiter.scan()` parameters changed to `(self, guid, artifact_type, content, metadata, chain)`
 1. `AbstractScanner.scan()` parameters changed to `(self, guid, artifact_type, content, metadata, chain)`
 1. `OnNewBountyCallback.run()` parameters changed to `(guid, artifact_type, author, amount, uri, expiration, metadata, block_number, txhash, chain)`
+1. `AbstractAmbassador.on_after_bounty_posted()` parameters changed to `(self, guid, artifact_type, amount, ipfs_uri, expiration, chain, metadata=None)`
+1. `AbstractAmbassador.on_bounty_post_failed()` parameters changed to `(self, artifact_type, amount, ipfs_uri, duration, chain, metadata=None)`
+1. `AbstractAmbassador.on_before_bounty_posted()` parameters changed to `(self, artifact_type, amount, ipfs_uri, duration, chain, metadata=None)`
 
 ### 2.2.2 (2019-07-02)
 
