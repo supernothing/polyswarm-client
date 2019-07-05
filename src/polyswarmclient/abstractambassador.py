@@ -1,6 +1,9 @@
 import asyncio
+import hashlib
 import logging
+import magic
 import os
+
 from abc import ABC, abstractmethod
 
 from polyswarmclient import Client
@@ -17,15 +20,16 @@ BLOCK_DIVISOR = int(os.environ.get('BLOCK_DIVISOR', 1))
 
 
 class QueuedBounty(object):
-    def __init__(self, artifact_type, amount, ipfs_uri, duration, api_key=None):
+    def __init__(self, artifact_type, amount, ipfs_uri, duration, api_key=None, metadata=None):
         self.amount = amount
         self.ipfs_uri = ipfs_uri
         self.duration = duration
         self.api_key = api_key
         self.artifact_type = artifact_type
+        self.metadata = metadata
 
     def __repr__(self):
-        return f'({self.artifact_type}, {self.amount}, {self.ipfs_uri}, {self.duration})'
+        return f'({self.artifact_type}, {self.amount}, {self.ipfs_uri}, {self.duration}, {self.metadata})'
 
 
 class AbstractAmbassador(ABC):
@@ -77,6 +81,32 @@ class AbstractAmbassador(ABC):
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
         return cls(client, testing, chains, watchdog, submission_rate)
 
+    @staticmethod
+    def generate_metadata(content):
+        """ Generate a bunch of metadata for a given bytestream from a file
+
+        Args:
+            content: bytes-like object (or string)
+
+        Returns:
+            dictionary of metadata about a file
+
+        """
+        # Force to be bytes-like
+        try:
+            content = content.encode()
+        except AttributeError:
+            pass
+
+        return {
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "md5": hashlib.md5(content).hexdigest(),
+            "size": len(content),
+            "sha1": hashlib.sha1(content).hexdigest(),
+            "mimetype": magic.from_buffer(content, mime=True),
+            "extended_type": magic.from_buffer(content),
+        }
+
     @abstractmethod
     async def generate_bounties(self, chain):
         """Override this to submit bounties to the queue (using the push_bounty method)
@@ -86,7 +116,7 @@ class AbstractAmbassador(ABC):
         """
         pass
 
-    async def push_bounty(self, artifact_type, amount, ipfs_uri, duration, chain, api_key=None):
+    async def push_bounty(self, artifact_type, amount, ipfs_uri, duration, chain, api_key=None, metadata=None):
         """Push a bounty onto the queue for submission
 
         Args:
@@ -96,8 +126,9 @@ class AbstractAmbassador(ABC):
             duration (int): Duration in blocks to accept assertions
             chain (str): Chain to submit the bounty
             api_key (str): API key to use to submit, if None use default from client
+            metadata (str): json blob of metadata
         """
-        bounty = QueuedBounty(artifact_type, amount, ipfs_uri, duration, api_key=api_key)
+        bounty = QueuedBounty(artifact_type, amount, ipfs_uri, duration, api_key=api_key, metadata=metadata)
         logger.info(f'Queueing bounty {bounty}')
 
         await self.bounty_queues[chain].put(bounty)
@@ -195,15 +226,19 @@ class AbstractAmbassador(ABC):
                     await asyncio.sleep(tries * tries)
                     continue
 
+            metadata = None
+            if bounty.metadata is not None:
+                ipfs_hash = await self.client.bounties.post_metadata(bounty.metadata, chain)
+                metadata = ipfs_hash if ipfs_hash is not None else None
+
             await self.on_before_bounty_posted(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration,
                                                chain)
-
             bounties = await self.client.bounties.post_bounty(bounty.artifact_type, bounty.amount, bounty.ipfs_uri,
-                                                              bounty.duration, chain, api_key=bounty.api_key)
-
+                                                              bounty.duration, chain, api_key=bounty.api_key,
+                                                              metadata=metadata)
             if not bounties:
                 await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration,
-                                                 chain)
+                                                 chain, metadata=bounty.metadata)
             else:
                 async with self.bounties_posted_locks[chain]:
                     bounties_posted = self.bounties_posted.get(chain, 0)
@@ -224,7 +259,7 @@ class AbstractAmbassador(ABC):
 
                 # Handle any additional steps in derived implementations
                 await self.on_after_bounty_posted(guid, bounty.artifact_type, bounty.amount, bounty.ipfs_uri,
-                                                  expiration, chain)
+                                                  expiration, chain, metadata=bounty.metadata)
 
                 sb = SettleBounty(guid)
                 self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
@@ -233,8 +268,9 @@ class AbstractAmbassador(ABC):
             self.bounty_semaphores[chain].release()
             return
 
-        logger.warning(f'Failed {tries} attempts to post bounty due to low balance. Skipping', extra={'extra': bounty})
-        await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration, chain)
+        logger.warning('Failed %s attempts to post bounty due to low balance. Skipping', tries, extra={'extra': bounty})
+        await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration, chain,
+                                         metadata=bounty.metadata)
 
     async def __handle_new_block(self, number, chain):
         if number <= self.last_block:
@@ -309,7 +345,7 @@ class AbstractAmbassador(ABC):
     async def __handle_settled_bounty(self, bounty_guid, settler, payout, block_number, txhash, chain):
         return await self.__do_handle_settle_bounty(bounty_guid, chain)
 
-    async def on_before_bounty_posted(self, artifact_type, amount, ipfs_uri, duration, chain):
+    async def on_before_bounty_posted(self, artifact_type, amount, ipfs_uri, duration, chain, metadata=None):
         """Override this to implement additional steps before the bounty is posted
 
         Args:
@@ -318,10 +354,11 @@ class AbstractAmbassador(ABC):
             ipfs_uri (str): IPFS URI of the artifact to post
             duration (int): Duration of the bounty in blocks
             chain (str): Chain we are operating on
+            metadata (dict): Oprional dict of metadata
         """
         pass
 
-    async def on_bounty_post_failed(self, artifact_type, amount, ipfs_uri, duration, chain):
+    async def on_bounty_post_failed(self, artifact_type, amount, ipfs_uri, duration, chain, metadata=None):
         """Override this to implement additional steps when a bounty fails to post
 
         Args:
@@ -330,10 +367,11 @@ class AbstractAmbassador(ABC):
             ipfs_uri (str): IPFS URI of the artifact to post
             duration (int): Duration of the bounty in blocks
             chain (str): Chain we are operating on
+            metadata (dict): Oprional dict of metadata
         """
         pass
 
-    async def on_after_bounty_posted(self, guid, artifact_type, amount, ipfs_uri, expiration, chain):
+    async def on_after_bounty_posted(self, guid, artifact_type, amount, ipfs_uri, expiration, chain, metadata=None):
         """Override this to implement additional steps after bounty is posted
 
         Args:
@@ -343,5 +381,6 @@ class AbstractAmbassador(ABC):
             ipfs_uri (str): URI of the artifact submitted
             expiration (int): Block number of bounty expiration
             chain (str): Chain we are operating on
+            metadata (dict): Oprional dict of metadata
         """
         pass

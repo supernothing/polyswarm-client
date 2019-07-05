@@ -141,10 +141,10 @@ class NctTransferVerifier(AbstractTransactionVerifier):
 
 
 class PostBountyVerifier(AbstractTransactionVerifier):
-    ABI = ('postBounty', ['uint128', 'uint256', 'uint256', 'string', 'uint256', 'uint256', 'uint256[8]'])
+    ABI = ('postBounty', ['uint128', 'uint256', 'uint256', 'string', 'uint256', 'uint256', 'uint256[8]', 'string'])
 
-    def __init__(self, artifact_type, amount, artifact_uri, num_artifacts, duration, bloom):
-        super().__init__((UNKNOWN_PARAMETER, amount, artifact_uri, num_artifacts, duration, bloom))
+    def __init__(self, artifact_type, amount, artifact_uri, num_artifacts, duration, bloom, metadata):
+        super().__init__((UNKNOWN_PARAMETER, amount, artifact_uri, num_artifacts, duration, bloom, metadata))
 
         self.artifact_type = ArtifactType.from_string(artifact_type)
         self.amount = amount
@@ -152,6 +152,7 @@ class PostBountyVerifier(AbstractTransactionVerifier):
         self.num_artifacts = num_artifacts
         self.duration = duration
         self.bloom = bloom
+        self.metadata = metadata
 
     def verify(self, transaction):
         try:
@@ -161,7 +162,7 @@ class PostBountyVerifier(AbstractTransactionVerifier):
             return False
 
         logger.debug('Expected: %s, Actual: %s', self, decoded)
-        guid, artifact_type, amount, artifact_uri, num_artifacts, duration, bloom = decoded.parameters
+        guid, artifact_type, amount, artifact_uri, num_artifacts, duration, bloom, metadata = decoded.parameters
 
         bloom_value = 0
         for b in bloom:
@@ -176,7 +177,8 @@ class PostBountyVerifier(AbstractTransactionVerifier):
             num_artifacts == self.num_artifacts and \
             duration == self.duration and \
             bloom_value == self.bloom and \
-            amount == self.amount
+            amount == self.amount and \
+            metadata.decode('utf-8') == self.metadata
 
 
 class PostAssertionVerifier(AbstractTransactionVerifier):

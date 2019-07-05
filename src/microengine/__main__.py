@@ -6,6 +6,7 @@ import sys
 from polyswarmartifact import ArtifactType
 
 from polyswarmclient.config import init_logging, validate_apikey
+from polyswarmclient.bountyfilter import split_filter
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -104,10 +105,14 @@ def choose_bid_strategy(bid_strategy):
               help='List of artifact types to scan')
 @click.option('--bid-strategy', envvar='BID_STRATEGY', default='default',
               help='Bid strategy for bounties')
+@click.option('--accept', multiple=True, default=[], callback=split_filter,
+              help='Declared metadata in format key:value that is required to allow scans on any artifact.')
+@click.option('--exclude', multiple=True, default=[], callback=split_filter,
+              help='Declared metadata in format key:value that cannot be present to allow scans on any artifact.')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')
 def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains,
-         log_format, artifact_type, bid_strategy):
+         log_format, artifact_type, bid_strategy, accept, exclude):
     """Entrypoint for the microengine driver
 
     Args:
@@ -124,6 +129,8 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
         log_format (str): Format to output logs in. `text` or `json`
         artifact_type (list[str]): List of artifact types to scan
         bid_strategy (str): Bid strategy module name
+        accept (list[tuple[str]]): List of excluded mimetypes
+        exclude (list[tuple[str]]): List of excluded mimetypes
     """
     loglevel = getattr(logging, log.upper(), None)
     clientlevel = getattr(logging, client_log.upper(), None)
@@ -146,6 +153,8 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
                               insecure_transport=insecure_transport,
                               chains=set(chains),
                               artifact_types=artifact_types,
+                              exclude=exclude,
+                              accept=accept,
                               bid_strategy=bid_strategy_class()).run()
 
 

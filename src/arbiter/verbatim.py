@@ -41,13 +41,14 @@ class Arbiter(AbstractArbiter):
         else:
             self.conn = sqlite3.connect(db_pth)
 
-    async def scan(self, guid, artifact_type, content, chain):
+    async def scan(self, guid, artifact_type, content, metadata, chain):
         """Match hash of an artifact with our database
 
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
             artifact_type (ArtifactType): Artifact type for the bounty being scanned
             content (bytes): Content of the artifact to be scan
+            metadata (dict): Metadata blob for this artifact
             chain (str): Chain sample is being sent from
         Returns:
             ScanResult: Result of this scan

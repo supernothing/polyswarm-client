@@ -8,8 +8,8 @@ from microengine.bidstrategy.aggressive import BidStrategy as AggressiveStrategy
 
 
 class Microengine(AbstractMicroengine):
-    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None):
-        super().__init__(client, testing, scanner, chains, artifact_types, bid_strategy)
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, **kwargs):
+        super().__init__(client, testing, scanner, chains, artifact_types, **kwargs)
 
 
 class BidStrategy(BidStrategyBase):

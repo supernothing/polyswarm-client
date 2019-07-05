@@ -115,6 +115,7 @@ class Worker(object):
 
                     index = job['index']
                     chain = job['chain']
+                    metadata = job.get('metadata', None)
 
                     duration = job['duration']
                     timestamp = job['ts']
@@ -158,7 +159,7 @@ class Worker(object):
                         continue
 
                 async with self.scan_lock:
-                    result = await self.scanner.scan(guid, artifact_type, content, chain)
+                    result = await self.scanner.scan(guid, artifact_type, content, metadata, chain)
 
                 j = json.dumps({
                     'index': index,

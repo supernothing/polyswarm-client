@@ -59,23 +59,24 @@ class AbstractArbiter(object):
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
         return cls(client, testing, scanner, chains, artifact_types)
 
-    async def scan(self, guid, artifact_type, content, chain):
+    async def scan(self, guid, artifact_type, content, metadata, chain):
         """Override this to implement custom scanning logic
 
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
             artifact_type (ArtifactType): Artifact type for the bounty being scanned
             content (bytes): Content of the artifact to be scan
+            metadata (dict) Dict of metadata for the artifact
             chain (str): Chain we are operating on
         Returns:
             ScanResult: Result of this scan
         """
         if self.scanner:
-            return await self.scanner.scan(guid, artifact_type, content, chain)
+            return await self.scanner.scan(guid, artifact_type, content, metadata, chain)
 
         raise NotImplementedError("You must subclass this class and override this method.")
 
-    async def fetch_and_scan_all(self, guid, artifact_type, uri, vote_round_end, chain):
+    async def fetch_and_scan_all(self, guid, artifact_type, uri, vote_round_end, metadata, chain):
         """Fetch and scan all artifacts concurrently
 
         Args:
@@ -83,6 +84,7 @@ class AbstractArbiter(object):
             artifact_type (ArtifactType): Artifact type for the associated bounty
             uri (str):  Base artifact URI
             vote_round_end (int): Max number of blocks to take
+            metadata (list[dict]) List of metadata json blobs for artifacts
             chain (str): Chain we are operating on
 
         Returns:
@@ -92,7 +94,8 @@ class AbstractArbiter(object):
         async def fetch_and_scan(index):
             content = await self.client.get_artifact(uri, index)
             if content is not None:
-                return await self.scan(guid, artifact_type, content, chain)
+                # Ignoring metadata for now
+                return await self.scan(guid, artifact_type, content, None, chain)
 
             return ScanResult()
 
@@ -161,7 +164,7 @@ class AbstractArbiter(object):
         self.client.schedule(withdraw_start, ws, chain)
         return []
 
-    async def __handle_new_bounty(self, guid, artifact_type, author, amount, uri, expiration, block_number, txhash, chain):
+    async def __handle_new_bounty(self, guid, artifact_type, author, amount, uri, expiration, metadata, block_number, txhash, chain):
         """Scan and assert on a posted bounty
 
         Args:
@@ -171,6 +174,7 @@ class AbstractArbiter(object):
             amount (str): Amount of the bounty in base NCT units (10 ^ -18)
             uri (str): IPFS hash of the root artifact
             expiration (str): Block number of the bounty's expiration
+            metadata (dict): Dictionary of metadata or None
             block_number (int): Block number the bounty was posted on
             txhash (str): Transaction hash which caused the event
             chain (str): Is this on the home or side chain?
@@ -202,7 +206,7 @@ class AbstractArbiter(object):
         vote_start = expiration + assertion_reveal_window
         settle_start = expiration + assertion_reveal_window + arbiter_vote_window
 
-        results = await self.fetch_and_scan_all(guid, artifact_type, uri, settle_start, chain)
+        results = await self.fetch_and_scan_all(guid, artifact_type, uri, settle_start, metadata, chain)
         votes = [result.verdict for result in results]
 
         bounty = await self.client.bounties.get_bounty(guid, chain)

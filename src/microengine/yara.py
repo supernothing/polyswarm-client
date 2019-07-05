@@ -15,13 +15,14 @@ class Scanner(AbstractScanner):
     def __init__(self):
         self.rules = yara.compile(os.path.join(RULES_DIR, "malware/MALW_Eicar"))
 
-    async def scan(self, guid, artifact_type, content, chain):
+    async def scan(self, guid, artifact_type, content, metadata, chain):
         """Scan an artifact with Yara.
 
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
             artifact_type (ArtifactType): Artifact type for the bounty being scanned
             content (bytes): Content of the artifact to be scan
+            metadata (dict) Dict of metadata for the artifact
             chain (str): Chain we are operating on
 
         Returns:
@@ -44,7 +45,7 @@ class Scanner(AbstractScanner):
 class Microengine(AbstractMicroengine):
     """Microengine which matches samples against yara rules"""
 
-    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None):
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, **kwargs):
         """Initialize a Yara microengine
 
         Args:
@@ -56,4 +57,4 @@ class Microengine(AbstractMicroengine):
         if artifact_types is None:
             artifact_types = [ArtifactType.FILE]
         scanner = Scanner()
-        super().__init__(client, testing, scanner, chains, artifact_types, bid_strategy)
+        super().__init__(client, testing, scanner, chains, artifact_types, **kwargs)
