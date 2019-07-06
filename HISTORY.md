@@ -1,5 +1,9 @@
 # Release History
 
+### 2.3.1 (2019-07-06)
+
+* **Fix** - Use empty dict instead of `None` when padding bounty metadata.
+
 ### 2.3.0 (2019-07-03)
 
 * **Feature** - Add `--accept` and `--exclude` options in microengine to filter based on bounty metadata
