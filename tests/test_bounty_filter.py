@@ -10,7 +10,7 @@ async def test_pad_fills_empty_to_length():
     # act
     padded = BountyFilter.pad_metadata(metadata, 2)
     # assert
-    assert padded == [None] * 2
+    assert padded == [{}] * 2
 
 
 # noinspection PyTypeChecker
@@ -21,7 +21,7 @@ async def test_pad_fills_none_to_length():
     # act
     padded = BountyFilter.pad_metadata(metadata, 2)
     # assert
-    assert padded == [None] * 2
+    assert padded == [{}] * 2
 
 
 @pytest.mark.asyncio
@@ -31,7 +31,7 @@ async def test_pad_fills_to_length():
     # act
     padded = BountyFilter.pad_metadata(metadata, 2)
     # assert
-    assert padded == [{"mimetype": "text/plain"}, None]
+    assert padded == [{"mimetype": "text/plain"}, {}]
 
 
 @pytest.mark.asyncio
@@ -41,7 +41,7 @@ async def test_pad_fills_with_none_on_invalid_metadata():
     # act
     padded = BountyFilter.pad_metadata(metadata, 2)
     # assert
-    assert padded == [None] * 2
+    assert padded == [{}] * 2
 
 
 @pytest.mark.asyncio

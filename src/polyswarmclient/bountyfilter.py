@@ -62,11 +62,11 @@ class BountyFilter:
         """
         result = metadata
         if not metadata or not Bounty.validate(metadata):
-            result = [None] * min_length
+            result = [{}] * min_length
         elif len(metadata) < min_length:
-            result.extend([None] * (min_length - len(metadata)))
+            result.extend([{}] * (min_length - len(metadata)))
 
-        logger.critical('Extended result %s', result)
+        logger.info('Padded result %s:', result)
 
         return result
 
