@@ -16,7 +16,7 @@ class ScanResult(object):
             bit (bool): Are we asserting on this artifact
             verdict (bool): Is this artifact malicious (True) or benign (False)
             confidence (float): How confident are we in our verdict ranging from 0.0 to 1.0
-            metadata (str): Optional metadata from the scan
+            metadata (json str): Optional metadata from the scan
         """
         self.bit = bit
         self.verdict = verdict
