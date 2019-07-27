@@ -60,8 +60,8 @@ class Worker(object):
             try:
                 loop.add_signal_handler(exit_signal, self.handle_signal)
             except NotImplementedError:
-                # Disable graceful exit, but run anyway
-                logger.exception(f'{platform.system()} does not support graceful shutdown')
+                # Try to create an ordinary signal handler
+                signal.signal(exit_signal, self.handle_signal)
             try:
                 asyncio.get_event_loop().run_until_complete(self.setup())
                 gather_task = asyncio.gather(*[self.run_task(i) for i in range(self.task_count)])
