@@ -74,21 +74,8 @@ def choose_backend(backend):
 #               help='Should the abassador send offers')
 def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, watchdog,
          log_format, submission_rate):
-    """Entrypoint for the ambassador driver
-
-    Args:
-        log (str): Logging level for all app logs
-        client_log (str): Logging level for all polyswarmclient logs
-        polyswarmd_addr(str): Address of polyswarmd
-        keyfile (str): Path to private key file to use to sign transactions
-        password (str): Password to decrypt the encrypted private key
-        backend (str): Backend implementation to use
-        api_key(str): API key to use with polyswarmd
-        testing (int): Mode to process N bounties then exit (optional)
-        insecure_transport (bool): Connect to polyswarmd without TLS
-        chains (List[str]): Chain(s) to operate on
-        watchdog (int): Number of blocks to look back and see if bounties are being submitted
-        log_format (str): Format to output logs in. `text` or `json`
+    """
+    Entrypoint for the ambassador driver
     """
     loglevel = getattr(logging, log.upper(), None)
     clientlevel = getattr(logging, client_log.upper(), None)

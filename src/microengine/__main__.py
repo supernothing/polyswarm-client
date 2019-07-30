@@ -114,23 +114,6 @@ def choose_bid_strategy(bid_strategy):
 def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains,
          log_format, artifact_type, bid_strategy, accept, exclude):
     """Entrypoint for the microengine driver
-
-    Args:
-        log (str): Logging level for all app logs
-        client_log (str): Logging level for all polyswarmclient logs
-        polyswarmd_addr(str): Address of polyswarmd
-        keyfile (str): Path to private key file to use to sign transactions
-        password (str): Password to decrypt the encrypted private key
-        backend (str): Backend implementation to use
-        api_key(str): API key to use with polyswarmd
-        testing (int): Mode to process N bounties then exit (optional)
-        insecure_transport (bool): Connect to polyswarmd without TLS
-        chains (list[str]): List of chains on which to scan artifacts
-        log_format (str): Format to output logs in. `text` or `json`
-        artifact_type (list[str]): List of artifact types to scan
-        bid_strategy (str): Bid strategy module name
-        accept (list[tuple[str]]): List of excluded mimetypes
-        exclude (list[tuple[str]]): List of excluded mimetypes
     """
     loglevel = getattr(logging, log.upper(), None)
     clientlevel = getattr(logging, client_log.upper(), None)

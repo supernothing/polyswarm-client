@@ -28,7 +28,7 @@ def polyswarm_client(func):
     @click.option('--polyswarmd-addr', envvar='POLYSWARMD_ADDR', default='localhost:31337',
                   help='Address (host:port) of polyswarmd instance')
     @click.option('--keyfile', envvar='KEYFILE', type=click.Path(), default=None,
-                  help='Keystore file containing the private key to use with this microengine')
+                  help='Keystore file containing the private key to use with this balancemanager')
     @click.option('--password', envvar='PASSWORD', prompt=True, hide_input=True,
                   help='Password to decrypt the keyfile with')
     @click.option('--api-key', envvar='API_KEY', default='',
@@ -56,11 +56,6 @@ def cli(log, client_log, log_format):
     """
     Entrypoint for the balance manager driver
 
-    Args:
-        log (str): Log level for balancemanger module logs
-        client_log (str): Log level for all polyswarmclient module logs
-        log_format (str): Choose either json, or text log format
-
     """
     loglevel = getattr(logging, log.upper(), None)
     clientlevel = getattr(logging, client_log.upper(), None)
@@ -79,18 +74,7 @@ def cli(log, client_log, log_format):
 @click.argument('amount', type=float, callback=validate_transfer_amount, required=False, default=None)
 def deposit(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, denomination, all, amount):
     """
-    Entrypoint to deposit NCT into a sidechain
-
-    Args:
-        polyswarmd_addr (str): Address for the polyswarmd server
-        keyfile (str): Path to the keyfile
-        password (str): Password to unlock keyfile
-        api_key (str): ApiKey to access polyswarmd
-        testing (int): Number of tests to run
-        insecure_transport (bool): Flag to allow use of http instead of https
-        denomination (str): Choose to interpret amount as nct, nct-gwei, or nct-wei
-        all (bool): Choose to deposit the entire homechain balance
-        amount (float): Amount of Nectar (NCT) to transfer
+    Deposit NCT into a sidechain
     """
     if amount is None and not all:
         raise click.BadArgumentUsage('Must specify either an amount or --all')
@@ -107,18 +91,7 @@ def deposit(polyswarmd_addr, keyfile, password, api_key, testing, insecure_trans
 @click.argument('amount', type=float, callback=validate_transfer_amount, required=False, default=None)
 def withdraw(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, denomination, all, amount):
     """
-    Entrypoint to withdraw NCT from a sidechain into the homechain
-
-    Args:
-        polyswarmd_addr (str): Address for the polyswarmd server
-        keyfile (str): Path to the keyfile
-        password (str): Password to unlock keyfile
-        api_key (str): ApiKey to access polyswarmd
-        testing (int): Number of tests to run
-        insecure_transport (bool): Flag to allow use of http instead of https
-        denomination (str): Choose to interpret amount as nct, nct-gwei, or nct-wei
-        all (bool): Choose to withdraw the entire sidechain balance
-        amount (float): Amount of Nectar (NCT) to transfer (if not all)
+    Withdraw NCT from a sidechain
     """
     if amount is None and not all:
         raise click.BadArgumentUsage('Must specify either an amount or --all')
@@ -136,18 +109,7 @@ def withdraw(polyswarmd_addr, keyfile, password, api_key, testing, insecure_tran
 @click.argument('amount', type=float, callback=validate_transfer_amount, required=False, default=None)
 def deposit_stake(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, denomination, all, chain, amount):
     """
-    Entrypoint to deposit NCT into a sidechain
-
-    Args:
-        polyswarmd_addr (str): Address for the polyswarmd server
-        keyfile (str): Path to the keyfile
-        password (str): Password to unlock keyfile
-        api_key (str): ApiKey to access polyswarmd
-        testing (int): Number of tests to run
-        insecure_transport (bool): Flag to allow use of http instead of https
-        denomination (str): Choose to interpret amount as nct, nct-gwei, or nct-wei
-        all (bool): Choose to deposit the entire homechain balance
-        amount (float): Amount of Nectar (NCT) to transfer
+    Deposit NCT into the ArbiterStaking contract
     """
     if amount is None and not all:
         raise click.BadArgumentUsage('Must specify either an amount or --all')
@@ -165,18 +127,7 @@ def deposit_stake(polyswarmd_addr, keyfile, password, api_key, testing, insecure
 @click.argument('amount', type=float, callback=validate_transfer_amount, required=False, default=None)
 def withdraw_stake(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, denomination, all, chain, amount):
     """
-    Entrypoint to withdraw NCT from a sidechain into the homechain
-
-    Args:
-        polyswarmd_addr (str): Address for the polyswarmd server
-        keyfile (str): Path to the keyfile
-        password (str): Password to unlock keyfile
-        api_key (str): ApiKey to access polyswarmd
-        testing (int): Number of tests to run
-        insecure_transport (bool): Flag to allow use of http instead of https
-        denomination (str): Choose to interpret amount as nct, nct-gwei, or nct-wei
-        all (bool): Choose to withdraw the entire sidechain balance
-        amount (float): Amount of Nectar (NCT) to transfer (if not all)
+    Withdraw NCT from the ArbiterStaking contract
     """
     if amount is None and not all:
         raise click.BadArgumentUsage('Must specify either an amount or --all')
@@ -200,21 +151,7 @@ def withdraw_stake(polyswarmd_addr, keyfile, password, api_key, testing, insecur
 def maintain(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, denomination,
              maximum, withdraw_target, confirmations, minimum, refill_amount):
     """
-    Entrypoint to withdraw NCT from a sidechain into the homechain
-
-    Args:
-        polyswarmd_addr (str): Address for the polyswarmd server
-        keyfile (str): Path to the keyfile
-        password (str): Password to unlock keyfile
-        api_key (str): ApiKey to access polyswarmd
-        testing (int): Number of tests to run
-        insecure_transport (bool): Flag to allow use of http instead of https
-        denomination (str): Choose to interpret amount as nct, nct-gwei, or nct-wei
-        maximum (int): Maximum balance to before starting a withdrawal from sidechain
-        withdraw_target (int): Target value after performing a withdrawal
-        confirmations (int): Number of confirmations to wait to confirm a transfer occurred
-        minimum (float): Value of NCT on sidechain where you want to transfer more NCT
-        refill_amount (float): Value of NCT to transfer anytime the balance falls below the minimum
+    Maintain min/max NCT balance in sidechain
     """
     logger.info('Maintaining the minimum balance by depositing %s %s when it falls below %s %s',
                 refill_amount,
