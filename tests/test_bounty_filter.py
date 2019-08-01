@@ -608,11 +608,11 @@ def test_array_bad_query():
 def test_jq_syntax_inside_array():
     # arrange
     metadata = ['020']
-    regex_filter = Filter('.[]+1', FilterComparison.REGEX, '.*2.*')
+    regex_filter = Filter('.[0]', FilterComparison.REGEX, '.*2.*')
     # act
     match = regex_filter.filter(metadata)
     # assert
-    assert not match
+    assert match
 
 
 def test_jq_syntax_inside_dict():
@@ -623,4 +623,14 @@ def test_jq_syntax_inside_dict():
     match = object_filter.filter(metadata)
     # assert
     assert match
+
+
+def test_jq_syntax_no_match():
+    # arrange
+    metadata = {'field': 'asdf'}
+    object_filter = Filter('.filesize', FilterComparison.EQ, 'v')
+    # act
+    match = object_filter.filter(metadata)
+    # assert
+    assert not match
 
