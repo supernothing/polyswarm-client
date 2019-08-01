@@ -144,8 +144,8 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
 
     filter_accept, filter_reject = filter
     if accept or exclude:
-        logger.warning('Options `--exclude|accept key:value` are deprecated, please switch to `--filter '
-                       'accept|reject key comparison value`')
+        logger.warning('Options `--exclude|accept key:value` are deprecated, please switch to `--filter ['
+                       'accept|reject] <jq_input> [eq|gt|gte|lt|lte|startswith|endswith|regex] <target_value>`')
 
         filter_accept.extend(accept)
         filter_reject.extend(exclude)
