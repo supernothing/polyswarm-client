@@ -2,8 +2,8 @@ import enum
 import re
 import click
 import logging
-
-from jq import jq
+import pyjq
+from _pyjq import ScriptRuntimeError
 
 from polyswarmartifact.schema import Bounty
 
@@ -99,7 +99,6 @@ class Filter:
             comparison (FilterComparison): Type of comparison
             target_value (str): Str representation of the target value
         """
-        self.jq = jq(query)
         self.query = query
         self.comparison = comparison
         self.target_value = target_value
@@ -173,8 +172,8 @@ class Filter:
 
         """
         try:
-            transformed = self.jq.transform(value)
-        except ValueError:
+            transformed = pyjq.first(self.query, value)
+        except ScriptRuntimeError:
             logger.error('Cannot parse value %s with query %s', value, self.query)
             return False
 
