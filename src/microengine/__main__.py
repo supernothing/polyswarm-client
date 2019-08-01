@@ -118,8 +118,8 @@ def choose_bid_strategy(bid_strategy):
                       click.Choice([member.value for name, member in FilterComparison.__members__.items()]),
                       str
               ),
-              help='Add filter in format `[accept|reject] key [eq|gt|gte|lt|lte|startswith|endswith|regex] value` '
-                   'to accept or reject artifacts based on metadata.')
+              help='Add filter in format `[accept|reject] <jq_input> [eq|gt|gte|lt|lte|startswith|endswith|regex] '
+                   '<target_value>` to accept or reject artifacts based on metadata.')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')
 def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains,

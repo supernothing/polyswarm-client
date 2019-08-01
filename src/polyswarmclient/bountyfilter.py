@@ -1,8 +1,9 @@
 import enum
 import re
-
 import click
 import logging
+
+from jq import jq
 
 from polyswarmartifact.schema import Bounty
 
@@ -30,7 +31,8 @@ def split_filter(ctx, param, value):
         if len(kv) != 2:
             raise click.BadParameter('Accept and exclude arguments must be formatted `key:value`')
 
-        result.append(Filter(kv[0], FilterComparison.EQ, kv[1]))
+        # Set filter to match jq format
+        result.append(Filter(".{0}".format(kv[0]), FilterComparison.EQ, kv[1]))
     return result
 
 
@@ -89,28 +91,29 @@ class Filter:
     """ Filter some metadata value
 
     """
-    def __init__(self, key, comparison, target_value):
+    def __init__(self, query, comparison, target_value):
         """ Create a new Filter
 
         Args:
-            key (str): Key name for the metadata field being filtered
+            query (str): JQ style query to get the intended kv pair
             comparison (FilterComparison): Type of comparison
             target_value (str): Str representation of the target value
         """
-        self.key = key
+        self.jq = jq(query)
+        self.query = query
         self.comparison = comparison
         self.target_value = target_value
 
     def __eq__(self, other):
         return isinstance(other, Filter) \
-               and other.key == self.key \
+               and other.query == self.query \
                and other.comparison == self.comparison \
                and other.target_value == self.target_value
 
     def __repr__(self):
-        return '<Filter key={0} comparison={1} target_value={2}>'.format(self.key,
-                                                                         self.comparison,
-                                                                         self.target_value)
+        return '<Filter query={0} comparison={1} target_value={2}>'.format(self.query,
+                                                                           self.comparison,
+                                                                           self.target_value)
 
     def number_check(self, value):
         """ Check a value as a number with GT, GTE, LT, or LTE comparisons
@@ -164,18 +167,24 @@ class Filter:
         """ Take a value, and match it against the target_value and comparison operator for this filter
 
         Args:
-            value (int|str|bytes): Some value to compare against
+            value (any): Some value to compare against
 
         Returns: (bool) True if it matches the filter
 
         """
-        if value is None:
+        try:
+            transformed = self.jq.transform(value)
+        except ValueError:
+            logger.error('Cannot parse value %s with query %s', value, self.query)
+            return False
+
+        if transformed is None:
             return False
 
         if self.comparison in [FilterComparison.GT, FilterComparison.GTE, FilterComparison.LT, FilterComparison.LTE]:
-            return self.number_check(value)
+            return self.number_check(transformed)
 
-        return self.string_check(value)
+        return self.string_check(transformed)
 
 
 class BountyFilter:
@@ -233,14 +242,14 @@ class BountyFilter:
         if not self.accept and not self.reject:
             return True
 
-        accepted = any([f.filter(metadata.get(f.key, None)) for f in self.accept])
+        accepted = any((f.filter(metadata) for f in self.accept))
 
         if self.accept and not accepted:
             logger.info('Metadata not accepted. Skipping artifact', extra={"extra": {"metadata": metadata,
                                                                                      "accept": self.accept}})
             return False
 
-        rejected = any([f.filter(metadata.get(f.key, None)) for f in self.reject])
+        rejected = any((f.filter(metadata) for f in self.reject))
         if self.reject and rejected:
             logger.info('Metadata rejected. Skipping artifact', extra={"extra": {"metadata": metadata,
                                                                                  "reject": self.reject}})

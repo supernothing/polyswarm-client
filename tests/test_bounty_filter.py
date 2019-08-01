@@ -58,7 +58,7 @@ def test_no_pad_on_too_long():
 
 def test_not_excluded():
     # arrange
-    bounty_filter = BountyFilter(None, [Filter('mimetype', FilterComparison.EQ, 'text/plain')])
+    bounty_filter = BountyFilter(None, [Filter('.mimetype', FilterComparison.EQ, 'text/plain')])
     # act
     allowed = bounty_filter.is_allowed({'mimetype': 'text/html'})
     # assert
@@ -67,7 +67,7 @@ def test_not_excluded():
 
 def test_excluded():
     # arrange
-    bounty_filter = BountyFilter(None, [Filter('mimetype', FilterComparison.EQ, 'text/plain')])
+    bounty_filter = BountyFilter(None, [Filter('.mimetype', FilterComparison.EQ, 'text/plain')])
     # act
     allowed = bounty_filter.is_allowed({'mimetype': 'text/plain'})
     # assert
@@ -77,8 +77,8 @@ def test_excluded():
 def test_any_excluded():
     # arrange
     bounty_filter = BountyFilter(None, [
-        Filter('mimetype', FilterComparison.EQ, 'text/plain'),
-        Filter('mimetype', FilterComparison.EQ, 'text/html')])
+        Filter('.mimetype', FilterComparison.EQ, 'text/plain'),
+        Filter('.mimetype', FilterComparison.EQ, 'text/html')])
     # act
     allowed = bounty_filter.is_allowed({'mimetype': 'text/html'})
     # assert
@@ -87,7 +87,7 @@ def test_any_excluded():
 
 def test_not_accepted():
     # arrange
-    bounty_filter = BountyFilter([Filter('mimetype', FilterComparison.EQ, 'text/plain')], None)
+    bounty_filter = BountyFilter([Filter('.mimetype', FilterComparison.EQ, 'text/plain')], None)
     # act
     allowed = bounty_filter.is_allowed({'mimetype': 'text/html'})
     # assert
@@ -96,7 +96,7 @@ def test_not_accepted():
 
 def test__accepted():
     # arrange
-    bounty_filter = BountyFilter([Filter('mimetype', FilterComparison.EQ, 'text/plain')], None)
+    bounty_filter = BountyFilter([Filter('.mimetype', FilterComparison.EQ, 'text/plain')], None)
     # act
     allowed = bounty_filter.is_allowed({'mimetype': 'text/plain'})
     # assert
@@ -105,8 +105,8 @@ def test__accepted():
 
 def test_scans_artifact_accepted_match_only_one():
     # arrange
-    bounty_filter = BountyFilter([Filter('mimetype', FilterComparison.EQ, 'text/plain'),
-                                  Filter('mimetype', FilterComparison.EQ, 'text/html')],
+    bounty_filter = BountyFilter([Filter('.mimetype', FilterComparison.EQ, 'text/plain'),
+                                  Filter('.mimetype', FilterComparison.EQ, 'text/html')],
                                  None)
     # act
     allowed = bounty_filter.is_allowed({'mimetype': 'text/html'})
@@ -119,7 +119,7 @@ def test_split_filter_becomes_filter():
     # assert
     text_filter = split_filter(None, None, ['mimetype:text/plain'])
     # act
-    assert text_filter[0] == Filter('mimetype', FilterComparison.EQ, 'text/plain')
+    assert text_filter[0] == Filter('.mimetype', FilterComparison.EQ, 'text/plain')
 
 
 def test_split_filter_empty_stays_empty():
@@ -133,18 +133,18 @@ def test_split_filter_empty_stays_empty():
 def test_parse_filter_adds_reject_to_second_list():
     # arrange
     # assert
-    accept, reject = parse_filters(None, None, [('reject', 'mimetype', 'contains', 'text')])
+    accept, reject = parse_filters(None, None, [('reject', '.mimetype', 'contains', 'text')])
     # act
     assert not accept
-    assert reject[0] == Filter('mimetype', FilterComparison.CONTAINS, 'text')
+    assert reject[0] == Filter('.mimetype', FilterComparison.CONTAINS, 'text')
 
 
 def test_parse_filter_adds_accept_to_first_list():
     # arrange
     # assert
-    accept, reject = parse_filters(None, None, [('accept', 'mimetype', 'contains', 'text')])
+    accept, reject = parse_filters(None, None, [('accept', '.mimetype', 'contains', 'text')])
     # act
-    assert accept[0] == Filter('mimetype', FilterComparison.CONTAINS, 'text')
+    assert accept[0] == Filter('.mimetype', FilterComparison.CONTAINS, 'text')
     assert not reject
 
 
@@ -240,7 +240,7 @@ def test_filter_comparison_from_regex():
 
 def test_none_does_not_match():
     # arrange
-    text_filter = Filter('mimetype', FilterComparison.EQ, 'text/plain')
+    text_filter = Filter('.mimetype', FilterComparison.EQ, 'text/plain')
     # act
     match = text_filter.filter(None)
     # assert
@@ -249,8 +249,8 @@ def test_none_does_not_match():
 
 def test_gt_matches_larger():
     # arrange
-    metadata = '20'
-    size_filter = Filter('filesize', FilterComparison.GT, '0')
+    metadata = {'filesize': '20'}
+    size_filter = Filter('.filesize', FilterComparison.GT, '0')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -259,9 +259,9 @@ def test_gt_matches_larger():
 
 def test_gt_no_match_smaller_same():
     # arrange
-    same = '30'
-    smaller = '0'
-    size_filter = Filter('filesize', FilterComparison.GT, '30')
+    same = {'filesize': '30'}
+    smaller = {'filesize': '0'}
+    size_filter = Filter('.filesize', FilterComparison.GT, '30')
     # act
     smaller_match = size_filter.filter(smaller)
     same_match = size_filter.filter(same)
@@ -271,8 +271,8 @@ def test_gt_no_match_smaller_same():
 
 def test_gt_matches_value_int():
     # arrange
-    metadata = 20
-    size_filter = Filter('filesize', FilterComparison.GT, '0')
+    metadata = {'filesize': 20}
+    size_filter = Filter('.filesize', FilterComparison.GT, '0')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -281,8 +281,8 @@ def test_gt_matches_value_int():
 
 def test_gt_not_match_value_is_string():
     # arrange
-    metadata = 'asdf'
-    size_filter = Filter('filesize', FilterComparison.GT, '0')
+    metadata = {'filesize': 'asdf'}
+    size_filter = Filter('.filesize', FilterComparison.GT, '0')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -291,8 +291,8 @@ def test_gt_not_match_value_is_string():
 
 def test_gt_not_match_target_is_string():
     # arrange
-    metadata = '0'
-    size_filter = Filter('filesize', FilterComparison.GT, 'asdf')
+    metadata = {'filesize': '0'}
+    size_filter = Filter('.filesize', FilterComparison.GT, 'asdf')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -301,9 +301,9 @@ def test_gt_not_match_target_is_string():
 
 def test_gte_matches_larger_and_same():
     # arrange
-    larger = '20'
-    same = '0'
-    size_filter = Filter('filesize', FilterComparison.GTE, '0')
+    larger = {'filesize': '20'}
+    same = {'filesize': '0'}
+    size_filter = Filter('.filesize', FilterComparison.GTE, '0')
     # act
     larger_match = size_filter.filter(larger)
     same_match = size_filter.filter(same)
@@ -313,8 +313,8 @@ def test_gte_matches_larger_and_same():
 
 def test_gte_no_match_smaller():
     # arrange
-    metadata = '20'
-    size_filter = Filter('filesize', FilterComparison.GTE, '30')
+    metadata = {'filesize': '20'}
+    size_filter = Filter('.filesize', FilterComparison.GTE, '30')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -323,8 +323,8 @@ def test_gte_no_match_smaller():
 
 def test_gte_not_match_value_is_string():
     # arrange
-    metadata = 'asdf'
-    size_filter = Filter('filesize', FilterComparison.GTE, '0')
+    metadata = {'filesize': 'asdf'}
+    size_filter = Filter('.filesize', FilterComparison.GTE, '0')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -333,8 +333,8 @@ def test_gte_not_match_value_is_string():
 
 def test_gte_not_match_target_is_string():
     # arrange
-    metadata = '0'
-    size_filter = Filter('filesize', FilterComparison.GTE, 'asdf')
+    metadata = {'filesize': '0'}
+    size_filter = Filter('.filesize', FilterComparison.GTE, 'asdf')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -343,8 +343,8 @@ def test_gte_not_match_target_is_string():
 
 def test_lt_matches_smaller():
     # arrange
-    metadata = '20'
-    size_filter = Filter('filesize', FilterComparison.LT, '30')
+    metadata = {'filesize': '20'}
+    size_filter = Filter('.filesize', FilterComparison.LT, '30')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -353,9 +353,9 @@ def test_lt_matches_smaller():
 
 def test_lt_no_match_larger_same():
     # arrange
-    larger = '20'
-    same = '0'
-    size_filter = Filter('filesize', FilterComparison.LT, '0')
+    larger = {'filesize': '20'}
+    same = {'filesize': '0'}
+    size_filter = Filter('.filesize', FilterComparison.LT, '0')
     # act
     larger_match = size_filter.filter(larger)
     same_match = size_filter.filter(same)
@@ -365,8 +365,8 @@ def test_lt_no_match_larger_same():
 
 def test_lt_not_match_value_is_string():
     # arrange
-    metadata = 'asdf'
-    size_filter = Filter('filesize', FilterComparison.LT, '0')
+    metadata = {'filesize': 'asdf'}
+    size_filter = Filter('.filesize', FilterComparison.LT, '0')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -375,8 +375,8 @@ def test_lt_not_match_value_is_string():
 
 def test_lt_not_match_target_is_string():
     # arrange
-    metadata = '0'
-    size_filter = Filter('filesize', FilterComparison.LT, 'asdf')
+    metadata = {'filesize': '0'}
+    size_filter = Filter('.filesize', FilterComparison.LT, 'asdf')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -385,9 +385,9 @@ def test_lt_not_match_target_is_string():
 
 def test_lte_matches_smaller_and_same():
     # arrange
-    same = '30'
-    smaller = '0'
-    size_filter = Filter('filesize', FilterComparison.LTE, '30')
+    same = {'filesize': '30'}
+    smaller = {'filesize': '0'}
+    size_filter = Filter('.filesize', FilterComparison.LTE, '30')
     # act
     smaller_match = size_filter.filter(smaller)
     same_match = size_filter.filter(same)
@@ -397,8 +397,8 @@ def test_lte_matches_smaller_and_same():
 
 def test_lte_no_match_larger():
     # arrange
-    metadata = '20'
-    size_filter = Filter('filesize', FilterComparison.LTE, '0')
+    metadata = {'filesize': '20'}
+    size_filter = Filter('.filesize', FilterComparison.LTE, '0')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -407,8 +407,8 @@ def test_lte_no_match_larger():
 
 def test_lte_not_match_value_is_string():
     # arrange
-    metadata = 'asdf'
-    size_filter = Filter('filesize', FilterComparison.LTE, '0')
+    metadata = {'filesize': 'asdf'}
+    size_filter = Filter('.filesize', FilterComparison.LTE, '0')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -417,8 +417,8 @@ def test_lte_not_match_value_is_string():
 
 def test_lte_not_match_target_is_string():
     # arrange
-    metadata = '0'
-    size_filter = Filter('filesize', FilterComparison.LTE, 'asdf')
+    metadata = {'filesize': '0'}
+    size_filter = Filter('.filesize', FilterComparison.LTE, 'asdf')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -427,8 +427,8 @@ def test_lte_not_match_target_is_string():
 
 def test_eq_matches_same_int_strings():
     # arrange
-    metadata = '2320'
-    size_filter = Filter('filesize', FilterComparison.EQ, '2320')
+    metadata = {'filesize': '2320'}
+    size_filter = Filter('.filesize', FilterComparison.EQ, '2320')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -437,8 +437,8 @@ def test_eq_matches_same_int_strings():
 
 def test_eq_matches_same_int():
     # arrange
-    metadata = 2320
-    size_filter = Filter('filesize', FilterComparison.EQ, '2320')
+    metadata = {'filesize': 2320}
+    size_filter = Filter('.filesize', FilterComparison.EQ, '2320')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -447,8 +447,8 @@ def test_eq_matches_same_int():
 
 def test_eq_matches_same_string():
     # arrange
-    metadata = 'asdf'
-    size_filter = Filter('filesize', FilterComparison.EQ, 'asdf')
+    metadata = {'filesize': 'asdf'}
+    size_filter = Filter('.filesize', FilterComparison.EQ, 'asdf')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -457,8 +457,8 @@ def test_eq_matches_same_string():
 
 def test_eq_no_match_different():
     # arrange
-    metadata = '2320'
-    size_filter = Filter('filesize', FilterComparison.EQ, 'asdf')
+    metadata = {'filesize': '2320'}
+    size_filter = Filter('.filesize', FilterComparison.EQ, 'asdf')
     # act
     match = size_filter.filter(metadata)
     # assert
@@ -467,8 +467,8 @@ def test_eq_no_match_different():
 
 def test_contains_matches_if_contained():
     # arrange
-    metadata = 'asdfg'
-    contains_filter = Filter('field', FilterComparison.CONTAINS, 'sdf')
+    metadata = {'field': 'asdfg'}
+    contains_filter = Filter('.field', FilterComparison.CONTAINS, 'sdf')
     # act
     match = contains_filter.filter(metadata)
     # assert
@@ -477,8 +477,8 @@ def test_contains_matches_if_contained():
 
 def test_contains_no_match_if_not_contained():
     # arrange
-    metadata = 'asd'
-    contains_filter = Filter('field', FilterComparison.CONTAINS, 'asdf')
+    metadata = {'field': 'asd'}
+    contains_filter = Filter('.field', FilterComparison.CONTAINS, 'asdf')
     # act
     match = contains_filter.filter(metadata)
     # assert
@@ -487,8 +487,8 @@ def test_contains_no_match_if_not_contained():
 
 def test_contains_ints_match():
     # arrange
-    metadata = '123'
-    contains_filter = Filter('field', FilterComparison.CONTAINS, '2')
+    metadata = {'field': '123'}
+    contains_filter = Filter('.field', FilterComparison.CONTAINS, '2')
     # act
     match = contains_filter.filter(metadata)
     # assert
@@ -497,8 +497,8 @@ def test_contains_ints_match():
 
 def test_startswith_matches_start():
     # arrange
-    metadata = 'asdfg'
-    starts_filter = Filter('field', FilterComparison.STARTS_WITH, 'asdf')
+    metadata = {'field': 'asdfg'}
+    starts_filter = Filter('.field', FilterComparison.STARTS_WITH, 'asdf')
     # act
     match = starts_filter.filter(metadata)
     # assert
@@ -507,8 +507,8 @@ def test_startswith_matches_start():
 
 def test_startswith_no_match():
     # arrange
-    metadata = 'asdfg'
-    starts_filter = Filter('field', FilterComparison.STARTS_WITH, 'sdf')
+    metadata = {'field': 'asdfg'}
+    starts_filter = Filter('.field', FilterComparison.STARTS_WITH, 'sdf')
     # act
     match = starts_filter.filter(metadata)
     # assert
@@ -517,8 +517,8 @@ def test_startswith_no_match():
 
 def test_startswith_ints_match():
     # arrange
-    metadata = 123
-    starts_filter = Filter('field', FilterComparison.STARTS_WITH, '1')
+    metadata = {'field': 123}
+    starts_filter = Filter('.field', FilterComparison.STARTS_WITH, '1')
     # act
     match = starts_filter.filter(metadata)
     # assert
@@ -527,8 +527,8 @@ def test_startswith_ints_match():
 
 def test_endswith_matches_end():
     # arrange
-    metadata = 'asdfg'
-    ends_filter = Filter('field', FilterComparison.ENDS_WITH, 'sdfg')
+    metadata = {'field': 'asdfg'}
+    ends_filter = Filter('.field', FilterComparison.ENDS_WITH, 'sdfg')
     # act
     match = ends_filter.filter(metadata)
     # assert
@@ -537,8 +537,8 @@ def test_endswith_matches_end():
 
 def test_endswith_no_match():
     # arrange
-    metadata = 'asdfg'
-    ends_filter = Filter('field', FilterComparison.ENDS_WITH, 'asdf')
+    metadata = {'field': 'asdfg'}
+    ends_filter = Filter('.field', FilterComparison.ENDS_WITH, 'asdf')
     # act
     match = ends_filter.filter(metadata)
     # assert
@@ -547,8 +547,8 @@ def test_endswith_no_match():
 
 def test_endswith_ints_match():
     # arrange
-    metadata = 123
-    ends_filter = Filter('field', FilterComparison.ENDS_WITH, '23')
+    metadata = {'field': 123}
+    ends_filter = Filter('.field', FilterComparison.ENDS_WITH, '23')
     # act
     match = ends_filter.filter(metadata)
     # assert
@@ -557,8 +557,8 @@ def test_endswith_ints_match():
 
 def test_regex_matches():
     # arrange
-    metadata = 'asdf'
-    regex_filter = Filter('field', FilterComparison.REGEX, '^a.*f$')
+    metadata = {'field': 'asdf'}
+    regex_filter = Filter('.field', FilterComparison.REGEX, '^a.*f$')
     # act
     match = regex_filter.filter(metadata)
     # assert
@@ -567,8 +567,8 @@ def test_regex_matches():
 
 def test_regex_no_match():
     # arrange
-    metadata = 'sdf'
-    regex_filter = Filter('field', FilterComparison.REGEX, 'a.*f')
+    metadata = {'field': 'sdf'}
+    regex_filter = Filter('.field', FilterComparison.REGEX, 'a.*f')
     # act
     match = regex_filter.filter(metadata)
     # assert
@@ -577,29 +577,50 @@ def test_regex_no_match():
 
 def test_regex_ints_match():
     # arrange
-    metadata = 123
-    regex_filter = Filter('field', FilterComparison.REGEX, '.*2.*')
+    metadata = {'field': 123}
+    regex_filter = Filter('.field', FilterComparison.REGEX, '.*2.*')
     # act
     match = regex_filter.filter(metadata)
     # assert
     assert match
 
 
-def test_dict_no_match():
+def test_empty_dict_no_match():
     # arrange
     metadata = {}
-    regex_filter = Filter('field', FilterComparison.REGEX, '.*2.*')
+    regex_filter = Filter('.field', FilterComparison.REGEX, '.*2.*')
     # act
     match = regex_filter.filter(metadata)
     # assert
     assert not match
 
 
-def test_array_no_match():
+def test_array_bad_query():
     # arrange
     metadata = []
-    regex_filter = Filter('field', FilterComparison.REGEX, '.*2.*')
+    regex_filter = Filter('.field', FilterComparison.REGEX, '.*2.*')
     # act
     match = regex_filter.filter(metadata)
     # assert
     assert not match
+
+
+def test_jq_syntax_inside_array():
+    # arrange
+    metadata = ['020']
+    regex_filter = Filter('.[]+1', FilterComparison.REGEX, '.*2.*')
+    # act
+    match = regex_filter.filter(metadata)
+    # assert
+    assert not match
+
+
+def test_jq_syntax_inside_dict():
+    # arrange
+    metadata = {'field': {'k': 'v'}}
+    object_filter = Filter('.field.k', FilterComparison.EQ, 'v')
+    # act
+    match = object_filter.filter(metadata)
+    # assert
+    assert match
+
