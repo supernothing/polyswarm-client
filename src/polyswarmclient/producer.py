@@ -3,10 +3,9 @@ import asyncio
 import json
 import logging
 import time
-from polyswarmartifact.schema import Bounty
 
 from polyswarmclient.abstractscanner import ScanResult
-from polyswarmclient.bountyfilter import BountyFilter
+from polyswarmclient.filters.filter import MetadataFilter
 
 logger = logging.getLogger(__name__)
 
@@ -14,12 +13,13 @@ KEY_TIMEOUT = 20
 
 
 class Producer:
-    def __init__(self, client, redis_uri, queue, time_to_post, bounty_filter=None):
+    def __init__(self, client, redis_uri, queue, time_to_post, bounty_filter=None, confidence_modifier=None):
         self.client = client
         self.redis_uri = redis_uri
         self.queue = queue
         self.time_to_post = time_to_post
         self.bounty_filter = bounty_filter
+        self.confidence_modifier = confidence_modifier
         self.redis = None
 
     async def start(self):
@@ -65,20 +65,22 @@ class Producer:
                     # increase perf counter for autoscaling
                     q_counter = f'{self.queue}_scan_result_counter'
                     await redis.incr(q_counter)
+                    confidence = j['confidence'] if not self.confidence_modifier \
+                        else self.confidence_modifier.modify(metadata[j['index']], j['confidence'])
 
-                    return j['index'], ScanResult(bit=j['bit'], verdict=j['verdict'], confidence=j['confidence'],
+                    return j['index'], ScanResult(bit=j['bit'], verdict=j['verdict'], confidence=confidence,
                                                   metadata=j['metadata'])
             except aioredis.errors.ReplyError:
                 logger.exception('Redis out of memory')
             except OSError:
                 logger.exception('Redis connection down')
             except (AttributeError, ValueError, KeyError):
-                logger.error('Received invalid response from worker')
+                logger.exception('Received invalid response from worker')
                 return None
 
         num_artifacts = len(await self.client.list_artifacts(uri))
         # Fill out metadata to match same number of artifacts
-        metadata = BountyFilter.pad_metadata(metadata, num_artifacts)
+        metadata = MetadataFilter.pad_metadata(metadata, num_artifacts)
 
         jobs = []
         for i in range(num_artifacts):

@@ -5,9 +5,10 @@ import sys
 
 from polyswarmartifact import ArtifactType
 
-from polyswarmclient import bountyfilter
 from polyswarmclient.config import init_logging, validate_apikey
-from polyswarmclient.bountyfilter import split_filter, parse_filters, FilterComparison
+from polyswarmclient.filters.bountyfilter import split_filter, FilterComparison, BountyFilter
+from polyswarmclient.filters.confidencefilter import ConfidenceModifier
+from polyswarmclient.filters.filter import parse_filters
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
@@ -115,15 +116,24 @@ def choose_bid_strategy(bid_strategy):
               type=(
                       click.Choice(['reject', 'accept']),
                       str,
-                      click.Choice([member.value for name, member in FilterComparison.__members__.items()]),
+                      click.Choice([member.value for _name, member in FilterComparison.__members__.items()]),
                       str
               ),
               help='Add filter in format `[accept|reject] key [eq|gt|gte|lt|lte|startswith|endswith|regex] value` '
                    'to accept or reject artifacts based on metadata.')
+@click.option('--confidence', multiple=True, default=[], callback=parse_filters,
+              type=(
+                      click.Choice(['favor', 'penalize']),
+                      str,
+                      click.Choice([member.value for _name, member in FilterComparison.__members__.items()]),
+                      str
+              ),
+              help='Add filter in format `[favor|penalize] key [eq|gt|gte|lt|lte|startswith|endswith|regex] value` '
+                   'to modify confidence based on metadata.')
 # @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #               help='Should the abassador send offers')
 def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains,
-         log_format, artifact_type, bid_strategy, accept, exclude, filter):
+         log_format, artifact_type, bid_strategy, accept, exclude, filter, confidence):
     """Entrypoint for the microengine driver
     """
     loglevel = getattr(logging, log.upper(), None)
@@ -142,7 +152,8 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
     if artifact_type:
         artifact_types = [ArtifactType.from_string(artifact) for artifact in artifact_type]
 
-    filter_accept, filter_reject = filter
+    filter_accept = filter.get('accept', [])
+    filter_reject = filter.get('reject', [])
     if accept or exclude:
         logger.warning('Options `--exclude|accept key:value` are deprecated, please switch to `--filter '
                        'accept|reject key comparison value`')
@@ -150,14 +161,18 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
         filter_accept.extend(accept)
         filter_reject.extend(exclude)
 
+    favor = confidence.get('favor', [])
+    penalize = confidence.get('penalize', [])
+
     microengine_class.connect(polyswarmd_addr, keyfile, password,
-                              api_key=api_key, testing=testing,
-                              insecure_transport=insecure_transport,
-                              chains=set(chains),
+                              api_key=api_key,
                               artifact_types=artifact_types,
-                              exclude=filter_reject,
-                              accept=filter_accept,
-                              bid_strategy=bid_strategy_class()).run()
+                              bid_strategy=bid_strategy_class(),
+                              bounty_filter=BountyFilter(filter_accept, filter_reject),
+                              chains=set(chains),
+                              confidence_modifier=ConfidenceModifier(favor, penalize),
+                              insecure_transport=insecure_transport,
+                              testing=testing).run()
 
 
 if __name__ == '__main__':

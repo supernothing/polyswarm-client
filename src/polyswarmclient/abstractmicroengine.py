@@ -3,12 +3,14 @@ import json
 import logging
 
 from polyswarmartifact import ArtifactType
-from polyswarmartifact.schema import verdict, Bounty
+from polyswarmartifact.schema import verdict
 
 from polyswarmclient import Client
 from polyswarmclient.abstractscanner import ScanResult
-from polyswarmclient.bountyfilter import BountyFilter
 from polyswarmclient.events import RevealAssertion, SettleBounty
+from polyswarmclient.filters.bountyfilter import BountyFilter
+from polyswarmclient.filters.confidencefilter import ConfidenceModifier
+from polyswarmclient.filters.filter import MetadataFilter
 from polyswarmclient.utils import asyncio_stop
 
 logger = logging.getLogger(__name__)
@@ -16,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class AbstractMicroengine(object):
     def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None,
-                 accept=None, exclude=None):
+                 bounty_filter=BountyFilter(None, None), confidence_modifier=ConfidenceModifier(None, None)):
         self.client = client
         self.chains = chains
         self.scanner = scanner
@@ -25,7 +27,8 @@ class AbstractMicroengine(object):
         else:
             self.valid_artifact_types = artifact_types
 
-        self.bounty_filter = BountyFilter(accept, exclude)
+        self.bounty_filter = bounty_filter
+        self.confidence_modifier = confidence_modifier
 
         self.client.on_run.register(self.__handle_run)
         self.client.on_new_bounty.register(self.__handle_new_bounty)
@@ -45,7 +48,8 @@ class AbstractMicroengine(object):
 
     @classmethod
     def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False,
-                scanner=None, chains=None, artifact_types=None, bid_strategy=None, accept=None, exclude=None):
+                scanner=None, chains=None, artifact_types=None, bid_strategy=None,
+                bounty_filter=BountyFilter(None, None), confidence_modifier=ConfidenceModifier(None, None)):
         """Connect the Microengine to a Client.
 
         Args:
@@ -59,15 +63,15 @@ class AbstractMicroengine(object):
             chains (set(str)):  Set of chains you are acting on.
             artifact_types (list(ArtifactType)): List of artifact types you support
             bid_strategy (BidStrategyBase): Bid Strategy for bounties
-            accept (list[tuple[str]]): List of accepted mimetypes
-            exclude (list[tuple[str]]): List of excluded mimetypes
+            bounty_filter (BountyFilter): Filters to accept/reject artifacts
+            confidence_modifier (ConfidenceModifier): Filters to adjust confidence based on metadata
 
         Returns:
             AbstractMicroengine: Microengine instantiated with a Client.
         """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
         return cls(client, testing, scanner, chains, artifact_types, bid_strategy=bid_strategy,
-                   accept=accept, exclude=exclude)
+                   bounty_filter=bounty_filter, confidence_modifier=confidence_modifier)
 
     async def scan(self, guid, artifact_type, content, metadata, chain):
         """Override this to implement custom scanning logic
@@ -131,12 +135,14 @@ class AbstractMicroengine(object):
                 return ScanResult()
 
             if content is not None:
-                return await self.scan(guid, artifact_type, content, artifact_metadata, chain)
+                result = await self.scan(guid, artifact_type, content, artifact_metadata, chain)
+                if result.bit:
+                    result.confidence = self.confidence_modifier.modify(artifact_metadata, result.confidence)
 
             return ScanResult()
 
         artifacts = await self.client.list_artifacts(uri)
-        metadata = BountyFilter.pad_metadata(metadata, len(artifacts))
+        metadata = MetadataFilter.pad_metadata(metadata, len(artifacts))
 
         return await asyncio.gather(*[
             fetch_and_scan(metadata[i], i) for i in range(len(artifacts))

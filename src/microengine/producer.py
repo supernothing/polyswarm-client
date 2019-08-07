@@ -16,12 +16,10 @@ KEY_TIMEOUT = 20
 
 
 class Microengine(AbstractMicroengine):
-    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None,
-                 accept=None, exclude=None):
+    def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, bid_strategy=None, **kwargs):
         if artifact_types is None:
             artifact_types = [ArtifactType.FILE]
-        super().__init__(client, testing, None, chains, artifact_types, bid_strategy=bid_strategy, accept=accept,
-                         exclude=exclude)
+        super().__init__(client, testing, None, chains, artifact_types, bid_strategy=bid_strategy, **kwargs)
 
         if QUEUE is None:
             raise ValueError('No queue configured, set the QUEUE environment variable')
@@ -36,7 +34,7 @@ class Microengine(AbstractMicroengine):
             redis_uri = 'redis://' + REDIS_ADDR
 
             self.producer = Producer(self.client, redis_uri, QUEUE, TIME_TO_POST_ASSERTION,
-                                     bounty_filter=self.bounty_filter)
+                                     bounty_filter=self.bounty_filter, confidence_modifier=self.confidence_modifier)
             await self.producer.start()
 
     async def fetch_and_scan_all(self, guid, artifact_type, uri, duration, metadata, chain):

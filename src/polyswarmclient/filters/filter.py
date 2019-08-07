@@ -1,41 +1,15 @@
 import enum
+import logging
 import re
 
-import click
-import logging
-
 from polyswarmartifact.schema import Bounty
+
 
 logger = logging.getLogger(__name__)
 
 
-def split_filter(ctx, param, value):
-    """ Split some accept or exlcude arg from `key:value` to a tuple
-
-    Args:
-        ctx:
-        param:
-        value: list of exclude or accept values
-
-    Returns:
-        list[tuple] list of exclude|accept values as tuple key, value
-    """
-    if not value:
-        return value
-
-    result = []
-    for item in value:
-        # Split only the first:
-        kv = item.split(':', 1)
-        if len(kv) != 2:
-            raise click.BadParameter('Accept and exclude arguments must be formatted `key:value`')
-
-        result.append(Filter(kv[0], FilterComparison.EQ, kv[1]))
-    return result
-
-
 def parse_filters(ctx, param, value):
-    """ Split some accept or exlcude arg from `key:value` to a tuple
+    """ Split some filters into a dict separated by type
 
         Args:
             ctx:
@@ -43,22 +17,23 @@ def parse_filters(ctx, param, value):
             value: list of 4 string tuples
 
         Returns:
-            tuple[list[Filter], list[Filter]]: tuple of lists where 0 is accept filters, 1 is reject filters
+            dict: Dict where each key points to a list of Filters
         """
     if not value:
-        return [], []
+        return {}
 
-    accept = []
-    reject = []
+    response = {}
+
     for filter_type, key, comparison_string, target_value in value:
         # Click only accepts the string values for each member in FilterComparison
         comparison = FilterComparison.from_string(comparison_string)
-        if filter_type == 'accept':
-            accept.append(Filter(key, comparison, target_value))
-        else:
-            reject.append(Filter(key, comparison, target_value))
+        # Make sure the filter type exists in the response dict
+        if not response.get(filter_type, None):
+            response[filter_type] = []
 
-    return accept, reject
+        response[filter_type].append(Filter(key, comparison, target_value))
+
+    return response
 
 
 class FilterComparison(enum.Enum):
@@ -160,15 +135,18 @@ class Filter:
 
         return match
 
-    def filter(self, value):
-        """ Take a value, and match it against the target_value and comparison operator for this filter
+    def filter(self, metadata):
+        """ Take some metadata, and matches the given key against the target_value and comparison operator for this filter
 
         Args:
-            value (int|str|bytes): Some value to compare against
+            metadata (dict): Dict of k-v metadata values
 
         Returns: (bool) True if it matches the filter
-
         """
+        if metadata is None or not isinstance(metadata, dict):
+            return False
+
+        value = metadata.get(self.key, None)
         if value is None:
             return False
 
@@ -178,27 +156,11 @@ class Filter:
         return self.string_check(value)
 
 
-class BountyFilter:
+class MetadataFilter:
     """ Takes two objects list[Filter], accept and reject
         These dicts are used to filter metadata json blobs.
         Each filter runs against given metadata, and is used to determine if this participant will respond to a bounty
     """
-
-    def __init__(self, accept, reject):
-        """ Create a new BountyFilter object with an array of Filters and RejectFilters
-        Args:
-            accept (None|list[Filter]): List of Filters for accepted bounties
-            reject (None|list[Filter]): List of Filters for rejected bounties
-        """
-        if accept is None:
-            self.accept = []
-        else:
-            self.accept = accept
-
-        if reject is None:
-            self.reject = []
-        else:
-            self.reject = reject
 
     @staticmethod
     def pad_metadata(metadata, min_length):
@@ -220,30 +182,3 @@ class BountyFilter:
         logger.info('Padded result %s:', result)
 
         return result
-
-    def is_allowed(self, metadata):
-        """Check metadata against the accept and exclude filters, returning True if it passes all checks
-
-        Args:
-            metadata (dict): metadata dict to test
-
-        Returns:
-            (bool): True if meets the conditions and passes the filter
-        """
-        if not self.accept and not self.reject:
-            return True
-
-        accepted = any([f.filter(metadata.get(f.key, None)) for f in self.accept])
-
-        if self.accept and not accepted:
-            logger.info('Metadata not accepted. Skipping artifact', extra={"extra": {"metadata": metadata,
-                                                                                     "accept": self.accept}})
-            return False
-
-        rejected = any([f.filter(metadata.get(f.key, None)) for f in self.reject])
-        if self.reject and rejected:
-            logger.info('Metadata rejected. Skipping artifact', extra={"extra": {"metadata": metadata,
-                                                                                 "reject": self.reject}})
-            return False
-
-        return True
