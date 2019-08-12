@@ -138,6 +138,7 @@ class AbstractMicroengine(object):
                 result = await self.scan(guid, artifact_type, content, artifact_metadata, chain)
                 if result.bit:
                     result.confidence = self.confidence_modifier.modify(artifact_metadata, result.confidence)
+                    return result
 
             return ScanResult()
 
