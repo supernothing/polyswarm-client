@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 EICAR = base64.b64decode(
     b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=')
-NOT_EICAR = 'this is not malicious'
+NOT_EICAR = 'not a malicious file'
 ARTIFACTS = [('eicar', EICAR), ('not_eicar', NOT_EICAR)]
 BOUNTY_TEST_DURATION_BLOCKS = int(os.getenv('BOUNTY_TEST_DURATION_BLOCKS', 5))
 
