@@ -129,7 +129,7 @@ class AbstractAmbassador(ABC):
             metadata (str): json blob of metadata
         """
         bounty = QueuedBounty(artifact_type, amount, ipfs_uri, duration, api_key=api_key, metadata=metadata)
-        logger.info(f'Queueing bounty {bounty}')
+        logger.info('Queueing bounty %s', bounty)
 
         await self.bounty_queues[chain].put(bounty)
 
@@ -216,13 +216,15 @@ class AbstractAmbassador(ABC):
             if balance < bounty.amount + bounty_fee:
                 # Skip to next bounty, so one ultra high value bounty doesn't DOS ambassador
                 if self.client.tx_error_fatal and tries >= MAX_TRIES:
-                    logger.error(f'Failed {tries} attempts to post bounty due to low balance. Exiting')
+                    logger.error('Failed %s attempts to post bounty due to low balance. Exiting', tries)
                     exit(1)
                     return
                 else:
                     tries += 1
-                    logger.critical(f'Insufficient balance to post bounty on {chain}. Have {balance} NCT. '
-                                    f'Need {bounty.amount + bounty_fee} NCT.', extra={'extra': bounty})
+                    logger.critical('Insufficient balance to post bounty on %s. Have %s NCT. '
+                                    'Need %s NCT.', chain, balance,
+                                    bounty.amount + bounty_fee,
+                                    extra={'extra': bounty})
                     await asyncio.sleep(tries * tries)
                     continue
 
@@ -242,7 +244,7 @@ class AbstractAmbassador(ABC):
             else:
                 async with self.bounties_posted_locks[chain]:
                     bounties_posted = self.bounties_posted.get(chain, 0)
-                    logger.info(f'Submitted bounty {bounties_posted}', extra={'extra': bounty})
+                    logger.info('Submitted bounty %s', bounties_posted, extra={'extra': bounty})
                     self.bounties_posted[chain] = bounties_posted + len(bounties)
 
                 async with self.bounties_pending_locks[chain]:
@@ -311,7 +313,7 @@ class AbstractAmbassador(ABC):
         async with self.bounties_pending_locks[chain]:
             bounties_pending = self.bounties_pending.get(chain, set())
             if bounty_guid not in bounties_pending:
-                logger.debug(f'Bounty {bounty_guid} already settled')
+                logger.debug('Bounty %s already settled', bounty_guid)
                 return []
             self.bounties_pending[chain] = bounties_pending - {bounty_guid}
 
@@ -327,7 +329,7 @@ class AbstractAmbassador(ABC):
                 elif self.settles_posted[chain] == self.testing:
                     last_settle = True
 
-            logger.info(f'Testing mode, {self.testing - self.settles_posted[chain]} settles remaining')
+                logger.info('Testing mode , %s settles remaining', self.testing - self.settles_posted[chain])
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
         if last_settle:
