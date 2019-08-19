@@ -9,7 +9,8 @@ from polyswarmclient.filters.filter import MetadataFilter
 
 logger = logging.getLogger(__name__)
 
-KEY_TIMEOUT = 20
+WAIT_TIME = 20
+KEY_TIMEOUT = WAIT_TIME + 10
 
 
 class Producer:
@@ -44,11 +45,11 @@ class Producer:
         logger.info(f' timeout set to {timeout}')
 
         async def wait_for_result(result_key):
-            remaining = KEY_TIMEOUT
+            remaining = WAIT_TIME
             try:
                 with await self.redis as redis:
                     while True:
-                        result = await redis.blpop(result_key, timeout=0)
+                        result = await redis.lpop(result_key)
 
                         if result:
                             break
@@ -60,7 +61,7 @@ class Producer:
                         remaining -= 1
                         await asyncio.sleep(1)
 
-                    j = json.loads(result[1].decode('utf-8'))
+                    j = json.loads(result.decode('utf-8'))
 
                     # increase perf counter for autoscaling
                     q_counter = f'{self.queue}_scan_result_counter'
