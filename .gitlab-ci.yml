@@ -205,11 +205,72 @@ release-latest-windows:
 # Deployment Stage
 ###############################################################
 
-notify-engines:
+kick-after-complete1:
   stage: deployment
-  tags:
-    - kube
   only:
     - master
-  script:
-    - python3 kick_downstream.py
+  trigger: externalci/engine-ikarus
+
+kick-after-complete2:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/engine-trustlook
+kick-after-complete3:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/engine-drweb
+
+kick-after-complete4:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/engine-rising
+
+kick-after-complete5:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/engine-iris-h
+kick-after-complete6:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/engine-inteszer-analyze
+
+kick-after-complete7:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-zerocert
+
+kick-after-complete8:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-virusdie
+kick-after-complete9:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-cyradar
+
+kick-after-complete10:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-nucleon
+
+kick-after-complete11:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-spamhaus
+
+kick-after-complete12:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/polyswarm-client-windows
+
