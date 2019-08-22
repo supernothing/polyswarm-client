@@ -237,7 +237,7 @@ kick-after-complete6:
   stage: deployment
   only:
     - master
-  trigger: externalci/engine-inteszer-analyze
+  trigger: externalci/engine-intezer-analyze
 
 kick-after-complete7:
   stage: deployment
