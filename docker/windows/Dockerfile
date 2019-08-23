@@ -26,4 +26,4 @@ RUN pip install                                       `
     Remove-Item -Path "$env:TMP\*","$env:LocalAppData\pip\*" -Recurse -Force
 
 ## ---------------------------------------
-CMD powershell
+CMD ["powershell"]
