@@ -274,3 +274,14 @@ kick-after-complete12:
     - master
   trigger: externalci/polyswarm-client-windows
 
+kick-after-complete13:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/poly-mon
+
+kick-after-complete14:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/consumer
