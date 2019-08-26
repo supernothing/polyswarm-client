@@ -1,5 +1,36 @@
 # Release History
 
+### 2.4.0 (2019-08-26)
+
+* **Fix** - Use exec-form CMD directive on windows
+* **Fix** - Fix crash where blocking while waiting for Scanner results would cause an engine to stop responding
+* **Fix** - Reduce ambassador log output outside of testing mode
+* **Feature** - Add default Eicar Arbiter
+* **Feature** - Add favor/penalize filters to adjust confidence up or down 20% based on artifact metadata
+* **Feature** - Add relational filters for rejecting/accepting artifacts based on metadata
+* **Fix** - Clean up help output for all commands line tools
+* **Fix** - Pin version of polyswarm-artifact
+
+#### Supported relational numerical (or numeric strings) filters
+
+* `>` - Greater than
+* `>=` - Greater than or equal to
+* `==` - Equal to
+* `<=` - Less than or equal to
+* `<` - Less than
+
+#### Supported relational string filters
+
+* `==` - Equal to
+* `contains` - Contains
+* `endswith` - Ends with
+* `regex` - Regular expression
+* `startswith` - Starts with
+
+#### Deprecation
+
+* `--accept` and `--exclude` are deprecated, use `--filter <accept|reject> <field> <comparison> <value>`
+
 ### 2.3.1 (2019-07-06)
 
 * **Fix** - Use empty dict instead of `None` when padding bounty metadata.
