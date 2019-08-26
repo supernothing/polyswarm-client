@@ -1,6 +1,6 @@
 import base64
 import logging
-import os
+import platform
 
 from polyswarmartifact import ArtifactType
 from polyswarmartifact.schema.verdict import Verdict
@@ -30,7 +30,7 @@ class Scanner(AbstractScanner):
         Returns:
             ScanResult: Result of this scan
         """
-        sysname, _, _, _, machine = os.uname()
+        sysname, _, _, _, machine, _ = platform.uname()
         metadata = Verdict().set_scanner(operating_system=sysname,
                                          architecture=machine)
 
