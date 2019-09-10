@@ -159,7 +159,11 @@ class Worker(object):
                         continue
 
                 async with self.scan_lock:
-                    result = await self.scanner.scan(guid, artifact_type, content, metadata, chain)
+                    result = await self.scanner.scan(guid,
+                                                     artifact_type,
+                                                     artifact_type.decode_content(content),
+                                                     metadata,
+                                                     chain)
 
                 j = json.dumps({
                     'index': index,

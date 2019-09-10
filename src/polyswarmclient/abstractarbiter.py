@@ -95,7 +95,7 @@ class AbstractArbiter(object):
             content = await self.client.get_artifact(uri, index)
             if content is not None:
                 # Ignoring metadata for now
-                return await self.scan(guid, artifact_type, content, None, chain)
+                return await self.scan(guid, artifact_type, artifact_type.decode_content(content), None, chain)
 
             return ScanResult()
 

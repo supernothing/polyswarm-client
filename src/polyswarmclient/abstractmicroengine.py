@@ -135,7 +135,11 @@ class AbstractMicroengine(object):
                 return ScanResult()
 
             if content is not None:
-                result = await self.scan(guid, artifact_type, content, artifact_metadata, chain)
+                result = await self.scan(guid,
+                                         artifact_type,
+                                         artifact_type.decode_content(content),
+                                         artifact_metadata,
+                                         chain)
                 if result.bit:
                     result.confidence = self.confidence_modifier.modify(artifact_metadata, result.confidence)
                     return result

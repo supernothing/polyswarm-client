@@ -25,7 +25,7 @@ setup(
         'aiorwlock==0.6.0',
         'base58==0.2.5',
         'click==6.7',
-        'polyswarm-artifact==1.2.1',
+        'polyswarm-artifact>=1.3.0',
         'python-json-logger==0.1.9',
         'python-magic-bin==0.4.14;platform_system=="Windows"',
         'python-magic==0.4.15;platform_system=="Linux"',
