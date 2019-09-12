@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from polyswarmartifact import ArtifactType
+from polyswarmartifact import ArtifactType, DecodeError
 
 from polyswarmclient import Client
 from polyswarmclient.abstractscanner import ScanResult
@@ -95,7 +95,10 @@ class AbstractArbiter(object):
             content = await self.client.get_artifact(uri, index)
             if content is not None:
                 # Ignoring metadata for now
-                return await self.scan(guid, artifact_type, artifact_type.decode_content(content), None, chain)
+                try:
+                    return await self.scan(guid, artifact_type, artifact_type.decode_content(content), None, chain)
+                except DecodeError:
+                    return ScanResult()
 
             return ScanResult()
 

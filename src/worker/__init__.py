@@ -8,8 +8,9 @@ import time
 
 import aiohttp
 import aioredis
-from polyswarmartifact import ArtifactType
+from polyswarmartifact import ArtifactType, DecodeError
 
+from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.utils import asyncio_join, asyncio_stop, exit, MAX_WAIT
 
 logger = logging.getLogger(__name__)
@@ -159,11 +160,14 @@ class Worker(object):
                         continue
 
                 async with self.scan_lock:
-                    result = await self.scanner.scan(guid,
-                                                     artifact_type,
-                                                     artifact_type.decode_content(content),
-                                                     metadata,
-                                                     chain)
+                    try:
+                        result = await self.scanner.scan(guid,
+                                                         artifact_type,
+                                                         artifact_type.decode_content(content),
+                                                         metadata,
+                                                         chain)
+                    except DecodeError:
+                        result = ScanResult()
 
                 j = json.dumps({
                     'index': index,
