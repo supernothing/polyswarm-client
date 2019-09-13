@@ -138,10 +138,10 @@ async def test_on_reveal_assertion_callback():
 
     cb.register(check_parameters)
 
-    assert await cb.run(bounty_guid='guid', author='author', index=0, nonce=42, verdicts=[True], metadata='',
-                        block_number=0, txhash='0x0', chain='home') == [True]
-    assert await cb.run(bounty_guid='not guid', author='author', index=0, nonce=42, verdicts=[True], metadata='',
-                        block_number=0, txhash='0x0', chain='home') == [False]
+    assert await cb.run(bounty_guid='guid', author='author', index=0, nonce=42, verdicts=[True],
+                        metadata='', block_number=0, txhash='0x0', chain='home') == [True]
+    assert await cb.run(bounty_guid='not guid', author='author', index=0, nonce=42, verdicts=[True],
+                        metadata='', block_number=0, txhash='0x0', chain='home') == [False]
 
     async def invalid_signature(bounty_guid, author, index, nonce, verdicts, metadata, block_number, txhash, chain,
                                 foo):
@@ -150,8 +150,8 @@ async def test_on_reveal_assertion_callback():
     cb.register(invalid_signature)
 
     with pytest.raises(TypeError):
-        await cb.run(bounty_guid='guid', author='author', index=0, nonce=42, verdicts=[True], metadata='',
-                     block_number=0, txhash='0x0', chain='home')
+        await cb.run(bounty_guid='guid', author='author', index=0, nonce=42, verdicts=[True],
+                     metadata='', block_number=0, txhash='0x0', chain='home')
 
 
 @pytest.mark.asyncio
@@ -275,9 +275,10 @@ async def test_on_reveal_assertion_due_callback():
 
     cb.register(check_parameters)
 
-    assert await cb.run(bounty_guid='guid', index=0, nonce='42', verdicts=[True], metadata='', chain='home') == [True]
-    assert await cb.run(bounty_guid='not guid', index=0, nonce='42', verdicts=[True], metadata='', chain='home') == [
-        False]
+    assert await cb.run(bounty_guid='guid', index=0, nonce='42', verdicts=[True],  metadata='',
+                        chain='home') == [True]
+    assert await cb.run(bounty_guid='not guid', index=0, nonce='42', verdicts=[True],  metadata='',
+                        chain='home') == [False]
 
     async def invalid_signature(bounty_guid, index, nonce, verdicts, metadata, chain, foo):
         return False

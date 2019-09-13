@@ -20,25 +20,25 @@ def choose_backend(backend):
     Raises:
         (Exception): If backend is not found
     """
-    backend_list = backend.split(":")
+    backend_list = backend.split(':')
     module_name_string = backend_list[0]
 
     # determine if this string is a module that can be imported as-is or as sub-module of the ambassador package
     mod_spec = importlib.util.find_spec(module_name_string) or importlib.util.find_spec(
-        "ambassador.{0}".format(module_name_string))
+        'ambassador.{0}'.format(module_name_string))
     if mod_spec is None:
-        raise Exception("Ambassador backend `{0}` cannot be imported as a python module.".format(backend))
+        raise Exception('Ambassador backend `{0}` cannot be imported as a python module.'.format(backend))
 
     # have valid module that can be imported, so import it.
     ambassador_module = importlib.import_module(mod_spec.name)
 
     # find Ambassador class in this module
-    if hasattr(ambassador_module, "Ambassador"):
+    if hasattr(ambassador_module, 'Ambassador'):
         ambassador_class = ambassador_module.Ambassador
     elif len(backend_list) == 2 and hasattr(ambassador_module, backend_list[1]):
         ambassador_class = getattr(ambassador_module, backend_list[1])
     else:
-        raise Exception("No ambassador backend found {0}".format(backend))
+        raise Exception('No ambassador backend found {0}'.format(backend))
 
     return ambassador_module.__name__, ambassador_class
 

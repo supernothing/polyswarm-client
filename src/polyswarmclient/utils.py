@@ -12,7 +12,7 @@ import base58
 logger = logging.getLogger(__name__)
 
 TASK_TIMEOUT = 1.0
-MAX_WAIT = int(os.getenv("WORKER_BACKOFF", "15"))
+MAX_WAIT = int(os.getenv('WORKER_BACKOFF', '15'))
 MAX_WORKERS = 4
 
 def to_string(value):
@@ -45,7 +45,6 @@ def int_to_bool_list(i, expected_size):
     # return empty list when 0 and no items expected (Return actual value if > 0)
     if expected_size == 0 and i == 0:
         return []
-
     s = format(i, 'b')
     bool_list = [x == '1' for x in s[::-1]]
     diff = expected_size - len(bool_list)
@@ -63,10 +62,8 @@ def guid_as_string(guid):
 def calculate_commitment(account, verdicts, nonce=None):
     if nonce is None:
         nonce = os.urandom(32)
-
     if isinstance(nonce, int):
         nonce = int_to_bytes(nonce)
-
     account = int(account, 16)
     commitment = sha3(int_to_bytes(verdicts ^ int_from_bytes(sha3(nonce)) ^ account))
     return int_from_bytes(nonce), int_from_bytes(commitment)

@@ -22,25 +22,25 @@ def choose_backend(backend):
     Raises:
         (Exception): If backend is not found
     """
-    backend_list = backend.split(":")
+    backend_list = backend.split(':')
     module_name_string = backend_list[0]
 
     # determine if this string is a module that can be imported as-is or as sub-module of the arbiter package
     mod_spec = importlib.util.find_spec(module_name_string) or importlib.util.find_spec(
-        "arbiter.{0}".format(module_name_string))
+        'arbiter.{0}'.format(module_name_string))
     if mod_spec is None:
-        raise Exception("Arbiter backend `{0}` cannot be imported as a python module.".format(backend))
+        raise Exception('Arbiter backend `{0}` cannot be imported as a python module.'.format(backend))
 
     # have valid module that can be imported, so import it.
     arbiter_module = importlib.import_module(mod_spec.name)
 
     # find Arbiter class in this module
-    if hasattr(arbiter_module, "Arbiter"):
+    if hasattr(arbiter_module, 'Arbiter'):
         arbiter_class = arbiter_module.Arbiter
     elif len(backend_list) == 2 and hasattr(arbiter_module, backend_list[1]):
         arbiter_class = getattr(arbiter_module, backend_list[1])
     else:
-        raise Exception("No arbiter backend found {0}".format(backend))
+        raise Exception('No arbiter backend found {0}'.format(backend))
 
     return arbiter_module.__name__, arbiter_class
 
@@ -96,5 +96,5 @@ def main(log, client_log, polyswarmd_addr, keyfile, password, api_key, backend, 
                           artifact_types=artifact_types).run()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

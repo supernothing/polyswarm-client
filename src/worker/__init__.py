@@ -10,20 +10,13 @@ import aiohttp
 import aioredis
 from polyswarmartifact import ArtifactType, DecodeError
 
+from polyswarmclient.exceptions import ApiKeyException, ExpiredException
 from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.utils import asyncio_join, asyncio_stop, exit, MAX_WAIT
 
 logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 5.0
-
-
-class ApiKeyException(Exception):
-    pass
-
-
-class ExpiredException(Exception):
-    pass
 
 
 class Worker(object):
@@ -57,7 +50,7 @@ class Worker(object):
             asyncio.set_event_loop(loop)
 
             # K8 uses SIGTERM on linux and SIGINT and windows
-            exit_signal = signal.SIGINT if platform.system() == "Windows" else signal.SIGTERM
+            exit_signal = signal.SIGINT if platform.system() == 'Windows' else signal.SIGTERM
             try:
                 loop.add_signal_handler(exit_signal, self.handle_signal)
             except NotImplementedError:
@@ -132,13 +125,13 @@ class Worker(object):
                     logger.exception('Redis out of memory')
                     continue
                 except KeyError as e:
-                    logger.exception(f"Bad message format on task {task_index}: {e}")
+                    logger.exception(f'Bad message format on task {task_index}: {e}')
                     continue
                 except ExpiredException:
                     logger.exception(f'Received expired job {guid} index {index}')
                     continue
                 except ApiKeyException:
-                    logger.exception("Refusing to send API key over insecure transport")
+                    logger.exception('Refusing to send API key over insecure transport')
                     continue
                 except (AttributeError, TypeError, ValueError):
                     logger.exception('Invalid job received, ignoring')

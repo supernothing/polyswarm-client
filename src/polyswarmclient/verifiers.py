@@ -182,7 +182,7 @@ class PostBountyVerifier(AbstractTransactionVerifier):
 
 
 class PostAssertionVerifier(AbstractTransactionVerifier):
-    ABI = ('postAssertion', ['uint128', 'uint256', 'uint256', 'uint256'])
+    ABI = ('postAssertion', ['uint128', 'uint256[]', 'uint256', 'uint256'])
 
     def __init__(self, bounty_guid, bid, mask, commitment):
         super().__init__((bounty_guid, bid, mask, commitment))
@@ -204,7 +204,7 @@ class PostAssertionVerifier(AbstractTransactionVerifier):
 
         return decoded.value == 0 and \
             guid_as_string(bounty_guid) == self.bounty_guid and \
-            bid == self.bid and \
+            all((contract_bid == given_bid for contract_bid, given_bid in zip(bid, self.bid))) and \
             commitment == self.commitment and \
             int_to_bool_list(mask, len(self.mask)) == self.mask
 
@@ -232,7 +232,6 @@ class RevealAssertionVerifier(AbstractTransactionVerifier):
         bounty_guid, index, nonce, verdicts, metadata = decoded.parameters
 
         metadata = metadata.decode('utf-8')
-
         # If there is a 1 anywhere beyond the length of items we expect, fail it
         if verdicts >> len(self.verdicts) > 0:
             return False

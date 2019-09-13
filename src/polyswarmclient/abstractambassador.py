@@ -99,12 +99,12 @@ class AbstractAmbassador(ABC):
             pass
 
         return {
-            "sha256": hashlib.sha256(content).hexdigest(),
-            "md5": hashlib.md5(content).hexdigest(),
-            "size": len(content),
-            "sha1": hashlib.sha1(content).hexdigest(),
-            "mimetype": magic.from_buffer(content, mime=True),
-            "extended_type": magic.from_buffer(content),
+            'sha256': hashlib.sha256(content).hexdigest(),
+            'md5': hashlib.md5(content).hexdigest(),
+            'size': len(content),
+            'sha1': hashlib.sha1(content).hexdigest(),
+            'mimetype': magic.from_buffer(content, mime=True),
+            'extended_type': magic.from_buffer(content),
         }
 
     @abstractmethod
@@ -333,7 +333,7 @@ class AbstractAmbassador(ABC):
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
         if last_settle:
-            logger.info("All testing bounties complete, exiting")
+            logger.info('All testing bounties complete, exiting')
             asyncio_stop()
 
         return ret

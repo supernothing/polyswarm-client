@@ -74,7 +74,7 @@ class AbstractArbiter(object):
         if self.scanner:
             return await self.scanner.scan(guid, artifact_type, content, metadata, chain)
 
-        raise NotImplementedError("You must subclass this class and override this method.")
+        raise NotImplementedError('You must subclass this class and override this method.')
 
     async def fetch_and_scan_all(self, guid, artifact_type, uri, vote_round_end, metadata, chain):
         """Fetch and scan all artifacts concurrently
@@ -279,7 +279,7 @@ class AbstractArbiter(object):
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
         if 0 < self.testing <= self.settles_posted:
-            logger.info("All testing bounties complete, exiting")
+            logger.info('All testing bounties complete, exiting')
             asyncio_stop()
         return ret
 

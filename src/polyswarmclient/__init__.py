@@ -185,7 +185,7 @@ class Client(object):
             (bool, obj): Tuple of boolean representing success, and response JSON parsed from polyswarmd
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
+            raise ValueError('Chain parameter must be `home` or `side`, got {0}'.format(chain))
         if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
@@ -360,6 +360,14 @@ class Client(object):
     def from_wei(amount, unit='ether'):
         return w3.fromWei(amount, unit)
 
+    @staticmethod
+    def get_artifact_bid_at_(mask, bid, index):
+        if not mask[index]:
+            return 0
+
+        bid_index = sum(mask[:index])
+        return bid[bid_index]
+
     # Async iterator helper class
     class __GetArtifacts(object):
         def __init__(self, client, ipfs_uri, api_key=None):
@@ -442,7 +450,7 @@ class Client(object):
                         if filename:
                             filename = os.path.basename(filename)
                         else:
-                            filename = "file"
+                            filename = 'file'
 
                         payload = aiohttp.payload.get_payload(f, content_type='application/octet-stream')
                         payload.set_content_disposition('form-data', name='file', filename=filename)
@@ -494,7 +502,7 @@ class Client(object):
             chain (str): Which chain to operate on
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
+            raise ValueError('Chain parameter must be `home` or `side`, got {0}'.format(chain))
         self.__schedules[chain].put(expiration, event)
 
     async def __handle_scheduled_events(self, number, chain):
@@ -505,7 +513,7 @@ class Client(object):
             chain (str): Which chain to operate on
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
+            raise ValueError('Chain parameter must be `home` or `side`, got {0}'.format(chain))
         while self.__schedules[chain].peek() and self.__schedules[chain].peek()[0] < number:
             exp, task = self.__schedules[chain].get()
             if isinstance(task, events.RevealAssertion):
@@ -529,7 +537,7 @@ class Client(object):
             chain (str): Which chain to operate on
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
+            raise ValueError('Chain parameter must be `home` or `side`, got {0}'.format(chain))
         if not self.polyswarmd_uri.startswith('http'):
             raise ValueError('polyswarmd_uri protocol is not http or https, got {0}'.format(self.polyswarmd_uri))
 

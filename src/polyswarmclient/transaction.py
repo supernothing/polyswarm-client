@@ -150,7 +150,7 @@ class AbstractTransaction(metaclass=ABCMeta):
 
         transactions = results.get('transactions', [])
         if not self.verify(transactions):
-            logger.critical("Transactions did not match expectations for the given request.",
+            logger.critical('Transactions did not match expectations for the given request.',
                             extra={'extra': transactions})
             if self.client.tx_error_fatal:
                 logger.critical(LOG_MSG_ENGINE_TOO_SLOW)

@@ -31,14 +31,14 @@ class PostBountyTransaction(AbstractTransaction):
         super().__init__(client, [approve, bounty])
 
     def get_path(self):
-        return "/bounties"
+        return '/bounties'
 
     def get_body(self):
         body = {
-            "amount": str(self.amount),
-            "artifact_type": self. artifact_type,
-            "uri": self.artifact_uri,
-            "duration": self.duration
+            'amount': str(self.amount),
+            'artifact_type': self. artifact_type,
+            'uri': self.artifact_uri,
+            'duration': self.duration
         }
         if self.metadata:
             body['metadata'] = self.metadata
@@ -63,14 +63,14 @@ class PostAssertionTransaction(AbstractTransaction):
         self.mask = mask
         self.commitment = commitment
 
-        approve = NctApproveVerifier(bid + assertion_fee)
+        approve = NctApproveVerifier(sum(bid) + assertion_fee)
         assertion = PostAssertionVerifier(bounty_guid, bid, mask, commitment)
 
         super().__init__(client, [approve, assertion])
 
     def get_body(self):
         return {
-            'bid': str(self.bid),
+            'bid': [str(b) for b in self.bid],
             'mask': self.mask,
             'commitment': str(self.commitment),
         }
@@ -81,7 +81,7 @@ class PostAssertionTransaction(AbstractTransaction):
     def has_required_event(self, transaction_events):
         assertions = transaction_events.get('assertions', [])
         for assertion in assertions:
-            if (assertion.get('bid', '') == str(self.bid) and
+            if (assertion.get('bid', []) == [str(b) for b in self.bid] and
                     assertion.get('mask', []) == self.mask and
                     assertion.get('commitment', '') == str(self.commitment) and
                     assertion.get('bounty_guid', '') == self.bounty_guid):

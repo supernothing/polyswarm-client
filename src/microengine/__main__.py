@@ -25,25 +25,25 @@ def choose_backend(backend):
     Raises:
         (Exception): If backend is not found
     """
-    backend_list = backend.split(":")
+    backend_list = backend.split(':')
     module_name_string = backend_list[0]
 
     # determine if this string is a module that can be imported as-is or as sub-module of the microengine package
     mod_spec = importlib.util.find_spec(module_name_string) or importlib.util.find_spec(
-        "microengine.{0}".format(module_name_string))
+        'microengine.{0}'.format(module_name_string))
     if mod_spec is None:
-        raise Exception("Microengine backend `{0}` cannot be imported as a python module.".format(backend))
+        raise Exception('Microengine backend `{0}` cannot be imported as a python module.'.format(backend))
 
     # have valid module that can be imported, so import it.
     microengine_module = importlib.import_module(mod_spec.name)
 
     # find Microengine class in this module
-    if hasattr(microengine_module, "Microengine"):
+    if hasattr(microengine_module, 'Microengine'):
         microengine_class = microengine_module.Microengine
     elif len(backend_list) == 2 and hasattr(microengine_module, backend_list[1]):
         microengine_class = getattr(microengine_module, backend_list[1])
     else:
-        raise Exception("No microengine backend found {0}".format(backend))
+        raise Exception('No microengine backend found {0}'.format(backend))
 
     return microengine_module.__name__, microengine_class
 
@@ -63,18 +63,18 @@ def choose_bid_strategy(bid_strategy):
     """
     # determine if this string is a module that can be imported as-is or as sub-module of the microengine package
     mod_spec = importlib.util.find_spec(bid_strategy) or \
-        importlib.util.find_spec(f"microengine.bidstrategy.{bid_strategy}")
+        importlib.util.find_spec(f'microengine.bidstrategy.{bid_strategy}')
     if mod_spec is None:
-        raise Exception("Bid strategy `{0}` cannot be imported as a python module.".format(bid_strategy))
+        raise Exception('Bid strategy `{0}` cannot be imported as a python module.'.format(bid_strategy))
 
     # have valid module that can be imported, so import it.
     bid_strategy_module = importlib.import_module(mod_spec.name)
 
     # find BidStrategy class in this module
-    if hasattr(bid_strategy_module, "BidStrategy"):
+    if hasattr(bid_strategy_module, 'BidStrategy'):
         bid_strategy_class = bid_strategy_module.BidStrategy
     else:
-        raise Exception("No bid strategy found {0}".format(bid_strategy))
+        raise Exception('No bid strategy found {0}'.format(bid_strategy))
 
     return bid_strategy_module.__name__, bid_strategy_class
 

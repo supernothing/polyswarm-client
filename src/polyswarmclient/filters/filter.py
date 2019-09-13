@@ -179,6 +179,6 @@ class MetadataFilter:
         elif len(metadata) < min_length:
             result.extend([{}] * (min_length - len(metadata)))
 
-        logger.info('Padded result %s:', result)
+        logger.debug('Padded result %s:', result)
 
         return result
