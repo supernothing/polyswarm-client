@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 REDIS_ADDR = os.getenv('REDIS_ADDR', 'localhost:6379')
 QUEUE = os.getenv('QUEUE')
 
-TIME_TO_POST_ASSERTION = 4
+TIME_TO_POST_ASSERTION = 6
 KEY_TIMEOUT = 20
 
 
