@@ -53,6 +53,8 @@ class Producer:
                         if result:
                             break
 
+                        await asyncio.sleep(1)
+
                     j = json.loads(result.decode('utf-8'))
 
                     # increase perf counter for autoscaling
