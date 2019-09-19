@@ -100,6 +100,8 @@ class Producer:
                 results = await asyncio.gather(*[asyncio.wait_for(wait_for_result(key), timeout=timeout) for _ in jobs],
                                                return_exceptions=True)
                 results = {r[0]: r[1] for r in results if r is not None and not isinstance(r, asyncio.TimeoutError)}
+                if len(results.keys()) < num_artifacts:
+                    logger.error('Timeout handling guid %s', guid)
 
                 # Age off old result keys
                 await self.redis.expire(key, KEY_TIMEOUT)
