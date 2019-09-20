@@ -10,6 +10,7 @@ from polyswarmclient import events
 from polyswarmclient.bidstrategy import BidStrategyBase
 from polyswarmclient.balanceclient import BalanceClient
 from polyswarmclient.bountiesclient import BountiesClient
+from polyswarmclient.liveliness import LivelinessRecorder
 from polyswarmclient.stakingclient import StakingClient
 from polyswarmclient.offersclient import OffersClient
 from polyswarmclient.relayclient import RelayClient
@@ -71,6 +72,9 @@ class Client(object):
         self.offers = None
         self.relay = None
         self.balances = None
+
+        # Setup a liveliness instance
+        self.liveliness_recorder = LivelinessRecorder()
 
         # Events from client
         self.on_run = events.OnRunCallback()
@@ -144,6 +148,9 @@ class Client(object):
         self.__schedules = {chain: events.Schedule() for chain in chains}
 
         try:
+
+            await self.liveliness_recorder.setup()
+            asyncio.get_event_loop().create_task(Client.start_liveliness_loop(self.liveliness_recorder))
             # XXX: Set the timeouts here to reasonable values, probably should be configurable
             # No limits on connections
             conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
@@ -351,6 +358,12 @@ class Client(object):
                 logger.error('Connection to polyswarmd timed out')
 
         return None
+
+    @staticmethod
+    async def start_liveliness_loop(liveliness_recorder):
+        while True:
+            await liveliness_recorder.advance_loop()
+            await asyncio.sleep(1)
 
     @staticmethod
     def to_wei(amount, unit='ether'):
@@ -585,6 +598,7 @@ class Client(object):
 
                             asyncio.get_event_loop().create_task(self.on_new_block.run(number=number, chain=chain))
                             asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number, chain=chain))
+                            asyncio.get_event_loop().create_task(self.liveliness_recorder.advance_time(number))
                         elif event == 'fee_update':
                             d = {'bounty_fee': data.get('bounty_fee'), 'assertion_fee': data.get('assertion_fee')}
                             await self.bounties.parameters[chain].update({k: v for k, v in d.items() if v is not None})

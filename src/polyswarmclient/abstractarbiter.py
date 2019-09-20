@@ -209,12 +209,14 @@ class AbstractArbiter(object):
         vote_start = expiration + assertion_reveal_window
         settle_start = expiration + assertion_reveal_window + arbiter_vote_window
 
+        self.client.liveliness_recorder.add_waiting_task(guid, block_number)
         results = await self.fetch_and_scan_all(guid, artifact_type, uri, settle_start, metadata, chain)
         votes = [result.verdict for result in results]
 
         bounty = await self.client.bounties.get_bounty(guid, chain)
         if bounty is None:
             logger.error('Unable to get retrieve new bounty')
+            self.client.liveliness_recorder.remove_waiting_task(guid)
             return []
 
         bloom_parts = await self.client.bounties.get_bloom(guid, chain)
@@ -251,7 +253,9 @@ class AbstractArbiter(object):
                 logger.warning('Scheduled vote, but finished with testing mode')
                 return []
             logger.info('Testing mode, %s votes remaining', self.testing - self.votes_posted)
-        return await self.client.bounties.post_vote(bounty_guid, votes, valid_bloom, chain)
+        response = await self.client.bounties.post_vote(bounty_guid, votes, valid_bloom, chain)
+        self.client.liveliness_recorder.remove_waiting_task(bounty_guid)
+        return response
 
     async def __handle_settle_bounty(self, bounty_guid, chain):
         """

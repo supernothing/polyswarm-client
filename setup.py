@@ -40,6 +40,7 @@ setup(
         'console_scripts': [
             'ambassador=ambassador.__main__:main',
             'arbiter=arbiter.__main__:main',
+            'liveliness=liveliness.__main__:main',
             'microengine=microengine.__main__:main',
             'verbatimdbgen=arbiter.verbatimdb.__main__:main',
             'balancemanager=balancemanager.__main__:cli',
