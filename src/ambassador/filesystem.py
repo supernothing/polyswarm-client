@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
 ARTIFACT_BLACKLIST = os.getenv('ARTIFACT_BLACKLIST', 'truth.db').split(',')
+ARTIFACTS_PER_BOUNTY = int(os.getenv('ARTIFACTS_PER_BOUNTY', 1))
 BOUNTY_TEST_DURATION_BLOCKS = int(os.getenv('BOUNTY_TEST_DURATION_BLOCKS', 5))
 
 
@@ -55,7 +56,7 @@ class Ambassador(AbstractAmbassador):
 
         while True:
             try:
-                num_artifacts = min(256, len(self.artifacts))
+                num_artifacts = min(ARTIFACTS_PER_BOUNTY, len(self.artifacts))
                 if self.testing:
                     num_artifacts = random.randint(1, num_artifacts)
 
