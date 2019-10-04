@@ -630,7 +630,7 @@ class Client(object):
                                                            chain=chain))
                         elif event == 'deprecated':
                             asyncio.get_event_loop().create_task(
-                                self.on_deprecated.run(**data, block_number=block_number, txhash=txhash,
+                                self.on_deprecated.run(block_number=block_number, txhash=txhash,
                                                        chain=chain))
 
                         elif event == 'initialized_channel':

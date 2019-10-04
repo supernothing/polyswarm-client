@@ -147,16 +147,17 @@ class AbstractArbiter(object):
             logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
             exit(1)
 
-    async def __handle_deprecated(self, address, block_number, txhash, chain):
+    async def __handle_deprecated(self, block_number, txhash, chain):
         """Schedule Withdraw stake for when the last settles are due
 
         Args:
-            address: address of the contract being deprecated
-
+            block_number (int): Block number the bounty was posted on
+            txhash (str): Transaction hash which caused the event
+            chain (str): Is this on the home or side chain?
         Returns: Empty list
 
         """
-        logger.info('BountyRegistry contract at %s is now deprecated. Scheduling staking withdrawal.', address)
+        logger.info('BountyRegistry contract is now deprecated. Scheduling staking withdrawal.')
         parameters = self.client.bounties.parameters[chain]
         assertion_reveal_window = await parameters.get('assertion_reveal_window')
         arbiter_vote_window = await parameters.get('arbiter_vote_window')
