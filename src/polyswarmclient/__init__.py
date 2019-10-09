@@ -565,7 +565,10 @@ class Client(object):
                     await self.bounties.fetch_parameters(chain)
                     await self.staking.fetch_parameters(chain)
 
-                    retry = 0
+                    if retry != 0:
+                        logger.error('Websocket connection to polyswarmd reestablished')
+                        retry = 0
+
                     while not ws.closed:
                         resp = None
                         try:
