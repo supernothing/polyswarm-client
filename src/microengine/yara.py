@@ -1,9 +1,10 @@
 import logging
 import os
+import platform
 import yara
+
 from polyswarmartifact import ArtifactType
 from polyswarmartifact.schema.verdict import Verdict
-
 from polyswarmclient.abstractmicroengine import AbstractMicroengine
 from polyswarmclient.abstractscanner import AbstractScanner, ScanResult
 
@@ -29,9 +30,8 @@ class Scanner(AbstractScanner):
             ScanResult: Result of this scan
         """
         matches = self.rules.match(data=content)
-        sysname, _, _, _, machine = os.uname()
-        metadata = Verdict().set_scanner(operating_system=sysname,
-                                         architecture=machine,
+        metadata = Verdict().set_scanner(operating_system=platform.system(),
+                                         architecture=platform.machine(),
                                          vendor_version=yara.__version__)
         if matches:
             # author responsible for distilling multiple metadata values into a value for ScanResult

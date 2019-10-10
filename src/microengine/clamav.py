@@ -1,6 +1,7 @@
 import clamd
 import logging
 import os
+import platform
 from io import BytesIO
 
 from polyswarmartifact import ArtifactType, __version__ as psa_version
@@ -34,10 +35,9 @@ class Scanner(AbstractScanner):
         result = await self.clamd.instream(BytesIO(content))
         stream_result = result.get('stream', [])
 
-        sysname, _, _, _, machine = os.uname()
         vendor = await self.clamd.version()
-        metadata = Verdict().set_scanner(operating_system=sysname,
-                                         architecture=machine,
+        metadata = Verdict().set_scanner(operating_system=platform.system(),
+                                         architecture=platform.machine(),
                                          vendor_version=vendor)
         if len(stream_result) >= 2 and stream_result[0] == 'FOUND':
             metadata.set_malware_family(stream_result[1])
