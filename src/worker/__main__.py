@@ -72,19 +72,6 @@ def choose_backend(backend):
               help='Log format. Can be `json` or `text` (default)')
 def main(log, client_log, redis_addr, queue, backend, tasks, download_limit, scan_limit, api_key, testing, log_format):
     """Entrypoint for the worker driver
-
-    Args:
-        log (str): Logging level for all app logs
-        client_log (str): Logging level for all polyswarmclient logs
-        redis_addr (str): Address of redis
-        backend (str): Backend implementation to use
-        queue (str): Name of queue to listen on
-        tasks (int): Number of simultaneous tasks this worker runs
-        download_limit (int): Number of simultaneous downloads this worker can handle
-        scan_limit (int): Number of simultaneous scans this worker can handle
-        api_key(str): API key to use with polyswarmd
-        testing (int): Mode to process N bounties then exit (optional)
-        log_format (str): Format to output logs in. `text` or `json`
     """
     loglevel = getattr(logging, log.upper(), None)
     clientlevel = getattr(logging, client_log.upper(), None)
@@ -100,7 +87,7 @@ def main(log, client_log, redis_addr, queue, backend, tasks, download_limit, sca
 
     logger.info('Running worker with %s tasks', tasks)
 
-    worker = Worker(redis_addr, queue, tasks, download_limit, scan_limit, api_key,  testing, scanner)
+    worker = Worker(redis_addr, queue, tasks, download_limit, scan_limit, api_key, testing, scanner)
     worker.run()
 
 

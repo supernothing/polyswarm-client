@@ -5,11 +5,13 @@ from polyswarmartifact import ArtifactType
 
 from polyswarmclient.abstractarbiter import AbstractArbiter
 from polyswarmclient.producer import Producer
+from polyswarmclient.ratelimit.redis import RedisDailyRateLimit
 
 logger = logging.getLogger(__name__)
 
 REDIS_ADDR = os.getenv('REDIS_ADDR', 'localhost:6379')
 QUEUE = os.getenv('QUEUE')
+RATE_LIMIT = os.getenv('RATE_LIMIT', None)
 
 TIME_TO_POST_VOTE = 6
 
@@ -31,8 +33,8 @@ class Arbiter(AbstractArbiter):
     async def __handle_run(self, chain):
         if self.redis is None:
             redis_uri = 'redis://' + REDIS_ADDR
-
-            self.producer = Producer(self.client, redis_uri, QUEUE, TIME_TO_POST_VOTE)
+            rate_limit = RedisDailyRateLimit(redis_uri, QUEUE, RATE_LIMIT)
+            self.producer = Producer(self.client, redis_uri, QUEUE, TIME_TO_POST_VOTE, rate_limit=rate_limit)
             await self.producer.start()
 
     async def fetch_and_scan_all(self, guid, artifact_type, uri, vote_round_end, metadata, chain):

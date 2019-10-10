@@ -14,7 +14,8 @@ KEY_TIMEOUT = WAIT_TIME + 10
 
 
 class Producer:
-    def __init__(self, client, redis_uri, queue, time_to_post, bounty_filter=None, confidence_modifier=None):
+    def __init__(self, client, redis_uri, queue, time_to_post, bounty_filter=None, confidence_modifier=None,
+                 rate_limit=None):
         self.client = client
         self.redis_uri = redis_uri
         self.queue = queue
@@ -22,8 +23,11 @@ class Producer:
         self.bounty_filter = bounty_filter
         self.confidence_modifier = confidence_modifier
         self.redis = None
+        self.rate_limit = rate_limit
 
     async def start(self):
+        if self.rate_limit is not None:
+            await self.rate_limit.setup()
         self.redis = await aioredis.create_redis_pool(self.redis_uri)
 
     async def scan(self, guid, artifact_type, uri, expiration_blocks, metadata, chain):
@@ -79,7 +83,8 @@ class Producer:
 
         jobs = []
         for i in range(num_artifacts):
-            if self.bounty_filter is None or self.bounty_filter.is_allowed(metadata[i]):
+            if (self.bounty_filter is None or self.bounty_filter.is_allowed(metadata[i])) \
+             and (self.rate_limit is None or await self.rate_limit.use()):
                 jobs.append(json.dumps({
                     'ts': time.time() // 1,
                     'guid': guid,
@@ -99,6 +104,7 @@ class Producer:
                 key = '{}_{}_{}_results'.format(self.queue, guid, chain)
                 results = await asyncio.gather(*[asyncio.wait_for(wait_for_result(key), timeout=timeout) for _ in jobs],
                                                return_exceptions=True)
+                # In the event of filter or rate limit, the index (r[0]) will not have a value in the dict
                 results = {r[0]: r[1] for r in results if r is not None and not isinstance(r, asyncio.TimeoutError)}
                 if len(results.keys()) < num_artifacts:
                     logger.error('Timeout handling guid %s', guid)
@@ -106,6 +112,7 @@ class Producer:
                 # Age off old result keys
                 await self.redis.expire(key, KEY_TIMEOUT)
 
+                # Any missing responses will be replaced inline with an empty scan result
                 return [results.get(i, ScanResult()) for i in range(num_artifacts)]
             except OSError:
                 logger.exception('Redis connection down')

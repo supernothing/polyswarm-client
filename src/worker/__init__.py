@@ -98,6 +98,18 @@ class Worker(object):
             logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
             exit(1)
 
+    async def download(self, polyswarmd_uri, uri, index, session):
+        headers = {'Authorization': self.api_key} if self.api_key is not None else None
+        uri = f'{polyswarmd_uri}/artifacts/{uri}/{index}'
+        async with self.download_lock:
+            response = await session.get(uri, headers=headers)
+            response.raise_for_status()
+            return await response.read()
+
+    async def scan(self, guid, artifact_type, content, metadata, chain):
+        async with self.scan_lock:
+            return await self.scanner.scan(guid, artifact_type, artifact_type.decode_content(content), metadata, chain)
+
     async def run_task(self, task_index):
         conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
@@ -158,32 +170,17 @@ class Worker(object):
                     self.liveliness_recorder.remove_waiting_task(guid)
                     continue
 
-                headers = {'Authorization': self.api_key} if self.api_key is not None else None
-                uri = f'{polyswarmd_uri}/artifacts/{uri}/{index}'
-                async with self.download_lock:
-                    try:
-                        response = await session.get(uri, headers=headers)
-                        response.raise_for_status()
-
-                        content = await response.read()
-                    except aiohttp.ClientResponseError:
-                        logger.exception(f'Error fetching artifact {uri} on task {task_index}')
-                        self.liveliness_recorder.remove_waiting_task(guid)
-                        continue
-                    except asyncio.TimeoutError:
-                        logger.exception(f'Timeout fetching artifact {uri} on task {task_index}')
-                        self.liveliness_recorder.remove_waiting_task(guid)
-                        continue
-
-                async with self.scan_lock:
-                    try:
-                        result = await self.scanner.scan(guid,
-                                                         artifact_type,
-                                                         artifact_type.decode_content(content),
-                                                         metadata,
-                                                         chain)
-                    except DecodeError:
-                        result = ScanResult()
+                # Setup default response as ScanResult, in case we exceeded uses
+                result = ScanResult()
+                try:
+                    content = await self.download(polyswarmd_uri, uri, index, session)
+                    result = await self.scan(guid, artifact_type, content, metadata, chain)
+                except DecodeError:
+                    logger.exception('Error Decoding artifact')
+                except aiohttp.ClientResponseError:
+                    logger.exception(f'Error fetching artifact {uri} on task {task_index}')
+                except asyncio.TimeoutError:
+                    logger.exception(f'Timeout fetching artifact {uri} on task {task_index}')
 
                 self.liveliness_recorder.remove_waiting_task(guid)
 
