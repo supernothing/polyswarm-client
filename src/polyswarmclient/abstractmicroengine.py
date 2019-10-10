@@ -2,12 +2,13 @@ import asyncio
 import json
 import logging
 
-from polyswarmartifact import ArtifactType
+from polyswarmartifact import ArtifactType, DecodeError
 from polyswarmartifact.schema import verdict
 
 from polyswarmclient import Client
 from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.events import RevealAssertion, SettleBounty
+from polyswarmclient.exceptions import InvalidBidError
 from polyswarmclient.filters.bountyfilter import BountyFilter
 from polyswarmclient.filters.confidencefilter import ConfidenceModifier
 from polyswarmclient.filters.filter import MetadataFilter
@@ -89,7 +90,7 @@ class AbstractMicroengine(object):
             return await self.scanner.scan(guid, artifact_type, content, metadata, chain)
 
         raise NotImplementedError(
-            "You must 1) override this scan method OR 2) provide a scanner to your Microengine constructor")
+            'You must 1) override this scan method OR 2) provide a scanner to your Microengine constructor')
 
     async def bid(self, guid, mask, verdicts, confidences, metadatas, chain):
         """Override this to implement custom bid calculation logic
@@ -103,17 +104,18 @@ class AbstractMicroengine(object):
             chain (str): Chain we are operating on
 
         Returns:
-            int: Amount of NCT to bid in base NCT units (10 ^ -18)
+            list[int]: Amount of NCT to bid in base NCT units (10 ^ -18)
         """
         min_allowed_bid = await self.client.bounties.parameters[chain].get('assertion_bid_minimum')
         if self.bid_strategy is not None:
-            return max(
-                min_allowed_bid,
-                await self.bid_strategy.bid(guid, mask, verdicts, confidences, metadatas, min_allowed_bid, chain)
-            )
+            bid = await self.bid_strategy.bid(guid, mask, verdicts, confidences, metadatas, min_allowed_bid, chain)
+            if [b for b in bid if b < min_allowed_bid]:
+                raise InvalidBidError()
+
+            return bid
 
         raise NotImplementedError(
-            "You must 1) override this bid method OR 2) provide a bid_strategy to your Microengine constructor")
+            'You must 1) override this bid method OR 2) provide a bid_strategy to your Microengine constructor')
 
     async def fetch_and_scan_all(self, guid, artifact_type, uri, duration, metadata, chain):
         """Fetch and scan all artifacts concurrently
@@ -135,7 +137,15 @@ class AbstractMicroengine(object):
                 return ScanResult()
 
             if content is not None:
-                result = await self.scan(guid, artifact_type, content, artifact_metadata, chain)
+                try:
+                    result = await self.scan(guid,
+                                             artifact_type,
+                                             artifact_type.decode_content(content),
+                                             artifact_metadata,
+                                             chain)
+                except DecodeError:
+                    result = ScanResult()
+
                 if result.bit:
                     result.confidence = self.confidence_modifier.modify(artifact_metadata, result.confidence)
                     return result
@@ -206,6 +216,7 @@ class AbstractMicroengine(object):
         expiration = int(expiration)
         duration = expiration - block_number
 
+        self.client.liveliness_recorder.add_waiting_task(guid, block_number)
         results = await self.fetch_and_scan_all(guid, artifact_type, uri, duration, metadata, chain)
         mask = [r.bit for r in results]
         verdicts = [r.verdict for r in results]
@@ -220,25 +231,28 @@ class AbstractMicroengine(object):
             logger.exception(f'Error decoding assertion metadata {metadatas}')
 
         if not any(mask):
+            self.client.liveliness_recorder.remove_waiting_task(guid)
             return []
 
         assertion_fee = await self.client.bounties.parameters[chain].get('assertion_fee')
         assertion_reveal_window = await self.client.bounties.parameters[chain].get('assertion_reveal_window')
         arbiter_vote_window = await self.client.bounties.parameters[chain].get('arbiter_vote_window')
 
-        # Check that microengine has sufficient balance to handle the assertion
         bid = await self.bid(guid, mask, verdicts, confidences, metadatas, chain)
+        # Check that microengine has sufficient balance to handle the assertion
         balance = await self.client.balances.get_nct_balance(chain)
-        if balance < assertion_fee + bid:
+        if balance < assertion_fee + sum(bid):
             logger.critical(f'Insufficient balance to post assertion for bounty on {chain}. Have {balance} NCT. '
-                            f'Need {assertion_fee + bid} NCT', extra={'extra': guid})
+                            f'Need {assertion_fee + sum(bid)} NCT', extra={'extra': guid})
             if self.testing > 0:
                 exit(1)
 
+            self.client.liveliness_recorder.remove_waiting_task(guid)
             return []
 
         logger.info(f'Responding to {artifact_type.name.lower()} bounty {guid}')
         nonce, assertions = await self.client.bounties.post_assertion(guid, bid, mask, verdicts, chain)
+        self.client.liveliness_recorder.remove_waiting_task(guid)
         for a in assertions:
             # Post metadata to IPFS and post ipfs_hash as metadata, if it exists
             ipfs_hash = await self.client.bounties.post_metadata(combined_metadata, chain)
@@ -299,7 +313,7 @@ class AbstractMicroengine(object):
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
         if 0 < self.testing <= self.settles_posted:
-            logger.info("All testing bounties complete, exiting")
+            logger.info('All testing bounties complete, exiting')
             asyncio_stop()
         return ret
 

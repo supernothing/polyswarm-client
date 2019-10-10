@@ -45,7 +45,6 @@ class Producer:
         logger.info(f' timeout set to {timeout}')
 
         async def wait_for_result(result_key):
-            remaining = WAIT_TIME
             try:
                 with await self.redis as redis:
                     while True:
@@ -54,11 +53,6 @@ class Producer:
                         if result:
                             break
 
-                        if remaining == 0:
-                            logger.critical('Timeout waiting for result in bounty %s', guid)
-                            return None
-
-                        remaining -= 1
                         await asyncio.sleep(1)
 
                     j = json.loads(result.decode('utf-8'))
@@ -103,8 +97,11 @@ class Producer:
                 await self.redis.rpush(self.queue, *jobs)
 
                 key = '{}_{}_{}_results'.format(self.queue, guid, chain)
-                results = await asyncio.gather(*[wait_for_result(key) for _ in jobs])
-                results = {r[0]: r[1] for r in results if r is not None}
+                results = await asyncio.gather(*[asyncio.wait_for(wait_for_result(key), timeout=timeout) for _ in jobs],
+                                               return_exceptions=True)
+                results = {r[0]: r[1] for r in results if r is not None and not isinstance(r, asyncio.TimeoutError)}
+                if len(results.keys()) < num_artifacts:
+                    logger.error('Timeout handling guid %s', guid)
 
                 # Age off old result keys
                 await self.redis.expire(key, KEY_TIMEOUT)

@@ -181,5 +181,5 @@ def maintain(polyswarmd_addr, keyfile, password, api_key, testing, insecure_tran
     Maintainer(client, denomination, confirmations, minimum, refill_amount, maximum, withdraw_target, testing).run()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     cli(dict())

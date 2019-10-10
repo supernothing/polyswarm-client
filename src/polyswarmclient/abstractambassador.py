@@ -99,12 +99,12 @@ class AbstractAmbassador(ABC):
             pass
 
         return {
-            "sha256": hashlib.sha256(content).hexdigest(),
-            "md5": hashlib.md5(content).hexdigest(),
-            "size": len(content),
-            "sha1": hashlib.sha1(content).hexdigest(),
-            "mimetype": magic.from_buffer(content, mime=True),
-            "extended_type": magic.from_buffer(content),
+            'sha256': hashlib.sha256(content).hexdigest(),
+            'md5': hashlib.md5(content).hexdigest(),
+            'size': len(content),
+            'sha1': hashlib.sha1(content).hexdigest(),
+            'mimetype': magic.from_buffer(content, mime=True),
+            'extended_type': magic.from_buffer(content),
         }
 
     @abstractmethod
@@ -192,6 +192,7 @@ class AbstractAmbassador(ABC):
                     logger.info('Got None for bounty value, moving on to next block')
                     break
 
+                self.client.liveliness_recorder.add_waiting_task(bounty.ipfs_uri, self.last_block)
                 bounties_this_block += 1
                 await self.bounty_semaphores[chain].acquire()
 
@@ -238,6 +239,7 @@ class AbstractAmbassador(ABC):
             bounties = await self.client.bounties.post_bounty(bounty.artifact_type, bounty.amount, bounty.ipfs_uri,
                                                               bounty.duration, chain, api_key=bounty.api_key,
                                                               metadata=metadata)
+            self.client.liveliness_recorder.remove_waiting_task(bounty.ipfs_uri)
             if not bounties:
                 await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration,
                                                  chain, metadata=bounty.metadata)
@@ -273,6 +275,7 @@ class AbstractAmbassador(ABC):
         logger.warning('Failed %s attempts to post bounty due to low balance. Skipping', tries, extra={'extra': bounty})
         await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration, chain,
                                          metadata=bounty.metadata)
+        self.client.liveliness_recorder.remove_waiting_task(bounty.ipfs_uri)
 
     async def __handle_new_block(self, number, chain):
         if number <= self.last_block:
@@ -333,7 +336,7 @@ class AbstractAmbassador(ABC):
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
         if last_settle:
-            logger.info("All testing bounties complete, exiting")
+            logger.info('All testing bounties complete, exiting')
             asyncio_stop()
 
         return ret

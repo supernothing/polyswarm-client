@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from polyswarmartifact import ArtifactType
+from polyswarmartifact import ArtifactType, DecodeError
 
 from polyswarmclient import Client
 from polyswarmclient.abstractscanner import ScanResult
@@ -74,7 +74,7 @@ class AbstractArbiter(object):
         if self.scanner:
             return await self.scanner.scan(guid, artifact_type, content, metadata, chain)
 
-        raise NotImplementedError("You must subclass this class and override this method.")
+        raise NotImplementedError('You must subclass this class and override this method.')
 
     async def fetch_and_scan_all(self, guid, artifact_type, uri, vote_round_end, metadata, chain):
         """Fetch and scan all artifacts concurrently
@@ -95,7 +95,10 @@ class AbstractArbiter(object):
             content = await self.client.get_artifact(uri, index)
             if content is not None:
                 # Ignoring metadata for now
-                return await self.scan(guid, artifact_type, content, None, chain)
+                try:
+                    return await self.scan(guid, artifact_type, artifact_type.decode_content(content), None, chain)
+                except DecodeError:
+                    return ScanResult()
 
             return ScanResult()
 
@@ -144,16 +147,17 @@ class AbstractArbiter(object):
             logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
             exit(1)
 
-    async def __handle_deprecated(self, address, block_number, txhash, chain):
+    async def __handle_deprecated(self, block_number, txhash, chain):
         """Schedule Withdraw stake for when the last settles are due
 
         Args:
-            address: address of the contract being deprecated
-
+            block_number (int): Block number the bounty was posted on
+            txhash (str): Transaction hash which caused the event
+            chain (str): Is this on the home or side chain?
         Returns: Empty list
 
         """
-        logger.info('BountyRegistry contract at %s is now deprecated. Scheduling staking withdrawal.', address)
+        logger.info('BountyRegistry contract is now deprecated. Scheduling staking withdrawal.')
         parameters = self.client.bounties.parameters[chain]
         assertion_reveal_window = await parameters.get('assertion_reveal_window')
         arbiter_vote_window = await parameters.get('arbiter_vote_window')
@@ -206,12 +210,14 @@ class AbstractArbiter(object):
         vote_start = expiration + assertion_reveal_window
         settle_start = expiration + assertion_reveal_window + arbiter_vote_window
 
+        self.client.liveliness_recorder.add_waiting_task(guid, block_number)
         results = await self.fetch_and_scan_all(guid, artifact_type, uri, settle_start, metadata, chain)
         votes = [result.verdict for result in results]
 
         bounty = await self.client.bounties.get_bounty(guid, chain)
         if bounty is None:
             logger.error('Unable to get retrieve new bounty')
+            self.client.liveliness_recorder.remove_waiting_task(guid)
             return []
 
         bloom_parts = await self.client.bounties.get_bloom(guid, chain)
@@ -248,7 +254,9 @@ class AbstractArbiter(object):
                 logger.warning('Scheduled vote, but finished with testing mode')
                 return []
             logger.info('Testing mode, %s votes remaining', self.testing - self.votes_posted)
-        return await self.client.bounties.post_vote(bounty_guid, votes, valid_bloom, chain)
+        response = await self.client.bounties.post_vote(bounty_guid, votes, valid_bloom, chain)
+        self.client.liveliness_recorder.remove_waiting_task(bounty_guid)
+        return response
 
     async def __handle_settle_bounty(self, bounty_guid, chain):
         """
@@ -276,7 +284,7 @@ class AbstractArbiter(object):
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
         if 0 < self.testing <= self.settles_posted:
-            logger.info("All testing bounties complete, exiting")
+            logger.info('All testing bounties complete, exiting')
             asyncio_stop()
         return ret
 

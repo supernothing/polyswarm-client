@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 REDIS_ADDR = os.getenv('REDIS_ADDR', 'localhost:6379')
 QUEUE = os.getenv('QUEUE')
 
-TIME_TO_POST_VOTE = 4
+TIME_TO_POST_VOTE = 6
 
 
 class Arbiter(AbstractArbiter):
@@ -23,7 +23,7 @@ class Arbiter(AbstractArbiter):
         if QUEUE is None:
             raise ValueError('No queue configured, set the QUEUE environment variable')
         if QUEUE.endswith('_results'):
-            raise ValueError('Queue name cannot end with "_results"')
+            raise ValueError('Queue name cannot end with `_results`')
 
         self.client.on_run.register(self.__handle_run)
         self.redis = None

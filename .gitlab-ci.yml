@@ -209,35 +209,35 @@ kick-after-complete1:
   stage: deployment
   only:
     - master
-  trigger: externalci/engine-ikarus
+  trigger: externalci/microengine-ikarus
 
 kick-after-complete2:
   stage: deployment
   only:
     - master
-  trigger: externalci/engine-trustlook
+  trigger: externalci/microengine-trustlook
 kick-after-complete3:
   stage: deployment
   only:
     - master
-  trigger: externalci/engine-drweb
+  trigger: externalci/microengine-drweb
 
 kick-after-complete4:
   stage: deployment
   only:
     - master
-  trigger: externalci/engine-rising
+  trigger: externalci/microengine-rising
 
 kick-after-complete5:
   stage: deployment
   only:
     - master
-  trigger: externalci/engine-iris-h
+  trigger: externalci/microengine-iris-h
 kick-after-complete6:
   stage: deployment
   only:
     - master
-  trigger: externalci/engine-intezer-analyze
+  trigger: externalci/microengine-intezer-analyze
 
 kick-after-complete7:
   stage: deployment
@@ -274,3 +274,16 @@ kick-after-complete12:
     - master
   trigger: externalci/polyswarm-client-windows
 
+kick-after-complete13:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/poly-mon
+
+kick-after-complete14:
+  stage: deployment
+  variables:
+    BASE_IMAGE_NAME: consumer
+  only:
+    - master
+  trigger: externalci/consumer

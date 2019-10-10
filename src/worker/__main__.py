@@ -23,25 +23,25 @@ def choose_backend(backend):
     Raises:
         (Exception): If backend is not found
     """
-    backend_list = backend.split(":")
+    backend_list = backend.split(':')
     module_name_string = backend_list[0]
 
     # determine if this string is a module that can be imported as-is or as sub-module of the worker package
-    mod_spec = importlib.util.find_spec("microengine.{0}".format(module_name_string)) or \
+    mod_spec = importlib.util.find_spec('microengine.{0}'.format(module_name_string)) or \
         importlib.util.find_spec(module_name_string)
     if mod_spec is None:
-        raise Exception("Scanner backend `{0}` cannot be imported as a python module.".format(backend))
+        raise Exception('Scanner backend `{0}` cannot be imported as a python module.'.format(backend))
 
     # have valid module that can be imported, so import it.
     scanner_module = importlib.import_module(mod_spec.name)
 
     # find Scanner class in this module
-    if hasattr(scanner_module, "Scanner"):
+    if hasattr(scanner_module, 'Scanner'):
         scanner_class = scanner_module.Scanner
     elif len(backend_list) == 2 and hasattr(scanner_module, backend_list[1]):
         scanner_class = getattr(scanner_module, backend_list[1])
     else:
-        raise Exception("No scanner backend found {0}".format(backend))
+        raise Exception('No scanner backend found {0}'.format(backend))
 
     return scanner_module.__name__, scanner_class
 

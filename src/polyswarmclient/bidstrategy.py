@@ -16,14 +16,10 @@ class BidStrategyBase:
             chain (str): Chain we are operating on
 
         Returns:
-            int: Amount of NCT to bid in base NCT units (10 ^ -18)
+            list[int]: List of bid values corresponding to the set mask values
         """
+        # These are per-item min and max bids
         min_bid = max(min_allowed_bid * self.min_bid_multiplier, min_allowed_bid)
         max_bid = max(min_allowed_bid * self.max_bid_multiplier, min_allowed_bid)
 
-        asserted_confidences = [c for b, c in zip(mask, confidences) if b]
-        avg_confidence = sum(asserted_confidences) / len(asserted_confidences) if asserted_confidences else 0
-        bid = int(min_bid + ((max_bid - min_bid) * avg_confidence))
-
-        # Clamp bid between min_bid and max_bid
-        return max(min_bid, min(bid, max_bid))
+        return [int(min_bid + ((max_bid - min_bid) * confidence)) for bit, confidence in zip(mask, confidences) if bit]

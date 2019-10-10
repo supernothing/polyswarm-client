@@ -33,7 +33,7 @@ class Arbiter(AbstractArbiter):
         super().__init__(client, testing, scanner, chains, artifact_types)
         db_pth = os.path.join(ARTIFACT_DIRECTORY, 'truth.db')
 
-        if os.getenv("MALICIOUS_BOOTSTRAP_URL"):
+        if os.getenv('MALICIOUS_BOOTSTRAP_URL'):
 
             d = DownloadToFileSystemCorpus(base_dir=ARTIFACT_DIRECTORY)
             d.download_truth()

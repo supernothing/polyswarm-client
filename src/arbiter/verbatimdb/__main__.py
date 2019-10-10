@@ -18,5 +18,5 @@ def main(malicious, benign, output, log_format):
     generate_db(output, malicious, benign)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

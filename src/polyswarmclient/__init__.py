@@ -10,6 +10,7 @@ from polyswarmclient import events
 from polyswarmclient.bidstrategy import BidStrategyBase
 from polyswarmclient.balanceclient import BalanceClient
 from polyswarmclient.bountiesclient import BountiesClient
+from polyswarmclient.liveliness import LivelinessRecorder
 from polyswarmclient.stakingclient import StakingClient
 from polyswarmclient.offersclient import OffersClient
 from polyswarmclient.relayclient import RelayClient
@@ -71,6 +72,9 @@ class Client(object):
         self.offers = None
         self.relay = None
         self.balances = None
+
+        # Setup a liveliness instance
+        self.liveliness_recorder = LivelinessRecorder()
 
         # Events from client
         self.on_run = events.OnRunCallback()
@@ -144,6 +148,9 @@ class Client(object):
         self.__schedules = {chain: events.Schedule() for chain in chains}
 
         try:
+
+            await self.liveliness_recorder.setup()
+            asyncio.get_event_loop().create_task(Client.start_liveliness_loop(self.liveliness_recorder))
             # XXX: Set the timeouts here to reasonable values, probably should be configurable
             # No limits on connections
             conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
@@ -185,7 +192,7 @@ class Client(object):
             (bool, obj): Tuple of boolean representing success, and response JSON parsed from polyswarmd
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
+            raise ValueError('Chain parameter must be `home` or `side`, got {0}'.format(chain))
         if self.__session is None or self.__session.closed:
             raise Exception('Not running')
 
@@ -353,12 +360,26 @@ class Client(object):
         return None
 
     @staticmethod
+    async def start_liveliness_loop(liveliness_recorder):
+        while True:
+            await liveliness_recorder.advance_loop()
+            await asyncio.sleep(1)
+
+    @staticmethod
     def to_wei(amount, unit='ether'):
         return w3.toWei(amount, unit)
 
     @staticmethod
     def from_wei(amount, unit='ether'):
         return w3.fromWei(amount, unit)
+
+    @staticmethod
+    def get_artifact_bid_at_(mask, bid, index):
+        if not mask[index]:
+            return 0
+
+        bid_index = sum(mask[:index])
+        return bid[bid_index]
 
     # Async iterator helper class
     class __GetArtifacts(object):
@@ -442,7 +463,7 @@ class Client(object):
                         if filename:
                             filename = os.path.basename(filename)
                         else:
-                            filename = "file"
+                            filename = 'file'
 
                         payload = aiohttp.payload.get_payload(f, content_type='application/octet-stream')
                         payload.set_content_disposition('form-data', name='file', filename=filename)
@@ -494,7 +515,7 @@ class Client(object):
             chain (str): Which chain to operate on
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
+            raise ValueError('Chain parameter must be `home` or `side`, got {0}'.format(chain))
         self.__schedules[chain].put(expiration, event)
 
     async def __handle_scheduled_events(self, number, chain):
@@ -505,7 +526,7 @@ class Client(object):
             chain (str): Which chain to operate on
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
+            raise ValueError('Chain parameter must be `home` or `side`, got {0}'.format(chain))
         while self.__schedules[chain].peek() and self.__schedules[chain].peek()[0] < number:
             exp, task = self.__schedules[chain].get()
             if isinstance(task, events.RevealAssertion):
@@ -529,7 +550,7 @@ class Client(object):
             chain (str): Which chain to operate on
         """
         if chain != 'home' and chain != 'side':
-            raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
+            raise ValueError('Chain parameter must be `home` or `side`, got {0}'.format(chain))
         if not self.polyswarmd_uri.startswith('http'):
             raise ValueError('polyswarmd_uri protocol is not http or https, got {0}'.format(self.polyswarmd_uri))
 
@@ -577,6 +598,7 @@ class Client(object):
 
                             asyncio.get_event_loop().create_task(self.on_new_block.run(number=number, chain=chain))
                             asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number, chain=chain))
+                            asyncio.get_event_loop().create_task(self.liveliness_recorder.advance_time(number))
                         elif event == 'fee_update':
                             d = {'bounty_fee': data.get('bounty_fee'), 'assertion_fee': data.get('assertion_fee')}
                             await self.bounties.parameters[chain].update({k: v for k, v in d.items() if v is not None})
@@ -608,7 +630,7 @@ class Client(object):
                                                            chain=chain))
                         elif event == 'deprecated':
                             asyncio.get_event_loop().create_task(
-                                self.on_deprecated.run(**data, block_number=block_number, txhash=txhash,
+                                self.on_deprecated.run(block_number=block_number, txhash=txhash,
                                                        chain=chain))
 
                         elif event == 'initialized_channel':

@@ -75,7 +75,7 @@ class BloomFilter(numbers.Number):
             value (bytes): Byte encoded value to add to Bloom filter.
         """
         if not isinstance(value, bytes):
-            raise TypeError("Value must be of type `bytes`")
+            raise TypeError('Value must be of type `bytes`')
         for bloom_bits in get_bloom_bits(value):
             self.value |= bloom_bits
 
@@ -105,7 +105,7 @@ class BloomFilter(numbers.Number):
 
     def __contains__(self, value):
         if not isinstance(value, bytes):
-            raise TypeError("Value must be of type `bytes`")
+            raise TypeError('Value must be of type `bytes`')
         return all(
             self.value & bloom_bits
             for bloom_bits
@@ -118,7 +118,7 @@ class BloomFilter(numbers.Number):
     def _combine(self, other):
         if not isinstance(other, (int, BloomFilter)):
             raise TypeError(
-                "The `or` operator is only supported for other `BloomFilter` instances"
+                'The `or` operator is only supported for other `BloomFilter` instances'
             )
         return BloomFilter(int(self) | int(other))
 
@@ -131,7 +131,7 @@ class BloomFilter(numbers.Number):
     def _icombine(self, other):
         if not isinstance(other, (int, BloomFilter)):
             raise TypeError(
-                "The `or` operator is only supported for other `BloomFilter` instances"
+                'The `or` operator is only supported for other `BloomFilter` instances'
             )
         self.value |= int(other)
         return self

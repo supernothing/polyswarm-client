@@ -42,11 +42,12 @@ class ConfidenceModifier(MetadataFilter):
         penalized = any([f.filter(metadata) for f in self.penalize])
 
         if favored and not penalized:
-            logger.info('Increasing confidence for favored value %s', json.dumps(metadata), extra={'extra': self.favor})
+            logger.debug('Increasing confidence for favored value %s', json.dumps(metadata),
+                         extra={'extra': self.favor})
             return confidence * 1.2
         elif penalized and not favored:
-            logger.info('Decreasing confidence for penalized value %s', json.dumps(metadata),
-                        extra={'extra': self.penalize})
+            logger.debug('Decreasing confidence for penalized value %s', json.dumps(metadata),
+                         extra={'extra': self.penalize})
             return confidence * .8
         else:
             return confidence

@@ -389,3 +389,15 @@ async def test_on_initialized_channel(mock_client):
     await mock_client.home_ws_mock.send(event('initialized_channel', initialized_channel))
 
     await done.wait()
+
+
+@pytest.mark.asyncio
+async def test_bid_and_mask_to_bid():
+    # arrange
+    mask = [False] * 128 + [True] + [False] * 127
+    bid = [.5 * 10 ** 18]
+    # act
+    # assert
+    assert polyswarmclient.Client.get_artifact_bid_at_(mask, bid, 128) == .5 * 10 ** 18
+    assert polyswarmclient.Client.get_artifact_bid_at_(mask, bid, 127) == 0
+    assert polyswarmclient.Client.get_artifact_bid_at_(mask, bid, 129) == 0

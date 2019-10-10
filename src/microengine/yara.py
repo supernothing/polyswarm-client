@@ -13,7 +13,7 @@ RULES_DIR = os.getenv('RULES_DIR', 'docker/yara-rules')
 
 class Scanner(AbstractScanner):
     def __init__(self):
-        self.rules = yara.compile(os.path.join(RULES_DIR, "malware/MALW_Eicar"))
+        self.rules = yara.compile(os.path.join(RULES_DIR, 'malware/MALW_Eicar'))
 
     async def scan(self, guid, artifact_type, content, metadata, chain):
         """Scan an artifact with Yara.

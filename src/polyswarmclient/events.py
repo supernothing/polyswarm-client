@@ -197,16 +197,15 @@ class OnSettledBountyCallback(Callback):
 class OnDeprecatedCallback(Callback):
     """Called upon the BountyRegistry contract being deprecated"""
 
-    async def run(self, address, block_number, txhash, chain):
+    async def run(self, block_number, txhash, chain):
         """Run the registered callbacks
 
         Args:
-            address (str): Address of the BountyRegistry contract that is deprecated
             block_number (int): Block number the channel was initialized on
             txhash (str): Transaction hash which caused the event
             chain (str): Chain event received on
         """
-        return await super().run(address, block_number, txhash, chain)
+        return await super().run(block_number, txhash, chain)
 
 
 class OnInitializedChannelCallback(Callback):

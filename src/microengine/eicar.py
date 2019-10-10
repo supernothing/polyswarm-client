@@ -30,9 +30,8 @@ class Scanner(AbstractScanner):
         Returns:
             ScanResult: Result of this scan
         """
-        sysname, _, _, _, machine, _ = platform.uname()
-        metadata = Verdict().set_scanner(operating_system=sysname,
-                                         architecture=machine)
+        metadata = Verdict().set_scanner(operating_system=platform.system(),
+                                         architecture=platform.machine())
 
         if content == EICAR:
             metadata.set_malware_family('Eicar Test File')

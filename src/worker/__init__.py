@@ -1,28 +1,23 @@
+import aioredis
+import aiohttp
 import asyncio
 import json
 import logging
+import math
 import platform
 import signal
 import sys
 import time
 
-import aiohttp
-import aioredis
-from polyswarmartifact import ArtifactType
-
+from polyswarmartifact import ArtifactType, DecodeError
+from polyswarmclient import LivelinessRecorder
+from polyswarmclient.exceptions import ApiKeyException, ExpiredException
+from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.utils import asyncio_join, asyncio_stop, exit, MAX_WAIT
 
 logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 5.0
-
-
-class ApiKeyException(Exception):
-    pass
-
-
-class ExpiredException(Exception):
-    pass
 
 
 class Worker(object):
@@ -40,6 +35,8 @@ class Worker(object):
         self.scan_lock = None
         self.tries = 0
         self.finished = False
+        # Setup a liveliness instance
+        self.liveliness_recorder = LivelinessRecorder()
 
     def handle_signal(self):
         logger.critical(f'Received SIGTERM. Gracefully shutting down.')
@@ -56,16 +53,18 @@ class Worker(object):
             asyncio.set_event_loop(loop)
 
             # K8 uses SIGTERM on linux and SIGINT and windows
-            exit_signal = signal.SIGINT if platform.system() == "Windows" else signal.SIGTERM
+            exit_signal = signal.SIGINT if platform.system() == 'Windows' else signal.SIGTERM
             try:
                 loop.add_signal_handler(exit_signal, self.handle_signal)
             except NotImplementedError:
                 # Disable graceful exit, but run anyway
-                logger.exception(f'{platform.system()} does not support graceful shutdown')
+                logger.warning(f'{platform.system()} does not support graceful shutdown')
             try:
-                asyncio.get_event_loop().run_until_complete(self.setup())
+                loop = asyncio.get_event_loop()
+                loop.run_until_complete(self.setup())
+                loop.create_task(Worker.start_liveliness_recorder(self.liveliness_recorder))
                 gather_task = asyncio.gather(*[self.run_task(i) for i in range(self.task_count)])
-                asyncio.get_event_loop().run_until_complete(gather_task)
+                loop.run_until_complete(gather_task)
             except asyncio.CancelledError:
                 logger.info('Clean exit requested, exiting')
 
@@ -83,9 +82,18 @@ class Worker(object):
                 time.sleep(wait)
                 continue
 
+    @staticmethod
+    async def start_liveliness_recorder(liveliness_recorder):
+        while True:
+            await liveliness_recorder.advance_loop()
+            # Worker
+            await liveliness_recorder.advance_time(round(time.time()))
+            await asyncio.sleep(1)
+
     async def setup(self):
         self.scan_lock = asyncio.Semaphore(value=self.scan_limit)
         self.download_lock = asyncio.Semaphore(value=self.download_limit)
+        await self.liveliness_recorder.setup()
         if not await self.scanner.setup():
             logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
             exit(1)
@@ -107,6 +115,7 @@ class Worker(object):
 
                     guid = job['guid']
                     uri = job['uri']
+                    self.liveliness_recorder.add_waiting_task(guid, round(time.time()))
 
                     polyswarmd_uri = job['polyswarmd_uri']
 
@@ -121,26 +130,32 @@ class Worker(object):
                     timestamp = job['ts']
                     artifact_type = ArtifactType(int(job['artifact_type']))
 
-                    if timestamp + duration <= time.time() // 1:
+                    if timestamp + duration <= math.floor(time.time()):
                         raise ExpiredException()
 
                 except OSError:
                     logger.exception('Redis connection down')
+                    self.liveliness_recorder.remove_waiting_task(guid)
                     continue
                 except aioredis.errors.ReplyError:
                     logger.exception('Redis out of memory')
+                    self.liveliness_recorder.remove_waiting_task(guid)
                     continue
                 except KeyError as e:
-                    logger.exception(f"Bad message format on task {task_index}: {e}")
+                    logger.exception(f'Bad message format on task {task_index}: {e}')
+                    self.liveliness_recorder.remove_waiting_task(guid)
                     continue
                 except ExpiredException:
                     logger.exception(f'Received expired job {guid} index {index}')
+                    self.liveliness_recorder.remove_waiting_task(guid)
                     continue
                 except ApiKeyException:
-                    logger.exception("Refusing to send API key over insecure transport")
+                    logger.exception('Refusing to send API key over insecure transport')
+                    self.liveliness_recorder.remove_waiting_task(guid)
                     continue
                 except (AttributeError, TypeError, ValueError):
                     logger.exception('Invalid job received, ignoring')
+                    self.liveliness_recorder.remove_waiting_task(guid)
                     continue
 
                 headers = {'Authorization': self.api_key} if self.api_key is not None else None
@@ -153,13 +168,24 @@ class Worker(object):
                         content = await response.read()
                     except aiohttp.ClientResponseError:
                         logger.exception(f'Error fetching artifact {uri} on task {task_index}')
+                        self.liveliness_recorder.remove_waiting_task(guid)
                         continue
                     except asyncio.TimeoutError:
                         logger.exception(f'Timeout fetching artifact {uri} on task {task_index}')
+                        self.liveliness_recorder.remove_waiting_task(guid)
                         continue
 
                 async with self.scan_lock:
-                    result = await self.scanner.scan(guid, artifact_type, content, metadata, chain)
+                    try:
+                        result = await self.scanner.scan(guid,
+                                                         artifact_type,
+                                                         artifact_type.decode_content(content),
+                                                         metadata,
+                                                         chain)
+                    except DecodeError:
+                        result = ScanResult()
+
+                self.liveliness_recorder.remove_waiting_task(guid)
 
                 j = json.dumps({
                     'index': index,

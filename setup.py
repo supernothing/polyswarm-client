@@ -8,7 +8,7 @@ with open("README.md", "r") as readme:
 
 setup(
     name='polyswarm-client',
-    version='2.4.0',
+    version='2.4.1',
     description='Client library to simplify interacting with a polyswarmd instance',
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -25,7 +25,7 @@ setup(
         'aiorwlock==0.6.0',
         'base58==0.2.5',
         'click==6.7',
-        'polyswarm-artifact==1.2.1',
+        'polyswarm-artifact>=1.3.1',
         'python-json-logger==0.1.9',
         'python-magic-bin==0.4.14;platform_system=="Windows"',
         'python-magic==0.4.15;platform_system=="Linux"',
@@ -40,6 +40,7 @@ setup(
         'console_scripts': [
             'ambassador=ambassador.__main__:main',
             'arbiter=arbiter.__main__:main',
+            'liveliness=liveliness.__main__:main',
             'microengine=microengine.__main__:main',
             'verbatimdbgen=arbiter.verbatimdb.__main__:main',
             'balancemanager=balancemanager.__main__:cli',

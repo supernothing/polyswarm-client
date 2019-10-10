@@ -1,5 +1,12 @@
 # Release History
 
+### 2.4.1 (2019-09-10)
+
+* **Fix** - Decode content before passing to the scan function, if required.
+
+#### Breaking Changes
+1. No longer need to run `content.decode('utf-8')` to get the URL for URL bounties
+
 ### 2.4.0 (2019-08-26)
 
 * **Fix** - Use exec-form CMD directive on windows
@@ -29,7 +36,7 @@
 
 #### Deprecation
 
-* `--accept` and `--exclude` are deprecated, use `--filter <accept|reject> <field> <comparison> <value>`
+2. `--accept` and `--exclude` are deprecated, use `--filter <accept|reject> <field> <comparison> <value>`
 
 ### 2.3.1 (2019-07-06)
 
@@ -41,7 +48,7 @@
 * **Feature** - Add helper function `AbstractAmbassador.generate_metadata()` to make adding metadata easy.
 * **Feature** - Handle changes to bounty in contracts (additional metadata)
 
-The update from 2.2.2 to 2.3.0 is a breaking change.
+#### Breaking Changes
 1. `AbstractMicroengine.connect()` passes `accept` and `except` as kwargs to Microengine objects. Suggest add `**kwargs` to `__init__()` definition and `super().__init__()`
 1. `AbstractMicroengine.fetch_and_scan_all()` parameters changed to `(self, guid, artifact_type, uri, duration, metadata, chain)`
 1. `AbstractMicroengine.scan()` parameters changed to `(self, guid, artifact_type, content, metadata, chain)`
@@ -69,7 +76,7 @@ The update from 2.2.2 to 2.3.0 is a breaking change.
 * **Feature** - Exit Worker gracefully on SIGTERM
 * **Feature** - Add BidStrategyBase & default implementations for scaling bids with confidence
 
-The update from 2.1.1 to 2.2.0 has a breaking change.
+#### Breaking Changes
 1. `AbstractMicroengine` subclasses must add `bid_strategy` as the last arg in `__init__(self, ...)`
 
 ### 2.1.1 (2019-06-07)
@@ -97,7 +104,7 @@ The update from 2.1.1 to 2.2.0 has a breaking change.
 * **Fix** - Cap websocket retry connection backoff wait time
 * **Feature** - Add artifact type handling & filtering
 
-The update from 1.5.6 to 2.0.0 is a breaking change.
+#### Breaking Changes
 1. `AbstractAmbassador.push_bounty()` parameters changed to `(self, artifact_type, amount, ipfs_uri, duration, chain, api_key)`
 1. `AbstractAmbassador.on_bounty_post_failed()` parameters changed to `(self, artifact_type, amount, ipfs_uri, expiration, chain)`
 1. `AbstractAmbassador.on_before_bounty_posted()` parameters changed to `(self, artifact_type, amount, ipfs_uri, expiration, chain)`
