@@ -17,7 +17,6 @@ from polyswarmclient.relayclient import RelayClient
 from polyswarmclient.transaction import NonceManager
 from polyswarmclient.utils import asyncio_join, asyncio_stop, configure_event_loop, exit, MAX_WAIT, check_response, \
     is_valid_ipfs_uri
-from urllib.parse import urljoin
 
 from web3 import Web3
 
@@ -48,6 +47,8 @@ class Client(object):
 
         protocol = 'http://' if insecure_transport else 'https://'
         self.polyswarmd_uri = protocol + polyswarmd_addr
+        logger.debug('self.polyswarmd_uri: %s', self.polyswarmd_uri)
+
         self.api_key = api_key
 
         self.tx_error_fatal = tx_error_fatal
@@ -199,7 +200,8 @@ class Client(object):
         # Ensure we try at least once
         tries = max(tries, 1)
 
-        uri = urljoin(self.polyswarmd_uri, path)
+        uri = f'{self.polyswarmd_uri}{path}'
+        logger.debug('making request to url: %s', uri)
 
         params = dict(self.params)
         params['chain'] = chain
@@ -233,7 +235,7 @@ class Client(object):
                         response = await raw_response.json()
                     except (ValueError, aiohttp.ContentTypeError):
                         response = await raw_response.read() if raw_response else 'None'
-                        logger.error('Received non-json response from polyswarmd: %s', response)
+                        logger.error('Received non-json response from polyswarmd: %s, url: %s', response, uri)
                         response = {}
                         continue
             except (OSError, aiohttp.ServerDisconnectedError):
@@ -294,7 +296,7 @@ class Client(object):
             logger.warning('Invalid IPFS URI: %s', ipfs_uri)
             return []
 
-        path = '/artifacts/{0}'.format(ipfs_uri)
+        path = f'/artifacts/{ipfs_uri}'
 
         # Chain parameter doesn't matter for artifacts, just set to side
         success, result = await self.make_request('GET', path, 'side', api_key=api_key, tries=tries)
@@ -330,7 +332,9 @@ class Client(object):
         if not is_valid_ipfs_uri(ipfs_uri):
             raise ValueError('Invalid IPFS URI')
 
-        uri = urljoin(self.polyswarmd_uri, '/artifacts/{0}/{1}'.format(ipfs_uri, index))
+        uri = f'{self.polyswarmd_uri}/artifacts/{ipfs_uri}/{index}'
+        logger.debug('getting artifact from uri: %s', uri)
+
         params = dict(self.params)
 
         # Allow overriding API key per request
@@ -434,7 +438,9 @@ class Client(object):
             (str): IPFS URI of the uploaded artifact
         """
 
-        uri = urljoin(self.polyswarmd_uri, '/artifacts')
+        uri = f'{self.polyswarmd_uri}/artifacts'
+        logger.debug('posting artifact to uri: %s', uri)
+
         params = dict(self.params)
 
         # Allow overriding API key per request
@@ -483,7 +489,7 @@ class Client(object):
                             response = await raw_response.json()
                         except (ValueError, aiohttp.ContentTypeError):
                             response = await raw_response.read() if raw_response else 'None'
-                            logger.error('Received non-json response from polyswarmd: %s', response)
+                            logger.error('Received non-json response from polyswarmd: %s, uri: %s', response, uri)
                             response = {}
                             continue
                 except (OSError, aiohttp.ServerDisconnectedError):
@@ -555,7 +561,7 @@ class Client(object):
             raise ValueError('polyswarmd_uri protocol is not http or https, got {0}'.format(self.polyswarmd_uri))
 
         # http:// -> ws://, https:// -> wss://
-        wsuri = '{0}/events?chain={1}'.format(self.polyswarmd_uri.replace('http', 'ws', 1), chain)
+        wsuri = f'{self.polyswarmd_uri.replace("http", "ws", 1)}/events?chain={chain}'
         last_block = 0
         retry = 0
         while True:
