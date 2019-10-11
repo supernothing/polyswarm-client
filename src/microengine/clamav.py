@@ -40,7 +40,7 @@ class Scanner(AbstractScanner):
                                          architecture=platform.machine(),
                                          vendor_version=vendor)
         if len(stream_result) >= 2 and stream_result[0] == 'FOUND':
-            metadata.set_malware_family(stream_result[1])
+            metadata.set_malware_family(stream_result[1].strip('\n'))
             return ScanResult(bit=True, verdict=True, confidence=1.0, metadata=metadata.json())
 
         metadata.set_malware_family('')
