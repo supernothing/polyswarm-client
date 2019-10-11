@@ -25,7 +25,7 @@ def validate_transfer_amount(ctx, param, value):
 
 
 def polyswarm_client(func):
-    @click.option('--polyswarmd-addr', envvar='POLYSWARMD_ADDR', default='localhost:31337',
+    @click.option('--polyswarmd-addr', envvar='POLYSWARMD_ADDR', default='api.polyswarm.network/v1/default',
                   help='Address (host:port) of polyswarmd instance')
     @click.option('--keyfile', envvar='KEYFILE', type=click.Path(), default=None,
                   help='Keystore file containing the private key to use with this balancemanager')

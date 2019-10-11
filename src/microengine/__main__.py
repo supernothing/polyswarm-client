@@ -84,7 +84,7 @@ def choose_bid_strategy(bid_strategy):
               help='App Log level')
 @click.option('--client-log', default='WARNING',
               help='PolySwarm Client log level')
-@click.option('--polyswarmd-addr', envvar='POLYSWARMD_ADDR', default='localhost:31337',
+@click.option('--polyswarmd-addr', envvar='POLYSWARMD_ADDR', default='api.polyswarm.network/v1/default',
               help='Address (host:port) of polyswarmd instance')
 @click.option('--keyfile', envvar='KEYFILE', type=click.Path(exists=True), default='keyfile',
               help='Keystore file containing the private key to use with this microengine')
