@@ -38,7 +38,7 @@ class Scanner(AbstractScanner):
         vendor = await self.clamd.version()
         metadata = Verdict().set_scanner(operating_system=platform.system(),
                                          architecture=platform.machine(),
-                                         vendor_version=vendor)
+                                         vendor_version=vendor.strip('\n'))
         if len(stream_result) >= 2 and stream_result[0] == 'FOUND':
             metadata.set_malware_family(stream_result[1].strip('\n'))
             return ScanResult(bit=True, verdict=True, confidence=1.0, metadata=metadata.json())
