@@ -178,7 +178,7 @@ class Client(object):
             self.staking = None
             self.offers = None
 
-    async def make_request(self, method, path, chain, json=None, send_nonce=False, api_key=None, tries=2):
+    async def make_request(self, method, path, chain, json=None, send_nonce=False, api_key=None, tries=2, params=None):
         """Make a request to polyswarmd, expecting a json response
 
         Args:
@@ -189,6 +189,7 @@ class Client(object):
             send_nonce (bool): Whether to include a base_nonce query string parameter in this request
             api_key (str): Override default API key
             tries (int): Number of times to retry before giving up
+            params (dict): Optional params for the request
         Returns:
             (bool, obj): Tuple of boolean representing success, and response JSON parsed from polyswarmd
         """
@@ -203,7 +204,10 @@ class Client(object):
         uri = f'{self.polyswarmd_uri}{path}'
         logger.debug('making request to url: %s', uri)
 
-        params = dict(self.params)
+        if params is None:
+            params = dict()
+
+        params.update(dict(self.params))
         params['chain'] = chain
 
         if send_nonce:
@@ -267,14 +271,16 @@ class Client(object):
         """
         return [w3.eth.account.signTransaction(tx, self.priv_key) for tx in transactions]
 
-    async def get_base_nonce(self, chain, api_key=None):
+    async def get_base_nonce(self, chain, ignore_pending=False, api_key=None):
         """Get account's nonce from polyswarmd
 
         Args:
             chain (str): Which chain to operate on
+            ignore_pending (bool): Whether to include pending transactions in nonce or not
             api_key (str): Override default API key
         """
-        success, base_nonce = await self.make_request('GET', '/nonce', chain, api_key=api_key)
+        params = {'ignore_pending': ''} if ignore_pending else None
+        success, base_nonce = await self.make_request('GET', '/nonce', chain, api_key=api_key, params=params)
         if success:
             return base_nonce
         else:

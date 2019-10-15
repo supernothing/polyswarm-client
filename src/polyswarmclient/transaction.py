@@ -21,13 +21,26 @@ class NonceManager:
 
     def __init__(self, client, chain):
         self.base_nonce = 0
+        self.starting_nonce = 0
         self.client = client
         self.chain = chain
+        self.first = True
 
         self.needs_update = True
+        self.ignore_pending = False
         self.nonce_lock = asyncio.Lock()
         self.in_progress = 0
         self.in_progress_condition = asyncio.Condition()
+        self.in_use_waiting = set()
+
+    def clear_waiting(self, nonce):
+        """Clears out any waiting items that are less than the nonce.
+
+        This should only be called with the base nonce, not including pending transactions
+        """
+        to_remove = [waiting for waiting in self.in_use_waiting if waiting < nonce]
+        for remove in to_remove:
+            self.in_use_waiting.remove(remove)
 
     async def acquire(self):
         """Acquires the nonce lock and updates base_nonce if needs_update is set"""
@@ -35,24 +48,38 @@ class NonceManager:
 
         if self.needs_update:
             async with self.in_progress_condition:
-                # The wait inside here will release this lock, allowing finished() to work
+                # The wait inside here will release the above lock, allowing finished() to work
                 await self.in_progress_condition.wait_for(self.all_finished)
 
             # Wait for nonce to settle, can't rely on pending tx count
             last_nonce = -1
             while True:
-                nonce = await self.client.get_base_nonce(self.chain)
-                if nonce is not None and nonce == last_nonce:
+                nonce = await self.client.get_base_nonce(self.chain, self.ignore_pending)
+                if nonce is not None and (self.ignore_pending or nonce == last_nonce):
                     break
 
                 last_nonce = nonce
                 await asyncio.sleep(1)
 
             if nonce is not None:
+                logger.debug('Got new nonce %s. Old %s', nonce, self.base_nonce)
+                if self.ignore_pending and nonce < self.base_nonce:
+                    # Clear waiting items that are less than nonce
+                    self.clear_waiting(nonce)
+
+                    # Add items either between new nonce and base nonce
+                    # Or start nonce and base nonce, if start nonce is above the new nonce
+                    for i in range(max(self.starting_nonce, nonce), self.base_nonce):
+                        self.in_use_waiting.add(i)
+
                 self.base_nonce = nonce
+                if self.first:
+                    self.starting_nonce = self.base_nonce
+                    self.first = False
 
             logger.debug('Updated nonce to %s on %s', nonce, self.chain)
             self.needs_update = False
+            self.ignore_pending = False
 
     def all_finished(self):
         """Check that all tasks have finished"""
@@ -74,17 +101,76 @@ class NonceManager:
         Returns
             (list[int]): a list of nonces to use
         """
+        # Clear any waiting that should be used at this point
+        self.clear_waiting(self.base_nonce)
         async with self:
-            results = range(self.base_nonce, self.base_nonce + amount)
-            self.base_nonce += amount
+            nonces = [r for r in range(self.base_nonce, self.base_nonce + amount)]
+
+            if any((result for result in nonces if result in self.in_use_waiting)):
+                logger.warning('Next nonce list, %s, conflicts with waiting list %s', nonces, self.in_use_waiting)
+                nonces = self.find_next_nonce_range(amount)
+                # New transactions added at first fit gap can leave earlier gaps open and may delay the new transactions
+                if self.find_gaps(nonces):
+                    logger.warning('Found a gap, new transactions will not run until the gap is filled')
+                    for nonce in nonces:
+                        self.in_use_waiting.add(nonce)
+                else:
+                    # we know all transactions through the new transactions are going to finish & we can bump base
+                    self.base_nonce = nonces[-1] + 1
+            else:
+                self.base_nonce += amount
+
+            logger.debug('Next nonce list: %s', nonces)
 
             # Inside nonce_lock so that there is no way the next acquire could miss an in progress
             async with self.in_progress_condition:
                 # Note that a set of nonces is being used
                 self.in_progress += 1
-                logger.debug('New tx in flight, in_progress: %s', self.in_progress)
+                logger.debug('New transaction in flight, in_progress: %s', self.in_progress)
 
-        return results
+        return nonces
+
+    def find_next_nonce_range(self, amount):
+        """Find the first gap that is large enough to fix amount nonces
+
+        Args:
+            amount(int): Number of nonces to find a gap for
+
+        Returns:
+             (list[int]): list of nonce values that it found
+
+        """
+        waitlist = sorted(self.in_use_waiting)
+
+        base = None
+        # If we find a gap in the waitlist, use it
+        for i in range(0, len(waitlist) - 1):
+            # Must be bigger than waitlist, since waitlist[i] is already in use
+            if waitlist[i + 1] - waitlist[i] > amount:
+                base = waitlist[i] + 1
+                break
+
+        # If we don't find a gap large enough, just add to the end
+        if not base:
+            base = waitlist[-1] + 1
+
+        return [r for r in range(base, base + amount)]
+
+    def find_gaps(self, nonces):
+        """Finds any gaps between base nonce and the last nonce in the given nonces list.
+
+        Args:
+            nonces (list[int]): list of nonces being checked
+
+        Returns
+            (list[int]): Any missing nonces between base_nonce and the last given nonce
+
+        """
+        # Only check through the end of the waitlist if results exceed it
+        waitlist = sorted(self.in_use_waiting)
+        check_end = min(nonces[-1], waitlist[-1])
+
+        return [r for r in range(self.base_nonce + 1, check_end) if r not in self.in_use_waiting]
 
     def mark_update_nonce(self):
         """
@@ -93,6 +179,15 @@ class NonceManager:
         The next acquire after being set will trigger an update
         """
         self.needs_update = True
+
+    def mark_overset_nonce(self):
+        """
+        Call this when the nonce is out of sync.
+        This sets the update flag to true.
+        The next acquire after being set will trigger an update
+        """
+        self.needs_update = True
+        self.ignore_pending = True
 
     async def __aenter__(self):
         await self.acquire()
@@ -171,11 +266,7 @@ class AbstractTransaction(metaclass=ABCMeta):
                 return False, {'errors': post_errors}
 
             # Step 3: At least one transaction was submitted successfully, get and verify the events it generated
-            success, resync_nonces, results, get_errors = await self.__get_transactions(txhashes, orig_tries, chain,
-                                                                                        api_key)
-            if resync_nonces:
-                continue
-
+            success, results, get_errors = await self.__get_transactions(txhashes, orig_tries, chain, api_key)
             return success, results
 
         return False, {'errors': post_errors + get_errors}
@@ -224,7 +315,8 @@ class AbstractTransaction(metaclass=ABCMeta):
                     logger.critical(LOG_MSG_ENGINE_TOO_SLOW)
                     exit(1)
                 elif not all_known_tx_errors:
-                    logger.error('Received transaction error during post', extra={'extra': results})
+                    logger.error('Received transaction error during post',
+                                 extra={'extra': {'results': results, 'transactions': transactions}})
 
             results = [] if results is None else results
 
@@ -276,13 +368,13 @@ class AbstractTransaction(metaclass=ABCMeta):
             chain (str): Which chain to operate on
             api_key (str): Override default API key
         Returns:
-            (bool, bool, dict, List[str]): Success, Resync nonce, Response JSON parsed from polyswarmd containing
+            (bool, dict, List[str]): Success, Resync nonce, Response JSON parsed from polyswarmd containing
                 emitted events, errors
         """
         nonce_manager = self.client.nonce_managers[chain]
 
         success = False
-        resync_nonce = False
+        timeout = False
         results = {}
         errors = []
         while tries > 0:
@@ -293,7 +385,6 @@ class AbstractTransaction(metaclass=ABCMeta):
             if not success:
                 if self.client.tx_error_fatal:
                     logger.critical('Received fatal transaction error during get.', extra={'extra': results})
-                    logger.critical(LOG_MSG_ENGINE_TOO_SLOW)
                     exit(1)
                 else:
                     logger.error('Received transaction error during get', extra={'extra': results})
@@ -303,12 +394,20 @@ class AbstractTransaction(metaclass=ABCMeta):
             errors = results.get('errors', [])
             success = self.has_required_event(results)
 
-            # Indicates nonce may be too high, if so resync nonces and try again at top level
+            # Indicates nonce may be too high
+            # First, tries to sleep and see if the transaction did succeed (settles can timeout)
+            # If still timing out, resync nonce
             if any(['timeout during wait for receipt' in e.lower() for e in errors]):
-                logger.error('Nonce desync detected during get, resyncing and trying again')
-                nonce_manager.mark_update_nonce()
-                resync_nonce = True
-                break
+                if not timeout:
+                    logger.error('Nonce desync detected during get, resyncing and trying again')
+                    nonce_manager.mark_overset_nonce()
+                    timeout = True
+                else:
+                    logger.error('Transaction continues to timeout, sleeping then trying again')
+                    await asyncio.sleep(1)
+                # Increase the tries, it didn't fail we are just waiting
+                tries += 1
+                continue
 
             # Check to see if we failed to retrieve some receipts, retry the fetch if so
             if not success and any(['receipt' in e.lower() for e in errors]):
@@ -319,7 +418,13 @@ class AbstractTransaction(metaclass=ABCMeta):
                 logger.error('Transaction failed due to bad parameters, not retrying', extra={'extra': errors})
                 break
 
-        return success, resync_nonce, results, errors
+            # I think we need a break here. We have been just retrying every transaction, even on success
+            break
+
+        if timeout:
+            logger.warning('Transaction completed after timeout', extra={'extra': results})
+
+        return success, results, errors
 
     @abstractmethod
     def has_required_event(self, transaction_events):
