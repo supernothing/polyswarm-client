@@ -1,5 +1,29 @@
 # Release History
 
+### 2.5.0 (2019-10-16)
+
+* **Fix** - Recover from `timeout during wait for transaction`
+* **Fix** - Fix metadata responses in default micronegine backends
+* **Fix** - Support paths in polyswarmd-addr
+* **Fix** - Remove platform assumptions in default microengine backends
+* **Fix** - Match `Deprecated()` event changes by removing address
+* **Fix** - Timeout producer scans with `asyncio.wait_for` to timeout more expediently
+* **Fix** - Slow bounty timeout in producer frontend by 2 seconds
+* **Fix** - Catch decode errors when decoding artifact content
+* **Feature** - Use default api endpoint as default polyswarmd-addr
+* **Feature** - Optionally limit daily scans with producer backends
+* **Feature** - Add error level log when websocket connection reestablished
+* **Feature** - Add environment var to control number of artifacts per bounty in filesystem ambassador backend
+* **Feature** - Add liveliness cli tool to check if participant is still responding to bounties
+* **Feature** - Add a bid per artifact in bounty
+
+#### Breaking Changes
+1. Only compatible with polyswarmd version `2.0.0` or later
+1. `AbstractMicroengine.bid()` and `BidStrategyBase.bid()` returns a `list[int]` of bids that are each above the minimum
+1. `OnNewAssertionCallback` passes a `list[int]` of bids
+1. `OnDeprecatedCallback` no longer passed the contract address
+1. `AbstractScanner.scan()` implementations should not decode URL content
+
 ### 2.4.1 (2019-09-10)
 
 * **Fix** - Decode content before passing to the scan function, if required.
