@@ -401,12 +401,12 @@ class AbstractTransaction(metaclass=ABCMeta):
                 if not timeout:
                     logger.error('Nonce desync detected during get, resyncing and trying again')
                     nonce_manager.mark_overset_nonce()
+                    # Just give one extra try since settles sometimes timeout
+                    tries += 1
                     timeout = True
                 else:
                     logger.error('Transaction continues to timeout, sleeping then trying again')
                     await asyncio.sleep(1)
-                # Increase the tries, it didn't fail we are just waiting
-                tries += 1
                 continue
 
             # Check to see if we failed to retrieve some receipts, retry the fetch if so
