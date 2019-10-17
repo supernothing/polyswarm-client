@@ -126,11 +126,14 @@ class LivelinessChecker:
                 logger.exception('Unable to lock file')
                 return False
 
+        if liveliness is None:
+            print('No liveliness information available')
+            return False
+
         time_since_last_loop = int(time.time()) - liveliness.last_iteration
         print('Last loop was {0} seconds ago, and the average wait time is {1}'.format(time_since_last_loop,
                                                                                        liveliness.avg_wait))
-        return liveliness and \
-            time_since_last_loop < self.loop_iteration_threshold and \
+        return time_since_last_loop < self.loop_iteration_threshold and \
             liveliness.avg_wait < self.avg_wait_time_threshold
 
 
