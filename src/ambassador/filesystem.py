@@ -61,7 +61,7 @@ class Ambassador(AbstractAmbassador):
                     num_artifacts = random.randint(1, num_artifacts)
 
                 filenames = []
-                for _i in range(0, num_artifacts):
+                while len(filenames) < num_artifacts:
                     filename = random.choice(self.artifacts)
                     if filename not in filenames:
                         filenames.append(filename)

@@ -61,23 +61,31 @@ class NonceManager:
                 last_nonce = nonce
                 await asyncio.sleep(1)
 
-            if nonce is not None:
-                logger.debug('Got new nonce %s. Old %s', nonce, self.base_nonce)
-                if self.ignore_pending and nonce < self.base_nonce:
-                    # Clear waiting items that are less than nonce
-                    self.clear_waiting(nonce)
+            logger.debug('New nonce %s. Old %s', nonce, self.base_nonce)
+            if self.ignore_pending and nonce < self.base_nonce:
+                # Clear waiting items that are less than nonce
+                self.clear_waiting(nonce)
 
-                    # Add items either between new nonce and base nonce
-                    # Or start nonce and base nonce, if start nonce is above the new nonce
-                    for i in range(max(self.starting_nonce, nonce), self.base_nonce):
-                        self.in_use_waiting.add(i)
+                # Add items either between new nonce and base nonce
+                # Or start nonce and base nonce, if start nonce is above the new nonce
+                for i in range(max(self.starting_nonce, nonce), self.base_nonce):
+                    self.in_use_waiting.add(i)
 
-                self.base_nonce = nonce
-                if self.first:
-                    self.starting_nonce = self.base_nonce
-                    self.first = False
+                sorted_waitlist = sorted(self.in_use_waiting)
 
-            logger.debug('Updated nonce to %s on %s', nonce, self.chain)
+                # If there are no gaps, we can safely bump the nonce
+                if not self.find_gaps(sorted_waitlist):
+                    nonce = sorted_waitlist[-1] + 1
+
+            # replace base nonce with nonce
+            self.base_nonce = nonce
+            self.clear_waiting(self.base_nonce)
+
+            if self.first:
+                self.starting_nonce = self.base_nonce
+                self.first = False
+
+            logger.debug('Updated nonce to %s on %s', self.base_nonce, self.chain)
             self.needs_update = False
             self.ignore_pending = False
 
@@ -107,7 +115,7 @@ class NonceManager:
             nonces = [r for r in range(self.base_nonce, self.base_nonce + amount)]
 
             if any((result for result in nonces if result in self.in_use_waiting)):
-                logger.warning('Next nonce list, %s, conflicts with waiting list %s', nonces, self.in_use_waiting)
+                logger.warning('Next nonces, %s, conflict with waiting list %s', nonces, sorted(self.in_use_waiting))
                 nonces = self.find_next_nonce_range(amount)
                 # New transactions added at first fit gap can leave earlier gaps open and may delay the new transactions
                 if self.find_gaps(nonces):
@@ -119,8 +127,6 @@ class NonceManager:
                     self.base_nonce = nonces[-1] + 1
             else:
                 self.base_nonce += amount
-
-            logger.debug('Next nonce list: %s', nonces)
 
             # Inside nonce_lock so that there is no way the next acquire could miss an in progress
             async with self.in_progress_condition:
@@ -397,7 +403,8 @@ class AbstractTransaction(metaclass=ABCMeta):
             # Indicates nonce may be too high
             # First, tries to sleep and see if the transaction did succeed (settles can timeout)
             # If still timing out, resync nonce
-            if any(['timeout during wait for receipt' in e.lower() for e in errors]):
+            if not success and any([e for e in errors if 'timeout during wait for receipt' in e.lower()]):
+                # If we got the items we expected stop retrying, but note the nonce is bad
                 if not timeout:
                     logger.error('Nonce desync detected during get, resyncing and trying again')
                     nonce_manager.mark_overset_nonce()
