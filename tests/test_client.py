@@ -45,23 +45,19 @@ def test_calculate_commitment(mock_fn):
 
 @pytest.mark.asyncio
 async def test_update_base_nonce(mock_client):
-    for _ in range(10):
-        mock_client.http_mock.get(mock_client.url_with_parameters('/nonce', chain='home'), body=success(42))
+    mock_client.http_mock.get(mock_client.url_with_parameters('/nonce', params={'ignore_pending': ' '}, chain='home'), body=success(42))
+    mock_client.http_mock.get(mock_client.url_with_parameters('/pending', chain='home'), body=success([]))
 
     home = polyswarmclient.transaction.NonceManager(mock_client, 'home')
-    home.mark_update_nonce()
-    async with home:
-        pass
+    await home.reserve(1)
 
-    assert home.base_nonce == 42
+    assert home.base_nonce == 43
 
-    for _ in range(10):
-        mock_client.http_mock.get(mock_client.url_with_parameters('/nonce', chain='side'), body=success(1337))
+    mock_client.http_mock.get(mock_client.url_with_parameters('/nonce', params={'ignore_pending': ' '}, chain='side'), body=success(1336))
+    mock_client.http_mock.get(mock_client.url_with_parameters('/pending', chain='side'), body=success([]))
 
     side = polyswarmclient.transaction.NonceManager(mock_client, 'side')
-    side.mark_update_nonce()
-    async with side:
-        pass
+    await side.reserve(1)
 
     assert side.base_nonce == 1337
 

@@ -167,9 +167,12 @@ class MockClient(Client):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
 
-    def url_with_parameters(self, path, chain=None):
+    def url_with_parameters(self, path, params=None, chain=None):
         # This is for tests, so don't bother grabbing the lock, we know what tasks are running
-        params = {'account': self.account}
+        if params is None:
+            params = {}
+
+        params.update({'account': self.account})
 
         if chain is not None:
             params['chain'] = chain

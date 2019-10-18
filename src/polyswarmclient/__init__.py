@@ -279,13 +279,27 @@ class Client(object):
             ignore_pending (bool): Whether to include pending transactions in nonce or not
             api_key (str): Override default API key
         """
-        params = {'ignore_pending': ''} if ignore_pending else None
+        params = {'ignore_pending': ' '} if ignore_pending else None
         success, base_nonce = await self.make_request('GET', '/nonce', chain, api_key=api_key, params=params)
         if success:
             return base_nonce
         else:
             logger.error('Failed to fetch base nonce')
             return None
+
+    async def get_pending_nonces(self, chain, api_key=None):
+        """Get account's pending nonces from polyswarmd
+
+        Args:
+            chain (str): Which chain to operate on
+            api_key (str): Override default API key
+        """
+        success, nonces = await self.make_request('GET', '/pending', chain, api_key=api_key)
+        if success:
+            return [int(nonce) for nonce in nonces]
+        else:
+            logger.error('Failed to fetch base nonce')
+            return []
 
     async def list_artifacts(self, ipfs_uri, api_key=None, tries=2):
         """Return a list of artificats from a given ipfs_uri.
