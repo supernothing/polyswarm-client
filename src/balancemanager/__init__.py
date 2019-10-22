@@ -24,6 +24,20 @@ def convert(client, denomination, amount):
         raise ValueError()
 
 
+def convert_from(client, denomination, amount):
+    """
+    Convert the amount from 18 decimals to the dedsired precision
+    """
+    if denomination == 'nct':
+        return client.from_wei(amount, 'ether')
+    elif denomination == 'nct-gwei':
+        return client.from_wei(amount, 'gwei')
+    elif denomination == 'nct-wei':
+        return amount
+    else:
+        raise ValueError()
+
+
 class BalanceManager(object):
     """
     Balance manager is used for single transfer events in either direction.
@@ -345,3 +359,52 @@ class Maintainer(object):
                 await self.try_withdrawal(side_balance)
             elif side_balance < self.minimum:
                 await self.try_deposit(side_balance)
+
+
+class ViewBalance(object):
+    """
+    ViewBalance retrieves the NCT balance from a chain
+    Create a client, choose a chain and amount then run it.
+    """
+
+    def __init__(self, client, denomination, chain):
+        self.client = client
+        self.client.on_run.register(self.handle_run)
+        self.denomination = denomination
+        self.chain = chain
+        self.exit_code = 0
+
+    def run(self):
+        """
+        Starts the client on whichever chain this uses.
+        """
+        self.client.run(chains=[self.chain])
+
+    def run_oneshot(self):
+        """
+        Runs run_task once
+        """
+        configure_event_loop()
+        asyncio.get_event_loop().run_until_complete(self.client.run_task(chains=[self.chain], listen_for_events=False))
+
+    async def handle_run(self, chain):
+        """
+        Just fetches the balance
+        """
+        balance = await self.client.balances.get_nct_balance(chain)
+        logger.critical('Balance is %s (%s) on %s ', int(convert_from(self.client, self.denomination, balance)),
+                        self.denomination, chain)
+
+
+class ViewStake(ViewBalance):
+    async def handle_run(self, chain):
+        """
+        Just fetches the staking balances
+        """
+        available_balance = convert_from(self.client,
+                                         self.denomination,
+                                         await self.client.staking.get_withdrawable_balance(chain))
+        total_balance = convert_from(self.client,
+                                     self.denomination,
+                                     await self.client.staking.get_total_balance(chain))
+        logger.critical('Can withdraw %s (%s) of a total staked %s (%s) on %s', available_balance, self.denomination, total_balance, self.denomination, chain)

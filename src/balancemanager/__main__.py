@@ -3,7 +3,7 @@ import logging
 import sys
 import functools
 
-from balancemanager import Deposit, Withdraw, Maintainer, DepositStake, WithdrawStake
+from balancemanager import Deposit, Withdraw, Maintainer, DepositStake, WithdrawStake, ViewBalance, ViewStake
 from polyswarmclient.config import init_logging, validate_apikey
 from polyswarmclient import Client
 
@@ -179,6 +179,28 @@ def maintain(polyswarmd_addr, keyfile, password, api_key, testing, insecure_tran
 
     client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
     Maintainer(client, denomination, confirmations, minimum, refill_amount, maximum, withdraw_target, testing).run()
+
+
+@cli.command('view-balance')
+@polyswarm_client
+@click.option('--denomination', type=click.Choice(['nct', 'nct-gwei', 'nct-wei']), default='nct')
+@click.argument('chain', type=click.Choice(['side', 'home']), required=True)
+def view_balance(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, denomination, chain):
+    client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
+    balance = ViewBalance(client, denomination, chain)
+    balance.run_oneshot()
+    sys.exit(balance.exit_code)
+
+
+@cli.command('view-stake')
+@polyswarm_client
+@click.option('--denomination', type=click.Choice(['nct', 'nct-gwei', 'nct-wei']), default='nct')
+@click.argument('chain', type=click.Choice(['side', 'home']), required=True)
+def view_stake(polyswarmd_addr, keyfile, password, api_key, testing, insecure_transport, denomination, chain):
+    client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
+    balance = ViewStake(client, denomination, chain)
+    balance.run_oneshot()
+    sys.exit(balance.exit_code)
 
 
 if __name__ == '__main__':
