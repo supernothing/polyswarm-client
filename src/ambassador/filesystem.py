@@ -52,7 +52,7 @@ class Ambassador(AbstractAmbassador):
         Args:
             chain (str): Chain sample is being requested from
         """
-        amount = await self.client.bounties.parameters[chain].get('bounty_amount_minimum')
+        min_amount = await self.client.bounties.parameters[chain].get('bounty_amount_minimum')
 
         while True:
             try:
@@ -79,6 +79,7 @@ class Ambassador(AbstractAmbassador):
                     metadata.add_file_artifact(computed['mimetype'], filename=filename, filesize=str(computed['size']),
                                                sha256=computed['sha256'], sha1=computed['sha1'], md5=computed['md5'])
 
+                amount = [min_amount] * len(filenames)
                 await self.push_bounty(ArtifactType.FILE, amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS, chain,
                                        metadata=metadata.json())
             except CancelledError:

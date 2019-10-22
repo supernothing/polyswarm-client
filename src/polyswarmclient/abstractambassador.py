@@ -121,13 +121,18 @@ class AbstractAmbassador(ABC):
 
         Args:
             artifact_type (ArtifactType): Type of artifact being pushed
-            amount (int): Amount of NCT to place on the bounty
+            amount (list[int]): Amount of NCT to place on the bounty
             ipfs_uri (str): URI for artifact(s) to be analyzed
             duration (int): Duration in blocks to accept assertions
             chain (str): Chain to submit the bounty
             api_key (str): API key to use to submit, if None use default from client
             metadata (str): json blob of metadata
         """
+        # Silet backwards compat
+        if isinstance(amount, int):
+            num_artifacts = await self.client.get_artifact_count(ipfs_uri)
+            amount = [amount] * num_artifacts
+
         bounty = QueuedBounty(artifact_type, amount, ipfs_uri, duration, api_key=api_key, metadata=metadata)
         logger.info('Queueing bounty %s', bounty)
 

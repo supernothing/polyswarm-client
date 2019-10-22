@@ -177,7 +177,7 @@ class PostBountyVerifier(AbstractTransactionVerifier):
             num_artifacts == self.num_artifacts and \
             duration == self.duration and \
             bloom_value == self.bloom and \
-            amount == self.amount and \
+            all((contract_amount == given_amount for contract_amount, given_amount in zip(amount, self.amount))) and \
             metadata.decode('utf-8') == self.metadata
 
 

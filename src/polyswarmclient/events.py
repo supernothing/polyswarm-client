@@ -94,7 +94,7 @@ class OnNewBountyCallback(Callback):
             guid (str): Bounty GUID
             artifact_type (str): String representation of artifact type
             author (str): Author of the bounty
-            amount (int): Bounty reward amount
+            amount (list[str]): Bounty reward amount
             uri (str): URI of the artifacts in the bounty
             expiration (int): Block number the bounty expires on
             metadata (dict): Dictionary or string of metadata
