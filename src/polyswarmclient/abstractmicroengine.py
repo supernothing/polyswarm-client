@@ -107,8 +107,16 @@ class AbstractMicroengine(object):
             list[int]: Amount of NCT to bid in base NCT units (10 ^ -18)
         """
         min_allowed_bid = await self.client.bounties.parameters[chain].get('assertion_bid_minimum')
+        max_allowed_bid = await self.client.bounties.parameters[chain].get('assertion_bid_maximum')
         if self.bid_strategy is not None:
-            bid = await self.bid_strategy.bid(guid, mask, verdicts, confidences, metadatas, min_allowed_bid, chain)
+            bid = await self.bid_strategy.bid(guid,
+                                              mask,
+                                              verdicts,
+                                              confidences,
+                                              metadatas,
+                                              min_allowed_bid,
+                                              max_allowed_bid,
+                                              chain)
             if [b for b in bid if b < min_allowed_bid]:
                 raise InvalidBidError()
 
@@ -183,7 +191,7 @@ class AbstractMicroengine(object):
             guid (str): The bounty to assert on
             artifact_type (ArtifactType): The type of artifacts in this bounty
             author (str): The bounty author
-            amount (str): Amount of the bounty in base NCT units (10 ^ -18)
+            amount (list[str]): Amount of the bounty in base NCT units (10 ^ -18)
             uri (str): IPFS hash of the root artifact
             expiration (str): Block number of the bounty's expiration
             metadata (dict): Dictionary of metadata or None
