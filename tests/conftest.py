@@ -123,6 +123,7 @@ class MockClient(Client):
             "arbiter_lookback_range": 100,
             "arbiter_vote_window": 100,
             "assertion_bid_minimum": 62500000000000000,
+            "assertion_bid_maximum": 1000000000000000000,
             "assertion_fee": 62500000000000000,
             "assertion_reveal_window": 25,
             "bounty_amount_minimum": 62500000000000000,
