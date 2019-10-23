@@ -1,5 +1,9 @@
 # Release History
 
+### 2.5.1 (2019-10-23)
+
+* **Feature** - Add view-balance and view-stake sub commands in balancemanager
+
 ### 2.5.0 (2019-10-16)
 
 * **Fix** - Recover from `timeout during wait for transaction`
