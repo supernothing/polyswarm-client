@@ -287,3 +287,21 @@ kick-after-complete14:
   only:
     - master
   trigger: externalci/consumer
+
+kick-after-complete15:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-crowdstrike-falcon
+
+kick-after-complete16:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-malwarepatrol
+
+kick-after-complete17:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-inscyt
