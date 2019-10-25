@@ -175,7 +175,7 @@ class AbstractArbiter(object):
             guid (str): The bounty to assert on
             artifact_type (ArtifactType): The type of artifacts in this bounty
             author (str): The bounty author
-            amount (list[str]): Amount of the bounty in base NCT units (10 ^ -18)
+            amount (str): Amount of the bounty in base NCT units (10 ^ -18)
             uri (str): IPFS hash of the root artifact
             expiration (str): Block number of the bounty's expiration
             metadata (dict): Dictionary of metadata or None

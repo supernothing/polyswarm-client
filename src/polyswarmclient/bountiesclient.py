@@ -25,7 +25,7 @@ class PostBountyTransaction(AbstractTransaction):
         else:
             self.metadata = ''
 
-        approve = NctApproveVerifier(sum(amount) + bounty_fee)
+        approve = NctApproveVerifier(amount + bounty_fee)
         bounty = PostBountyVerifier(artifact_type, amount, artifact_uri, num_artifacts, duration, bloom, self.metadata)
 
         super().__init__(client, [approve, bounty])
@@ -35,7 +35,7 @@ class PostBountyTransaction(AbstractTransaction):
 
     def get_body(self):
         body = {
-            'amount': self.amount,
+            'amount': str(self.amount),
             'artifact_type': self. artifact_type,
             'uri': self.artifact_uri,
             'duration': self.duration
@@ -48,7 +48,7 @@ class PostBountyTransaction(AbstractTransaction):
     def has_required_event(self, transaction_events):
         bounties = transaction_events.get('bounties', [])
         for bounty in bounties:
-            if (bounty.get('amount', '') == self.amount and
+            if (bounty.get('amount', '') == str(self.amount) and
                     bounty.get('uri', '') == self.artifact_uri):
                 return True
 
@@ -241,7 +241,7 @@ class BountiesClient(object):
 
         Args:
             artifact_type (ArtifactType): The artifact type in this bounty
-            amount (list[int]): The amount to put up as a bounty
+            amount (int): The amount to put up as a bounty
             artifact_uri (str): URI of artifacts
             duration (int): Number of blocks to accept new assertions
             chain (str): Which chain to operate on
