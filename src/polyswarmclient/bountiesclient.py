@@ -35,7 +35,7 @@ class PostBountyTransaction(AbstractTransaction):
 
     def get_body(self):
         body = {
-            'amount': [str(amount) for amount in self.amount],
+            'amount': self.amount,
             'artifact_type': self. artifact_type,
             'uri': self.artifact_uri,
             'duration': self.duration
@@ -48,7 +48,7 @@ class PostBountyTransaction(AbstractTransaction):
     def has_required_event(self, transaction_events):
         bounties = transaction_events.get('bounties', [])
         for bounty in bounties:
-            if (bounty.get('amount', []) == [str(amount) for amount in self.amount] and
+            if (bounty.get('amount', '') == self.amount and
                     bounty.get('uri', '') == self.artifact_uri):
                 return True
 

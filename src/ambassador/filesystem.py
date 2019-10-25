@@ -79,7 +79,7 @@ class Ambassador(AbstractAmbassador):
                     metadata.add_file_artifact(computed['mimetype'], filename=filename, filesize=str(computed['size']),
                                                sha256=computed['sha256'], sha1=computed['sha1'], md5=computed['md5'])
 
-                amount = [min_amount] * len(filenames)
+                amount = min_amount * len(filenames)
                 await self.push_bounty(ArtifactType.FILE, amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS, chain,
                                        metadata=metadata.json())
             except CancelledError:

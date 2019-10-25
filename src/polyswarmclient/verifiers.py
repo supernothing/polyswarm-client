@@ -141,7 +141,7 @@ class NctTransferVerifier(AbstractTransactionVerifier):
 
 
 class PostBountyVerifier(AbstractTransactionVerifier):
-    ABI = ('postBounty', ['uint128', 'uint256', 'uint256[]', 'string', 'uint256', 'uint256', 'uint256[8]', 'string'])
+    ABI = ('postBounty', ['uint128', 'uint256', 'uint256', 'string', 'uint256', 'uint256', 'uint256[8]', 'string'])
 
     def __init__(self, artifact_type, amount, artifact_uri, num_artifacts, duration, bloom, metadata):
         super().__init__((UNKNOWN_PARAMETER, amount, artifact_uri, num_artifacts, duration, bloom, metadata))
@@ -177,7 +177,7 @@ class PostBountyVerifier(AbstractTransactionVerifier):
             num_artifacts == self.num_artifacts and \
             duration == self.duration and \
             bloom_value == self.bloom and \
-            all((int(contract_amount) == int(given_amount) for contract_amount, given_amount in zip(amount, self.amount))) and \
+            amount == self.amount and \
             metadata.decode('utf-8') == self.metadata
 
 

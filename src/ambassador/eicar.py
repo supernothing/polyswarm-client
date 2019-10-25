@@ -58,7 +58,7 @@ class Ambassador(AbstractAmbassador):
                                                               filesize=str(computed['size']), sha256=computed['sha256'],
                                                               sha1=computed['sha1'], md5=computed['md5'])
 
-                await self.push_bounty(ArtifactType.FILE, [amount], ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS, chain,
+                await self.push_bounty(ArtifactType.FILE, amount, ipfs_uri, BOUNTY_TEST_DURATION_BLOCKS, chain,
                                        metadata=metadata.json())
             except CancelledError:
                 logger.info('Cancel requested')

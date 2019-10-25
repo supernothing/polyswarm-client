@@ -121,18 +121,13 @@ class AbstractAmbassador(ABC):
 
         Args:
             artifact_type (ArtifactType): Type of artifact being pushed
-            amount (list[int]): Amount of NCT to place on the bounty
+            amount (int): Amount of NCT to place on the bounty
             ipfs_uri (str): URI for artifact(s) to be analyzed
             duration (int): Duration in blocks to accept assertions
             chain (str): Chain to submit the bounty
             api_key (str): API key to use to submit, if None use default from client
             metadata (str): json blob of metadata
         """
-        # Silet backwards compat
-        if isinstance(amount, int):
-            num_artifacts = await self.client.get_artifact_count(ipfs_uri)
-            amount = [amount] * num_artifacts
-
         bounty = QueuedBounty(artifact_type, amount, ipfs_uri, duration, api_key=api_key, metadata=metadata)
         logger.info('Queueing bounty %s', bounty)
 
@@ -219,7 +214,7 @@ class AbstractAmbassador(ABC):
             balance = await self.client.balances.get_nct_balance(chain)
 
             # If we don't have the balance, don't submit. Wait and try a few times, then skip
-            if balance < sum(bounty.amount) + bounty_fee:
+            if balance < bounty.amount + bounty_fee:
                 # Skip to next bounty, so one ultra high value bounty doesn't DOS ambassador
                 if self.client.tx_error_fatal and tries >= MAX_TRIES:
                     logger.error('Failed %s attempts to post bounty due to low balance. Exiting', tries)
@@ -229,7 +224,7 @@ class AbstractAmbassador(ABC):
                     tries += 1
                     logger.critical('Insufficient balance to post bounty on %s. Have %s NCT. '
                                     'Need %s NCT.', chain, balance,
-                                    sum(bounty.amount) + bounty_fee,
+                                    bounty.amount + bounty_fee,
                                     extra={'extra': bounty})
                     await asyncio.sleep(tries * tries)
                     continue
@@ -360,7 +355,7 @@ class AbstractAmbassador(ABC):
 
         Args:
             artifact_type (ArtifactType): Type of artifact for the soon to be posted bounty
-            amount (list[int]): Amount to place this bounty for
+            amount (int): Amount to place this bounty for
             ipfs_uri (str): IPFS URI of the artifact to post
             duration (int): Duration of the bounty in blocks
             chain (str): Chain we are operating on
@@ -373,7 +368,7 @@ class AbstractAmbassador(ABC):
 
         Args:
             artifact_type (ArtifactType): Type of artifact for the failed bounty
-            amount (list[int]): Amount to place this bounty for
+            amount (int): Amount to place this bounty for
             ipfs_uri (str): IPFS URI of the artifact to post
             duration (int): Duration of the bounty in blocks
             chain (str): Chain we are operating on
@@ -387,7 +382,7 @@ class AbstractAmbassador(ABC):
         Args:
             guid (str): GUID of the posted bounty
             artifact_type (ArtifactType): Type of artifact for the posted bounty
-            amount (list[int]): Amount of the posted bounty
+            amount (int): Amount of the posted bounty
             ipfs_uri (str): URI of the artifact submitted
             expiration (int): Block number of bounty expiration
             chain (str): Chain we are operating on
