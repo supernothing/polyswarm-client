@@ -26,6 +26,7 @@ class NonceManager:
         self.needs_update = True
         self.overset = False
         self.nonce_lock = asyncio.Lock()
+        self.update_lock = asyncio.Lock()
         self.pending = []
 
     async def acquire(self):
@@ -42,29 +43,36 @@ class NonceManager:
         """
         # Clear any waiting that should be used at this point
         async with self:
-            if self.needs_update:
-                nonces = await self.sync_nonce(amount)
-                self.needs_update = False
-                self.overset = False
+            async with self.update_lock:
+                needs_update = self.needs_update
+                overset = self.overset
+
+            if needs_update:
+                nonces = await self.sync_nonce(amount, overset)
+                # Since we acquire twice, we may overwrite changes, but we don't care since the nonce just synced
+                async with self.update_lock:
+                    self.needs_update = False
+                    self.overset = False
             else:
                 nonces = [r for r in range(self.base_nonce, self.base_nonce + amount)]
                 self.base_nonce = nonces[-1] + 1
             return nonces
 
-    async def sync_nonce(self, amount):
+    async def sync_nonce(self, amount, overset):
         """ Sync the nonce with the Ethereum chain
         Reads the pending transactions from the tx pool, and gets the nonce ignoring all transactions
         Using those values it determines the nonce to use, or if the transactions are in a timeout state, returns None
 
         Args:
             amount: Number of transactions to make
+            overset: Is the nonce overset
 
         Returns
             (None|list[int]): List of int values for nonces, or None if the transaction would timeout
 
         """
         low_nonce = await self.get_nonce(True)
-        nonce = max(self.base_nonce, low_nonce) if not self.overset else low_nonce
+        nonce = max(self.base_nonce, low_nonce) if not overset else low_nonce
         pending = sorted(await self.client.get_pending_nonces(self.chain))
         self.pending = pending
         # -1 because nonces are zero indexed, so nonce + amount -1 is max nonce
@@ -121,14 +129,16 @@ class NonceManager:
 
         return nonce
 
-    def mark_update_nonce(self):
+    async def mark_update_nonce(self):
         """
         Call this when the nonce is out of sync.
         This sets the update flag to true.
         The next reserve after being set will trigger an update
         """
-        self.needs_update = True
-        self.overset = False
+        async with self.update_lock:
+            if not self.needs_update:
+                self.needs_update = True
+                self.overset = False
 
     async def mark_overset_nonce(self, nonces):
         """
@@ -136,9 +146,9 @@ class NonceManager:
         This sets the update flag to true.
         The next reserve after being set will trigger an update
         """
-        async with self:
+        async with self.update_lock:
             # if we know this nonce is too high, ignore it
-            if not any(nonce for nonce in nonces if nonce in self.pending):
+            if not any(nonce for nonce in nonces if nonce in self.pending) and not self.needs_update:
                 self.needs_update = True
                 self.overset = True
 
@@ -306,7 +316,7 @@ class AbstractTransaction(metaclass=ABCMeta):
             # Indicates nonce is too low, we can handle this now, resync nonces and retry
             if any(['invalid transaction error' in e.lower() for e in errors]):
                 logger.error('Nonce desync detected during post, resyncing and trying again')
-                nonce_manager.mark_update_nonce()
+                await nonce_manager.mark_update_nonce()
 
         return txhashes, nonces, errors
 
@@ -333,6 +343,8 @@ class AbstractTransaction(metaclass=ABCMeta):
 
             success, results = await self.client.make_request('GET', '/transactions', chain,
                                                               json={'transactions': txhashes}, api_key=api_key, tries=1)
+            results = {} if results is None else results
+            success = self.has_required_event(results)
             if not success:
                 if self.client.tx_error_fatal:
                     logger.critical('Received fatal transaction error during get.', extra={'extra': results})
@@ -340,26 +352,29 @@ class AbstractTransaction(metaclass=ABCMeta):
                 else:
                     logger.error('Received transaction error during get', extra={'extra': results})
 
-            results = {} if results is None else results
-
             errors = results.get('errors', [])
-            success = self.has_required_event(results)
 
             # Indicates nonce may be too high
             # First, tries to sleep and see if the transaction did succeed (settles can timeout)
             # If still timing out, resync nonce
-            if not success and any([e for e in errors if 'timeout during wait for receipt' in e.lower()]):
-                # If we got the items we expected stop retrying, but note the nonce is bad
-                if not timeout:
+            if any([e for e in errors if 'timeout during wait for receipt' in e.lower()]):
+                # We got the items we wanted, but I want it to get all items
+                if success:
+                    if not timeout:
+                        timeout = True
+                        continue
+                    # Oh well, it worked so just keep going
+                elif not timeout:
                     logger.error('Nonce desync detected during get, resyncing and trying again')
                     await nonce_manager.mark_overset_nonce(nonces)
                     # Just give one extra try since settles sometimes timeout
                     tries += 1
                     timeout = True
+                    continue
                 else:
                     logger.error('Transaction continues to timeout, sleeping then trying again')
                     await asyncio.sleep(1)
-                continue
+                    continue
 
             # Check to see if we failed to retrieve some receipts, retry the fetch if so
             if not success and any(['receipt' in e.lower() for e in errors]):
