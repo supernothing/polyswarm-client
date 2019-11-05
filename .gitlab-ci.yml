@@ -305,3 +305,9 @@ kick-after-complete17:
   only:
     - master
   trigger: externalci/microengine-inscyt
+  
+kick-after-complete18:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-phishtank
