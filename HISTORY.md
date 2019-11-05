@@ -1,12 +1,27 @@
 # Release History
 
+### 2.6.0 (2019-11-05)
+
+* **Fix** - Does not sync nonce after `timeout during wait for receipt` if the expected events are present as well
+* **Feature** - `BidStrategyBase` supports `None` in multipliers, which then uses the contract values as max or min 
+* **Feature** - Support maximum bid value from contract
+
+#### Breaking Changes
+
+*Engines may ignore bid changes if the BidStrategy implementation just sets the multiplier values*
+
+1. Only compatible with polyswarmd version `2.1.0` or later
+1. Bounty amount must be at least `bounty_amount_minimum * num_artifacts`
+1. Each bid value must be less than the maximum
+1. `BidStrategyBase.bid()` parameters changed to `(self, guid, mask, verdicts, confidences, metadatas, min_allowed_bid, max_allowed_bid, chain)`
+
 ### 2.5.1 (2019-10-23)
 
 * **Feature** - Add view-balance and view-stake sub commands in balancemanager
 
 ### 2.5.0 (2019-10-16)
 
-* **Fix** - Recover from `timeout during wait for transaction`
+* **Fix** - Recover from `timeout during wait for receipt`
 * **Fix** - Fix metadata responses in default micronegine backends
 * **Fix** - Support paths in polyswarmd-addr
 * **Fix** - Remove platform assumptions in default microengine backends
