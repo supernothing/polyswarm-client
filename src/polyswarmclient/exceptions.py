@@ -26,3 +26,10 @@ class InvalidBidError(PolyswarmClientException):
     Fault in bid logic that resulted in a bid that is not between the min and max values provided by polyswarmd
     """
     pass
+
+
+class ConnectionRefused(PolyswarmClientException):
+    """
+    polyswarm-client is unable to connect to polyswarmd for some reason
+    """
+    pass
