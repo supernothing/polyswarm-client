@@ -561,6 +561,7 @@ class Client(object):
             # Handles unique case where websocket is connected, but http requests are conn refused
             if self.connection_refused > 15:
                 logger.warning('Too many connection refused in a row, retrying')
+                self.connection_refused = 0
                 raise ConnectionRefusedError('Too many connection refused in a row, retrying')
 
     def schedule(self, expiration, event, chain):
