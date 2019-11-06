@@ -65,8 +65,10 @@ class Client(object):
         # Do not init nonce manager here. Need to wait until we can guarantee that our event loop is set.
         self.nonce_managers = {}
         self.__schedules = {}
+        self.connection_refused_lock = None
 
         self.tries = 0
+        self.connection_refused = 0
 
         self.bounties = None
         self.staking = None
@@ -145,8 +147,22 @@ class Client(object):
         self.params = {'account': self.account}
 
         # We can now create our locks, because we are assured that the event loop is set
-        self.nonce_managers = {chain: NonceManager(self, chain) for chain in chains}
-        self.__schedules = {chain: events.Schedule() for chain in chains}
+        if self.nonce_managers is None:
+            self.nonce_managers = {chain: NonceManager(self, chain) for chain in chains}
+        else:
+            for chain in chains:
+                if self.nonce_managers.get(chain) is None:
+                    self.nonce_managers[chain] = NonceManager(self, chain)
+
+        if self.__schedules is None:
+            self.__schedules = {chain: events.Schedule() for chain in chains}
+        else:
+            for chain in chains:
+                if self.__schedules.get(chain) is None:
+                    self.__schedules[chain] = events.Schedule()
+
+        if self.connection_refused_lock is None:
+            self.connection_refused_lock = asyncio.Lock()
 
         try:
 
@@ -244,6 +260,7 @@ class Client(object):
                         continue
             except (OSError, aiohttp.ServerDisconnectedError):
                 logger.error('Connection to polyswarmd refused, retrying')
+                await self.increment_refused()
             except asyncio.TimeoutError:
                 logger.error('Connection to polyswarmd timed out, retrying')
 
@@ -257,6 +274,7 @@ class Client(object):
                     logger.warning('Request %s %s?%s failed, giving up', method, path, qs)
                     return False, response.get('errors')
 
+            await self.clear_refused()
             return True, response.get('result')
 
         return False, response.get('errors')
@@ -531,6 +549,19 @@ class Client(object):
                         return None
 
                 return response.get('result')
+
+    async def clear_refused(self):
+        async with self.connection_refused_lock:
+            self.connection_refused = 0
+
+    async def increment_refused(self):
+        async with self.connection_refused_lock:
+            self.connection_refused += 1
+
+            # Handles unique case where websocket is connected, but http requests are conn refused
+            if self.connection_refused > 15:
+                logger.warning('Too many connection refused in a row, retrying')
+                raise ConnectionRefusedError('Too many connection refused in a row, retrying')
 
     def schedule(self, expiration, event, chain):
         """Schedule an event to execute on a particular block
