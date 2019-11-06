@@ -147,19 +147,13 @@ class Client(object):
         self.params = {'account': self.account}
 
         # We can now create our locks, because we are assured that the event loop is set
-        if self.nonce_managers is None:
-            self.nonce_managers = {chain: NonceManager(self, chain) for chain in chains}
-        else:
-            for chain in chains:
-                if self.nonce_managers.get(chain) is None:
-                    self.nonce_managers[chain] = NonceManager(self, chain)
 
-        if self.__schedules is None:
-            self.__schedules = {chain: events.Schedule() for chain in chains}
-        else:
-            for chain in chains:
-                if self.__schedules.get(chain) is None:
-                    self.__schedules[chain] = events.Schedule()
+        for chain in chains:
+            if self.nonce_managers.get(chain, None) is None:
+                self.nonce_managers[chain] = NonceManager(self, chain)
+
+            if self.__schedules.get(chain, None) is None:
+                self.__schedules[chain] = events.Schedule()
 
         if self.connection_refused_lock is None:
             self.connection_refused_lock = asyncio.Lock()
@@ -275,6 +269,7 @@ class Client(object):
                     return False, response.get('errors')
 
             await self.clear_refused()
+
             return True, response.get('result')
 
         return False, response.get('errors')
