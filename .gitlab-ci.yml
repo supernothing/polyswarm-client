@@ -311,3 +311,9 @@ kick-after-complete18:
   only:
     - master
   trigger: externalci/microengine-phishtank
+
+kick-after-complete19:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/arbiter-hatchingtriage
