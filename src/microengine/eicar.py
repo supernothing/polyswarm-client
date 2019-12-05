@@ -33,7 +33,7 @@ class Scanner(AbstractScanner):
         metadata = Verdict().set_scanner(operating_system=platform.system(),
                                          architecture=platform.machine())
 
-        if content == EICAR:
+        if EICAR in content:
             metadata.set_malware_family('Eicar Test File')
             return ScanResult(bit=True, verdict=True, metadata=metadata.json())
 
@@ -54,6 +54,6 @@ class Microengine(AbstractMicroengine):
     def __init__(self, client, testing=0, scanner=None, chains=None, artifact_types=None, **kwargs):
         """Initialize Scanner"""
         if artifact_types is None:
-            artifact_types = [ArtifactType.FILE]
+            artifact_types = [ArtifactType.FILE, ArtifactType.URL]
         scanner = Scanner()
         super().__init__(client, testing, scanner, chains, artifact_types, **kwargs)
