@@ -32,7 +32,8 @@ class Scanner(AbstractScanner):
         """
         metadata = Verdict().set_scanner(operating_system=platform.system(),
                                          architecture=platform.machine())
-
+        if isinstance(content, str):
+            content = content.encode()
         if EICAR in content:
             metadata.set_malware_family('Eicar Test File')
             return ScanResult(bit=True, verdict=True, metadata=metadata.json())
