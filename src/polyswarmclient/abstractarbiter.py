@@ -147,25 +147,29 @@ class AbstractArbiter(object):
             logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
             exit(1)
 
-    async def __handle_deprecated(self, block_number, txhash, chain):
+    async def __handle_deprecated(self, rollover, block_number, txhash, chain):
         """Schedule Withdraw stake for when the last settles are due
 
         Args:
+            rollover (bool): Is arbiter staking being rolled over?
             block_number (int): Block number the bounty was posted on
             txhash (str): Transaction hash which caused the event
             chain (str): Is this on the home or side chain?
         Returns: Empty list
-
         """
-        logger.info('BountyRegistry contract is now deprecated. Scheduling staking withdrawal.')
-        parameters = self.client.bounties.parameters[chain]
-        assertion_reveal_window = await parameters.get('assertion_reveal_window')
-        arbiter_vote_window = await parameters.get('arbiter_vote_window')
-        max_duration = await parameters.get('max_duration')
-        withdraw_start = block_number + max_duration + assertion_reveal_window + arbiter_vote_window
-        staking_balance = await self.client.staking.get_total_balance(chain)
-        ws = WithdrawStake(staking_balance)
-        self.client.schedule(withdraw_start, ws, chain)
+        if not rollover:
+            logger.critical('BountyRegistry contract is now deprecated, withdrawing stake.')
+            parameters = self.client.bounties.parameters[chain]
+            assertion_reveal_window = await parameters.get('assertion_reveal_window')
+            arbiter_vote_window = await parameters.get('arbiter_vote_window')
+            max_duration = await parameters.get('max_duration')
+            withdraw_start = block_number + max_duration + assertion_reveal_window + arbiter_vote_window
+            staking_balance = await self.client.staking.get_total_balance(chain)
+            ws = WithdrawStake(staking_balance)
+            self.client.schedule(withdraw_start, ws, chain)
+        else:
+            logger.critical('BountyRegistry contract is now deprecated, but stake will rollover to the new contract')
+
         return []
 
     async def __handle_new_bounty(self, guid, artifact_type, author, amount, uri, expiration, metadata, block_number, txhash, chain):

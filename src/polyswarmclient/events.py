@@ -197,15 +197,16 @@ class OnSettledBountyCallback(Callback):
 class OnDeprecatedCallback(Callback):
     """Called upon the BountyRegistry contract being deprecated"""
 
-    async def run(self, block_number, txhash, chain):
+    async def run(self, rollover, block_number, txhash, chain):
         """Run the registered callbacks
 
         Args:
+            rollover (bool): Is arbiter staking rolling over (True), or being replaced (False)?
             block_number (int): Block number the channel was initialized on
             txhash (str): Transaction hash which caused the event
             chain (str): Chain event received on
         """
-        return await super().run(block_number, txhash, chain)
+        return await super().run(rollover, block_number, txhash, chain)
 
 
 class OnInitializedChannelCallback(Callback):
