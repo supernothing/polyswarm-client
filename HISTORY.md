@@ -1,5 +1,14 @@
 # Release History
 
+### 2.7.0 (2019-12-09)
+
+* **Feature** - Add rollover value to `OnDeprecatedCallback` to tell arbiters their stake will move to new the contracts
+* **Feature** - Add url scanning feature to exemplar Eicar engine
+
+#### Breaking Changes
+
+1. `OnDeprecatedCallback` signature changed to `(self, rollover, block_number, txhash, chain)`
+
 ### 2.6.0 (2019-11-05)
 
 * **Fix** - Does not sync nonce after `timeout during wait for receipt` if the expected events are present as well
