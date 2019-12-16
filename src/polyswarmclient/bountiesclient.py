@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from polyswarmartifact import ArtifactType
@@ -236,6 +237,44 @@ class BountiesClient(object):
 
         return result
 
+    async def get_bounty_guids(self, page, count, chain, api_key=None):
+        """Get the list of bounties at the given page
+
+        Args:
+            page (int): Page to read
+            count (int): Size of the pages
+            chain (str): Which chain to operate on
+            api_key (str): Override default API key
+        Returns:
+            Response JSON parsed from polyswarmd containing list of bounty guids
+         """
+        path = '/bounties'
+        params = {'page': page, 'count': count}
+        success, result = await self.__client.make_request('GET', path, chain, api_key=api_key, params=params)
+        if not success:
+            logger.error('Expected list, received', extra={'extra': result})
+            return None
+
+        return result
+
+    async def get_all_bounty_guids(self, count, chain, api_key=None):
+        """Generator that gets all the bounty guids a page at a time
+
+        Args:
+            count (int): Size of the pages
+            chain (str): Which chain to operate on
+            api_key (str): Override default API key
+
+        Returns:
+            Generator of lists of bounty guids
+        """
+        page = 0
+        guids = await self.get_bounty_guids(page, count, chain, api_key)
+        while guids:
+            yield guids
+            page += 1
+            guids = await self.get_bounty_guids(page, count, chain, api_key)
+
     async def post_bounty(self, artifact_type, amount, artifact_uri, duration, chain, api_key=None, metadata=None):
         """Post a bounty to polyswarmd.
 
@@ -415,6 +454,36 @@ class BountiesClient(object):
 
         return result.get('votes', [])
 
+    async def did_participate(self, bounty_guid, chain, api_key=None):
+        """Check to see if this client participated in a bounty
+
+        Args:
+            bounty_guid (str): The bounty being checked
+            chain (str): Which chain to operate on
+            api_key (str): Override default API key
+
+        Returns:
+            True if this account participated
+
+        """
+        account = self.__client.account
+        bounty = await self.get_bounty(bounty_guid, chain, api_key)
+        if not bounty:
+            return False
+
+        if bounty.get('author', None) == account:
+            return True
+
+        for assertion in await self.get_all_assertions(bounty_guid, chain, api_key):
+            if assertion.get('author', None) == account:
+                return True
+
+        for vote in await self.get_all_votes(bounty_guid, chain, api_key):
+            if vote.get('voter', None) == account:
+                return True
+
+        return False
+
     async def settle_bounty(self, bounty_guid, chain, api_key=None):
         """Settle a bounty via polyswarmd
 
@@ -425,6 +494,9 @@ class BountiesClient(object):
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
+        if not await self.did_participate(bounty_guid, chain, api_key):
+            logger.debug('Will not settle %s because %s did not participate', bounty_guid, self.__client.account)
+            return []
 
         transaction = SettleBountyTransaction(self.__client, bounty_guid)
         success, result = await transaction.send(chain, api_key=api_key)
@@ -432,3 +504,21 @@ class BountiesClient(object):
             logger.warning('No transfer event, received', extra={'extra': result})
 
         return result.get('transfers', [])
+
+    async def settle_all_bounties(self, chain, api_key=None):
+        """Settles all bounties on a contract via polyswarmd
+
+        Args:
+            chain (str): Which chain to operate on
+            api_key (str): Override default API key
+        """
+        transfers = 0
+        # Fetch bounties from polyd, 75 at a time.
+        async for page in self.get_all_bounty_guids(count=75, chain=chain):
+            # Settle out each page
+            logger.debug('Settling %s', page)
+            found = await asyncio.gather(*[self.settle_bounty(guid, chain, api_key) for guid in page])
+            for transfer_list in found:
+                transfers += sum([int(transfer) for transfer in transfer_list])
+
+        logger.info('Recovered %s NCT by settling all bounties', transfers)

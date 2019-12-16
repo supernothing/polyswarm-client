@@ -41,6 +41,7 @@ class AbstractAmbassador(ABC):
         self.client.on_quorum_reached.register(self.__handle_quorum_reached)
         self.client.on_settled_bounty.register(self.__handle_settled_bounty)
         self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
+        self.client.on_deprecated.register(self.__handle_deprecated)
 
         # Initialize in run_task to ensure we're on the right loop
         self.bounty_queues = {}
@@ -136,14 +137,6 @@ class AbstractAmbassador(ABC):
     def run(self):
         """Run the Client on all of our chains."""
         self.client.run(self.chains)
-
-    async def __handle_run(self, chain):
-        """Asynchronously run a task on a given chain.
-
-        Args:
-            chain (str): Name of the chain to run.
-        """
-        asyncio.get_event_loop().create_task(self.run_task(chain))
 
     async def run_task(self, chain):
         """Iterate through the bounties an Ambassador wants to post on a given chain.
@@ -277,79 +270,6 @@ class AbstractAmbassador(ABC):
                                          metadata=bounty.metadata)
         self.client.liveliness_recorder.remove_waiting_task(bounty.ipfs_uri)
 
-    async def __handle_new_block(self, number, chain):
-        if number <= self.last_block:
-            return
-
-        self.last_block = number
-
-        event = self.block_events.get(chain)
-        if event is not None and number % BLOCK_DIVISOR == 0:
-            event.set()
-
-        if not self.watchdog:
-            return
-
-        if not self.first_block:
-            self.first_block = number
-            return
-
-        blocks = number - self.first_block
-        async with self.bounties_posted_locks[chain]:
-            bounties_posted = self.bounties_posted.get(chain, 0)
-            last_bounty_count = self.last_bounty_count.get(chain, 0)
-            if blocks % self.watchdog == 0 and bounties_posted == last_bounty_count:
-                raise Exception('Bounties not processing, exiting with failure')
-
-            self.last_bounty_count[chain] = bounties_posted
-
-    async def __do_handle_settle_bounty(self, bounty_guid, chain):
-        """
-        When a bounty is scheduled to be settled, actually settle the bounty to the given chain.
-
-        Args:
-            bounty_guid (str): GUID of the bounty to be submitted.
-            chain (str): Name of the chain where the bounty is to be posted.
-        Returns:
-            Response JSON parsed from polyswarmd containing emitted events.
-        """
-        async with self.bounties_pending_locks[chain]:
-            bounties_pending = self.bounties_pending.get(chain, set())
-            if bounty_guid not in bounties_pending:
-                logger.debug('Bounty %s already settled', bounty_guid)
-                return []
-            self.bounties_pending[chain] = bounties_pending - {bounty_guid}
-
-        last_settle = False
-        async with self.settles_posted_locks[chain]:
-            settles_posted = self.settles_posted.get(chain, 0)
-            self.settles_posted[chain] = settles_posted + 1
-
-            if self.testing > 0:
-                if self.settles_posted[chain] > self.testing:
-                    logger.warning('Scheduled settle, but finished with testing mode')
-                    return []
-                elif self.settles_posted[chain] == self.testing:
-                    last_settle = True
-
-                logger.info('Testing mode , %s settles remaining', self.testing - self.settles_posted[chain])
-
-        ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
-        if last_settle:
-            logger.info('All testing bounties complete, exiting')
-            asyncio_stop()
-
-        return ret
-
-    async def __handle_quorum_reached(self, bounty_guid, block_number, txhash, chain):
-        return await self.__do_handle_settle_bounty(bounty_guid, chain)
-
-    async def __handle_settle_bounty(self, bounty_guid, chain):
-        return await self.__do_handle_settle_bounty(bounty_guid, chain)
-
-    async def __handle_settled_bounty(self, bounty_guid, settler, payout, block_number, txhash, chain):
-        return await self.__do_handle_settle_bounty(bounty_guid, chain)
-
     async def on_before_bounty_posted(self, artifact_type, amount, ipfs_uri, duration, chain, metadata=None):
         """Override this to implement additional steps before the bounty is posted
 
@@ -389,3 +309,88 @@ class AbstractAmbassador(ABC):
             metadata (dict): Oprional dict of metadata
         """
         pass
+
+    async def __handle_run(self, chain):
+        """Asynchronously run a task on a given chain.
+
+        Args:
+            chain (str): Name of the chain to run.
+        """
+        asyncio.get_event_loop().create_task(self.run_task(chain))
+
+    async def __handle_deprecated(self, rollover, block_number, txhash, chain):
+        await self.client.bounties.settle_all_bounties(chain)
+        return []
+
+    async def __handle_new_block(self, number, chain):
+        if number <= self.last_block:
+            return
+
+        self.last_block = number
+
+        event = self.block_events.get(chain)
+        if event is not None and number % BLOCK_DIVISOR == 0:
+            event.set()
+
+        if not self.watchdog:
+            return
+
+        if not self.first_block:
+            self.first_block = number
+            return
+
+        blocks = number - self.first_block
+        async with self.bounties_posted_locks[chain]:
+            bounties_posted = self.bounties_posted.get(chain, 0)
+            last_bounty_count = self.last_bounty_count.get(chain, 0)
+            if blocks % self.watchdog == 0 and bounties_posted == last_bounty_count:
+                raise Exception('Bounties not processing, exiting with failure')
+
+            self.last_bounty_count[chain] = bounties_posted
+
+    async def __handle_quorum_reached(self, bounty_guid, block_number, txhash, chain):
+        return await self.__settle_bounty(bounty_guid, chain)
+
+    async def __handle_settle_bounty(self, bounty_guid, chain):
+        return await self.__settle_bounty(bounty_guid, chain)
+
+    async def __handle_settled_bounty(self, bounty_guid, settler, payout, block_number, txhash, chain):
+        return await self.__settle_bounty(bounty_guid, chain)
+
+    async def __settle_bounty(self, bounty_guid, chain):
+        """
+        When a bounty is scheduled to be settled, actually settle the bounty to the given chain.
+
+        Args:
+            bounty_guid (str): GUID of the bounty to be submitted.
+            chain (str): Name of the chain where the bounty is to be posted.
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events.
+        """
+        async with self.bounties_pending_locks[chain]:
+            bounties_pending = self.bounties_pending.get(chain, set())
+            if bounty_guid not in bounties_pending:
+                logger.debug('Bounty %s already settled', bounty_guid)
+                return []
+            self.bounties_pending[chain] = bounties_pending - {bounty_guid}
+
+        last_settle = False
+        async with self.settles_posted_locks[chain]:
+            settles_posted = self.settles_posted.get(chain, 0)
+            self.settles_posted[chain] = settles_posted + 1
+
+            if self.testing > 0:
+                if self.settles_posted[chain] > self.testing:
+                    logger.warning('Scheduled settle, but finished with testing mode')
+                    return []
+                elif self.settles_posted[chain] == self.testing:
+                    last_settle = True
+
+                logger.info('Testing mode , %s settles remaining', self.testing - self.settles_posted[chain])
+
+        ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
+        if last_settle:
+            logger.info('All testing bounties complete, exiting')
+            asyncio_stop()
+
+        return ret

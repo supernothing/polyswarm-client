@@ -157,6 +157,9 @@ class AbstractArbiter(object):
             chain (str): Is this on the home or side chain?
         Returns: Empty list
         """
+        # Settle all bounties on contract
+        asyncio.get_event_loop().create_task(self.client.bounties.settle_all_bounties(chain))
+        # Withdraw stake, if needed
         if not rollover:
             logger.critical('BountyRegistry contract is now deprecated, withdrawing stake.')
             parameters = self.client.bounties.parameters[chain]
