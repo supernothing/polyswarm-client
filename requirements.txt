@@ -23,4 +23,4 @@ web3==4.8.2
 websockets==6.0
 yara-python==3.7.0
 base58==0.2.5
-pycrypto==2.6.1
+pysha3==1.0.2

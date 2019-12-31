@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 import uuid
-from Crypto.Hash import keccak
+import sha3 as pysha3
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -25,7 +25,9 @@ def to_string(value):
 
 
 def sha3_256(x):
-    return keccak.new(digest_bits=256, data=x).digest()
+    k = pysha3.keccak_256()
+    k.update(x)
+    return k.digest()
 
 
 def sha3(seed):
