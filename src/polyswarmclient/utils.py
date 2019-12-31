@@ -6,8 +6,6 @@ import sys
 import uuid
 import sha3 as pysha3
 from concurrent.futures import ThreadPoolExecutor
-import subprocess
-from . import exceptions
 
 
 logger = logging.getLogger(__name__)
