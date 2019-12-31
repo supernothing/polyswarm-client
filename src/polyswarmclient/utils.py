@@ -1,19 +1,19 @@
 import asyncio
+import base58
 import logging
 import os
 import sys
 import uuid
-
 from Crypto.Hash import keccak
 from concurrent.futures import ThreadPoolExecutor
 
-import base58
 
 logger = logging.getLogger(__name__)
 
 TASK_TIMEOUT = 1.0
 MAX_WAIT = int(os.getenv('WORKER_BACKOFF', '15'))
 MAX_WORKERS = 4
+
 
 def to_string(value):
     if isinstance(value, bytes):
@@ -23,15 +23,19 @@ def to_string(value):
     if isinstance(value, int):
         return bytes(str(value), 'utf-8')
 
+
 def sha3_256(x):
     return keccak.new(digest_bits=256, data=x).digest()
+
 
 def sha3(seed):
     return sha3_256(to_string(seed))
 
+
 def int_to_bytes(i):
     h = hex(i)[2:]
     return bytes.fromhex('0' * (64 - len(h)) + h)
+
 
 def int_from_bytes(b):
     return int.from_bytes(b, byteorder='big')
@@ -139,3 +143,13 @@ def is_valid_ipfs_uri(ipfs_uri):
     except Exception as err:
         logger.exception('Unexpected error: %s', err)
     return False
+
+
+def run_in_executor(f):
+    """
+    Runs the function it decorates in an executor.
+    """
+    def inner(*args, **kwargs):
+        loop = asyncio.get_event_loop()
+        return loop.run_in_executor(ThreadPoolExecutor(), lambda: f(*args, **kwargs))
+    return inner
