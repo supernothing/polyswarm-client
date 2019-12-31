@@ -169,7 +169,7 @@ def run_command_line(command):
     :param command: Command to run.
     :return: Command output or error message.
     """
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+    process = subprocess.Popen(command, stdout=subprocess.PIPE)
     process.wait()
     out, err = process.communicate()
     process.kill()
