@@ -6,6 +6,8 @@ import sys
 import uuid
 import sha3 as pysha3
 from concurrent.futures import ThreadPoolExecutor
+import subprocess
+from . import exceptions
 
 
 logger = logging.getLogger(__name__)
@@ -149,7 +151,7 @@ def is_valid_ipfs_uri(ipfs_uri):
 
 def run_in_executor(f):
     """
-    Runs the function it decorates in an executor.
+    Decorator. Runs the function it decorates in an executor.
     """
     def inner(*args, **kwargs):
         if sys.platform == 'win32':
@@ -158,3 +160,20 @@ def run_in_executor(f):
             loop = asyncio.get_event_loop()
         return loop.run_in_executor(ThreadPoolExecutor(), lambda: f(*args, **kwargs))
     return inner
+
+
+def _run_command_line(command):
+    """
+    Runs a command line and returns the output or error.
+
+    :param command: Command to run.
+    :return: Command output or error message.
+    """
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+    process.wait()
+    out, err = process.communicate()
+    process.kill()
+    if err:
+        message = err.decode('utf8')
+        raise exceptions.RunCommandLineException(f'{command}: {message}')
+    return out.decode('utf8')
