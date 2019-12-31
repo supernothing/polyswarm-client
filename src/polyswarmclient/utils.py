@@ -162,7 +162,7 @@ def run_in_executor(f):
     return inner
 
 
-def _run_command_line(command):
+def run_command_line(command):
     """
     Runs a command line and returns the output or error.
 
