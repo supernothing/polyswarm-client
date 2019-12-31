@@ -160,20 +160,3 @@ def run_in_executor(f):
             loop = asyncio.get_event_loop()
         return loop.run_in_executor(ThreadPoolExecutor(), lambda: f(*args, **kwargs))
     return inner
-
-
-def run_command_line(command):
-    """
-    Runs a command line and returns the output or error.
-
-    :param command: Command to run.
-    :return: Command output or error message.
-    """
-    process = subprocess.Popen(command, stdout=subprocess.PIPE)
-    process.wait()
-    out, err = process.communicate()
-    process.kill()
-    if err:
-        message = err.decode('utf8')
-        raise exceptions.RunCommandLineException(f'{command}: {message}')
-    return out.decode('utf8')

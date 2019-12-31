@@ -26,11 +26,3 @@ class InvalidBidError(PolyswarmClientException):
     Fault in bid logic that resulted in a bid that is not between the min and max values provided by polyswarmd.
     """
     pass
-
-
-class RunCommandLineException(PolyswarmClientException):
-    """
-    Failed to run command-line using subprocess.
-    """
-    pass
-
