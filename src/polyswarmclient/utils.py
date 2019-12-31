@@ -152,6 +152,10 @@ def run_in_executor(f):
     Runs the function it decorates in an executor.
     """
     def inner(*args, **kwargs):
-        loop = asyncio.get_event_loop()
+        if sys.platform == 'win32':
+            loop = asyncio.ProactorEventLoop()
+        else:
+            loop = asyncio.get_event_loop()
         return loop.run_in_executor(ThreadPoolExecutor(), lambda: f(*args, **kwargs))
     return inner
+
