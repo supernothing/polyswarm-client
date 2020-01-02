@@ -223,6 +223,4 @@ class WaitingTask:
 
     def __hash__(self):
         # Only care about guid for __hash__
-        h = 11
-        h = 37 * h + hash(self.guid)
-        return h
+        return hash(self.guid)
