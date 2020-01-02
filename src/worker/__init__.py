@@ -170,17 +170,20 @@ class Worker(object):
                     self.liveliness_recorder.remove_waiting_task(guid)
                     continue
 
+                remaining_time = int(timestamp + duration - time.time())
                 # Setup default response as ScanResult, in case we exceeded uses
                 result = ScanResult()
                 try:
                     content = await self.download(polyswarmd_uri, uri, index, session)
-                    result = await self.scan(guid, artifact_type, content, metadata, chain)
+                    result = await asyncio.wait_for(
+                        self.scan(guid, artifact_type, content, metadata, chain),
+                        timeout=remaining_time)
                 except DecodeError:
                     logger.exception('Error Decoding artifact')
                 except aiohttp.ClientResponseError:
                     logger.exception(f'Error fetching artifact {uri} on task {task_index}')
                 except asyncio.TimeoutError:
-                    logger.exception(f'Timeout fetching artifact {uri} on task {task_index}')
+                    logger.exception(f'Timeout processing artifact {uri} on task {task_index}')
 
                 self.liveliness_recorder.remove_waiting_task(guid)
 
