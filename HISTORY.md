@@ -1,5 +1,12 @@
 # Release History
 
+### 2.7.1 (2020-1-17)
+
+* **Fix** - Simplify Liveliness `__hash__()` definition
+* **Feature** - Timeout scans in worker for faster recovery
+* **Feature** - Settle all participated bounties on Deprecated event 
+* **Feature** - Only settle if participated in a bounty
+
 ### 2.7.0 (2019-12-09)
 
 * **Feature** - Add rollover value to `OnDeprecatedCallback` to tell arbiters their stake will move to new the contracts
