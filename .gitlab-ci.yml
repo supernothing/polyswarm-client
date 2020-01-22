@@ -57,7 +57,7 @@ test-linux:
     - kube
   script:
     - docker pull $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA
-    - docker run $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA tox
+    - docker run $REPO_URL/$BASE_IMAGE_NAME:$CI_COMMIT_SHA pytest -s --cov=polyswarmclient
 
 test-push-to-pypi:
   stage: test
@@ -80,7 +80,7 @@ test-windows:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     - docker pull $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA
-    - docker run $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA powershell -NoProfile -Command "Set-Location C:/polyswarm/$BASE_IMAGE_NAME; tox"
+    - docker run $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA powershell -NoProfile -Command "Set-Location C:/polyswarm/$BASE_IMAGE_NAME; pytest -s --cov=polyswarmclient"
 
 ###############################################################
 # End-to-end Stage
@@ -305,7 +305,7 @@ kick-after-complete17:
   only:
     - master
   trigger: externalci/microengine-inscyt
-  
+
 kick-after-complete18:
   stage: deployment
   only:
