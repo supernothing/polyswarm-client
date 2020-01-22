@@ -27,7 +27,7 @@ setup(
         'click==6.7',
         'polyswarm-artifact>=1.3.1',
         'python-json-logger==0.1.9',
-        'python-magic-bin==0.4.13;platform_system=="Windows"',
+        'python-magic-bin;platform_system=="Windows"',
         'python-magic==0.4.15;platform_system=="Linux"',
         'web3==4.8.2',
         'websockets==6.0',
