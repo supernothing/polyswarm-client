@@ -317,3 +317,33 @@ kick-after-complete19:
   only:
     - master
   trigger: externalci/arbiter-hatchingtriage
+
+kick-after-complete20:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-quttera
+
+kick-after-complete21:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-concinnity
+
+kick-after-complete22:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-venustech
+
+kick-after-complete23:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-notmining
+
+kick-after-complete24:
+  stage: deployment
+  only:
+    - master
+  trigger: externalci/microengine-urlhaus
