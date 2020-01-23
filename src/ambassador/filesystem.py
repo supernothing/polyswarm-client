@@ -6,7 +6,6 @@ from concurrent.futures import CancelledError
 
 from polyswarmartifact import ArtifactType
 from polyswarmartifact.schema import Bounty as BountyMetadata
-
 from polyswarmclient.abstractambassador import AbstractAmbassador
 from polyswarmclient.corpus import DownloadToFileSystemCorpus
 
