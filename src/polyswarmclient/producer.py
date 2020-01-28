@@ -71,6 +71,8 @@ class Producer:
                                                   metadata=j['metadata'])
             except aioredis.errors.ReplyError:
                 logger.exception('Redis out of memory')
+            except aioredis.errors.ConnectionForcedCloseError:
+                logger.exception('Redis connection closed')
             except OSError:
                 logger.exception('Redis connection down')
             except (AttributeError, ValueError, KeyError):
@@ -118,5 +120,7 @@ class Producer:
                 logger.exception('Redis connection down')
             except aioredis.errors.ReplyError:
                 logger.exception('Redis out of memory')
+            except aioredis.errors.ConnectionForcedCloseError:
+                logger.exception('Redis connection closed')
 
         return []

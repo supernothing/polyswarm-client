@@ -38,13 +38,22 @@ class RedisDailyRateLimit(AbstractRateLimit):
             return True
 
         key = self.get_daily_key()
-        value = await self.redis.incr(key)
-        if value == 1:
-            # Give an hour extra before expiring, in case someone wants to take a look manually
-            await self.redis.expire(key, 60 * 60 * 25)
+        try:
+            value = await self.redis.incr(key)
+            if value == 1:
+                # Give an hour extra before expiring, in case someone wants to take a look manually
+                await self.redis.expire(key, 60 * 60 * 25)
 
-        if value <= self.limit:
-            return True
-        else:
-            logger.warning("Reached daily limit of %s with %s total attempts", self.limit, value)
-            return False
+            if value > self.limit:
+                logger.warning("Reached daily limit of %s with %s total attempts", self.limit, value)
+                return False
+
+        # We don't want to be DOS ourselves if redis goes down
+        except OSError:
+            logger.exception('Redis connection down')
+        except aioredis.errors.ReplyError:
+            logger.exception('Redis out of memory')
+        except aioredis.errors.ConnectionForcedCloseError:
+            logger.exception('Redis connection closed')
+
+        return True
