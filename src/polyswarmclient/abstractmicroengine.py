@@ -229,7 +229,7 @@ class AbstractMicroengine(object):
         expiration = int(expiration)
         duration = expiration - block_number
 
-        self.client.liveliness_recorder.add_waiting_task(guid, block_number)
+        await self.client.liveness_recorder.add_waiting_task(guid, block_number)
         results = await self.fetch_and_scan_all(guid, artifact_type, uri, duration, metadata, chain)
         mask = [r.bit for r in results]
         verdicts = [r.verdict for r in results]
@@ -244,7 +244,7 @@ class AbstractMicroengine(object):
             logger.exception('Error decoding assertion metadata %s', metadatas)
 
         if not any(mask):
-            self.client.liveliness_recorder.remove_waiting_task(guid)
+            await self.client.liveness_recorder.remove_waiting_task(guid)
             return []
 
         assertion_fee = await self.client.bounties.parameters[chain].get('assertion_fee')
@@ -263,12 +263,12 @@ class AbstractMicroengine(object):
             if self.testing > 0:
                 exit(1)
 
-            self.client.liveliness_recorder.remove_waiting_task(guid)
+            await self.client.liveness_recorder.remove_waiting_task(guid)
             return []
 
         logger.info('Responding to %s bounty %s', artifact_type.name.lower(), guid)
         nonce, assertions = await self.client.bounties.post_assertion(guid, bid, mask, verdicts, chain)
-        self.client.liveliness_recorder.remove_waiting_task(guid)
+        await self.client.liveness_recorder.remove_waiting_task(guid)
         for a in assertions:
             # Post metadata to IPFS and post ipfs_hash as metadata, if it exists
             ipfs_hash = await self.client.bounties.post_metadata(combined_metadata, chain)

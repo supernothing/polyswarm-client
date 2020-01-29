@@ -185,7 +185,7 @@ class AbstractAmbassador(ABC):
                     logger.info('Got None for bounty value, moving on to next block')
                     break
 
-                self.client.liveliness_recorder.add_waiting_task(bounty.ipfs_uri, self.last_block)
+                await self.client.liveness_recorder.add_waiting_task(bounty.ipfs_uri, self.last_block)
                 bounties_this_block += 1
                 await self.bounty_semaphores[chain].acquire()
 
@@ -232,7 +232,7 @@ class AbstractAmbassador(ABC):
             bounties = await self.client.bounties.post_bounty(bounty.artifact_type, bounty.amount, bounty.ipfs_uri,
                                                               bounty.duration, chain, api_key=bounty.api_key,
                                                               metadata=metadata)
-            self.client.liveliness_recorder.remove_waiting_task(bounty.ipfs_uri)
+            await self.client.liveness_recorder.remove_waiting_task(bounty.ipfs_uri)
             if not bounties:
                 await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration,
                                                  chain, metadata=bounty.metadata)
@@ -268,7 +268,7 @@ class AbstractAmbassador(ABC):
         logger.warning('Failed %s attempts to post bounty due to low balance. Skipping', tries, extra={'extra': bounty})
         await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration, chain,
                                          metadata=bounty.metadata)
-        self.client.liveliness_recorder.remove_waiting_task(bounty.ipfs_uri)
+        await self.client.liveness_recorder.remove_waiting_task(bounty.ipfs_uri)
 
     async def on_before_bounty_posted(self, artifact_type, amount, ipfs_uri, duration, chain, metadata=None):
         """Override this to implement additional steps before the bounty is posted

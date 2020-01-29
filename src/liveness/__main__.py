@@ -1,9 +1,10 @@
 import click
 import logging
 import sys
+import warnings
 
 from polyswarmclient.config import init_logging
-from polyswarmclient.liveliness import LivelinessChecker
+from polyswarmclient.liveness.local import LocalLivenessCheck
 
 
 @click.command()
@@ -16,15 +17,18 @@ from polyswarmclient.liveliness import LivelinessChecker
 @click.option('--average-bounty-wait-threshold', default=15,
               help='Maximum average time in blocks that bounties have been waiting before failing check')
 def main(log, log_format, loop_update_threshold, average_bounty_wait_threshold):
+    if 'liveliness' in sys.argv[0]:
+        warnings.simplefilter('module', category=DeprecationWarning)
+        warnings.warn('liveliness is deprecated, use liveness', DeprecationWarning)
+
     loglevel = getattr(logging, log.upper(), None)
     if not isinstance(loglevel, int):
         logging.error('invalid log level')
         sys.exit(-1)
 
-    init_logging(['liveliness'], log_format, loglevel)
-
-    liveliness_check = LivelinessChecker(loop_update_threshold, average_bounty_wait_threshold)
-    sys.exit(0 if liveliness_check.check() else -1)
+    init_logging(['liveness'], log_format, loglevel)
+    liveness_check = LocalLivenessCheck(loop_update_threshold, average_bounty_wait_threshold)
+    sys.exit(0 if liveness_check.check() else -1)
 
 
 if __name__ == '__main__':

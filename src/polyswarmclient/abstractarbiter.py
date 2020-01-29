@@ -26,7 +26,7 @@ class AbstractArbiter(object):
         self.client.on_run.register(self.__handle_run)
         self.client.on_new_bounty.register(self.__handle_new_bounty)
         self.client.on_deprecated.register(self.__handle_deprecated)
-        self.client.on_vote_on_bounty_due.register(self.__handle_vote_on_bounty)
+        self.client.on_vote_on_bounty_due.register(self.__handle_vote_on_bounty_due)
         self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
         self.client.on_withdraw_stake_due.register(self.__handle_withdraw_stake_due)
 
@@ -76,14 +76,14 @@ class AbstractArbiter(object):
 
         raise NotImplementedError('You must subclass this class and override this method.')
 
-    async def fetch_and_scan_all(self, guid, artifact_type, uri, vote_round_end, metadata, chain):
+    async def fetch_and_scan_all(self, guid, artifact_type, uri, duration, metadata, chain):
         """Fetch and scan all artifacts concurrently
 
         Args:
             guid (str): GUID of the associated bounty
             artifact_type (ArtifactType): Artifact type for the associated bounty
             uri (str):  Base artifact URI
-            vote_round_end (int): Max number of blocks to take
+            duration (int): Max number of blocks to take
             metadata (list[dict]) List of metadata json blobs for artifacts
             chain (str): Chain we are operating on
 
@@ -216,15 +216,16 @@ class AbstractArbiter(object):
 
         vote_start = expiration + assertion_reveal_window
         settle_start = expiration + assertion_reveal_window + arbiter_vote_window
+        duration = settle_start - block_number
 
-        self.client.liveliness_recorder.add_waiting_task(guid, block_number)
-        results = await self.fetch_and_scan_all(guid, artifact_type, uri, settle_start, metadata, chain)
+        await self.client.liveness_recorder.add_waiting_task(guid, block_number)
+        results = await self.fetch_and_scan_all(guid, artifact_type, uri, duration, metadata, chain)
         votes = [result.verdict for result in results]
 
         bounty = await self.client.bounties.get_bounty(guid, chain)
         if bounty is None:
             logger.error('Unable to get retrieve new bounty')
-            self.client.liveliness_recorder.remove_waiting_task(guid)
+            await self.client.liveness_recorder.remove_waiting_task(guid)
             return []
 
         bloom_parts = await self.client.bounties.get_bloom(guid, chain)
@@ -243,7 +244,7 @@ class AbstractArbiter(object):
 
         return []
 
-    async def __handle_vote_on_bounty(self, bounty_guid, votes, valid_bloom, chain):
+    async def __handle_vote_on_bounty_due(self, bounty_guid, votes, valid_bloom, chain):
         """
         Submit votes on a given bounty GUID to a given chain.
 
@@ -262,7 +263,7 @@ class AbstractArbiter(object):
                 return []
             logger.info('Testing mode, %s votes remaining', self.testing - self.votes_posted)
         response = await self.client.bounties.post_vote(bounty_guid, votes, valid_bloom, chain)
-        self.client.liveliness_recorder.remove_waiting_task(bounty_guid)
+        await self.client.liveness_recorder.remove_waiting_task(bounty_guid)
         return response
 
     async def __handle_settle_bounty(self, bounty_guid, chain):

@@ -25,6 +25,7 @@ setup(
         'aiorwlock==0.6.0',
         'base58==0.2.5',
         'click==6.7',
+        'dataclasses==0.7; python_version == "3.6"',
         'polyswarm-artifact>=1.3.1',
         'python-json-logger==0.1.9',
         'python-magic-bin==0.4.14;platform_system=="Windows"',
@@ -40,7 +41,8 @@ setup(
         'console_scripts': [
             'ambassador=ambassador.__main__:main',
             'arbiter=arbiter.__main__:main',
-            'liveliness=liveliness.__main__:main',
+            'liveliness=liveness.__main__:main',
+            'liveness=liveness.__main__:main',
             'microengine=microengine.__main__:main',
             'verbatimdbgen=arbiter.verbatimdb.__main__:main',
             'balancemanager=balancemanager.__main__:cli',

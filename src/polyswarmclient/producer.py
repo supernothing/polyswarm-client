@@ -30,30 +30,29 @@ class Producer:
             await self.rate_limit.setup()
         self.redis = await aioredis.create_redis_pool(self.redis_uri)
 
-    async def scan(self, guid, artifact_type, uri, expiration_blocks, metadata, chain):
+    async def scan(self, guid, artifact_type, uri, duration, metadata, chain):
         """Creates a set of jobs to scan all the artifacts at the given URI that are passed via Redis to workers
 
             Args:
                 guid (str): GUID of the associated bounty
                 artifact_type (ArtifactType): Artifact type for the bounty being scanned
                 uri (str):  Base artifact URI
-                expiration_blocks (int): Blocks until vote round ends
+                duration (int): number of blocks until scan is due
                 metadata (list[dict]) List of metadata json blobs for artifacts
                 chain (str): Chain we are operating on
 
             Returns:
                 list(ScanResult): List of ScanResult objects
             """
-        # Ensure we don't wait past the vote round duration for one long artifact
-        timeout = expiration_blocks - self.time_to_post
-        logger.info(f' timeout set to {timeout}')
+        # Ensure we don't wait past the scan duration for one large artifact
+        timeout = duration - self.time_to_post
+        logger.info(f'Timeout set to {timeout}')
 
         async def wait_for_result(result_key):
             try:
                 with await self.redis as redis:
                     while True:
                         result = await redis.lpop(result_key)
-
                         if result:
                             break
 
@@ -107,9 +106,9 @@ class Producer:
                 results = await asyncio.gather(*[asyncio.wait_for(wait_for_result(key), timeout=timeout) for _ in jobs],
                                                return_exceptions=True)
                 # In the event of filter or rate limit, the index (r[0]) will not have a value in the dict
-                results = {r[0]: r[1] for r in results if r is not None and not isinstance(r, asyncio.TimeoutError)}
+                results = {r[0]: r[1] for r in results if r is not None and not isinstance(r, Exception)}
                 if len(results.keys()) < num_artifacts:
-                    logger.error('Timeout handling guid %s', guid)
+                    logger.error('Exception handling guid %s', guid)
 
                 # Age off old result keys
                 await self.redis.expire(key, KEY_TIMEOUT)

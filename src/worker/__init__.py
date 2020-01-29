@@ -10,7 +10,7 @@ import sys
 import time
 
 from polyswarmartifact import ArtifactType, DecodeError
-from polyswarmclient import LivelinessRecorder
+from polyswarmclient.liveness.local import LocalLivenessRecorder
 from polyswarmclient.exceptions import ApiKeyException, ExpiredException
 from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.utils import asyncio_join, asyncio_stop, exit, MAX_WAIT
@@ -35,8 +35,8 @@ class Worker(object):
         self.scan_lock = None
         self.tries = 0
         self.finished = False
-        # Setup a liveliness instance
-        self.liveliness_recorder = LivelinessRecorder()
+        # Setup a liveness instance
+        self.liveness_recorder = LocalLivenessRecorder()
 
     def handle_signal(self):
         logger.critical(f'Received SIGTERM. Gracefully shutting down.')
@@ -62,7 +62,7 @@ class Worker(object):
             try:
                 loop = asyncio.get_event_loop()
                 loop.run_until_complete(self.setup())
-                loop.create_task(Worker.start_liveliness_recorder(self.liveliness_recorder))
+                loop.create_task(Worker.start_liveness_recorder(self.liveness_recorder))
                 gather_task = asyncio.gather(*[self.run_task(i) for i in range(self.task_count)])
                 loop.run_until_complete(gather_task)
             except asyncio.CancelledError:
@@ -83,17 +83,17 @@ class Worker(object):
                 continue
 
     @staticmethod
-    async def start_liveliness_recorder(liveliness_recorder):
+    async def start_liveness_recorder(liveness_recorder):
         while True:
-            await liveliness_recorder.advance_loop()
+            await liveness_recorder.advance_loop()
             # Worker
-            await liveliness_recorder.advance_time(round(time.time()))
+            await liveness_recorder.advance_time(round(time.time()))
             await asyncio.sleep(1)
 
     async def setup(self):
         self.scan_lock = asyncio.Semaphore(value=self.scan_limit)
         self.download_lock = asyncio.Semaphore(value=self.download_limit)
-        await self.liveliness_recorder.setup()
+        await self.liveness_recorder.setup()
         if not await self.scanner.setup():
             logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
             exit(1)
@@ -127,13 +127,12 @@ class Worker(object):
 
                     guid = job['guid']
                     uri = job['uri']
-                    self.liveliness_recorder.add_waiting_task(guid, round(time.time()))
-
                     polyswarmd_uri = job['polyswarmd_uri']
 
                     if self.api_key and not polyswarmd_uri.startswith('https://'):
                         raise ApiKeyException()
 
+                    # ID needs to be a mix of the index & guid
                     index = job['index']
                     chain = job['chain']
                     metadata = job.get('metadata', None)
@@ -145,29 +144,32 @@ class Worker(object):
                     if timestamp + duration <= math.floor(time.time()):
                         raise ExpiredException()
 
+                    job_key = f'{guid}:{index}'
+                    await self.liveness_recorder.add_waiting_task(job_key, round(time.time()))
+
                 except OSError:
                     logger.exception('Redis connection down')
-                    self.liveliness_recorder.remove_waiting_task(guid)
+                    await self.liveness_recorder.remove_waiting_task(job_key)
                     continue
                 except aioredis.errors.ReplyError:
                     logger.exception('Redis out of memory')
-                    self.liveliness_recorder.remove_waiting_task(guid)
+                    await self.liveness_recorder.remove_waiting_task(job_key)
                     continue
                 except KeyError as e:
                     logger.exception(f'Bad message format on task {task_index}: {e}')
-                    self.liveliness_recorder.remove_waiting_task(guid)
+                    await self.liveness_recorder.remove_waiting_task(job_key)
                     continue
                 except ExpiredException:
                     logger.exception(f'Received expired job {guid} index {index}')
-                    self.liveliness_recorder.remove_waiting_task(guid)
+                    await self.liveness_recorder.remove_waiting_task(job_key)
                     continue
                 except ApiKeyException:
                     logger.exception('Refusing to send API key over insecure transport')
-                    self.liveliness_recorder.remove_waiting_task(guid)
+                    await self.liveness_recorder.remove_waiting_task(job_key)
                     continue
                 except (AttributeError, TypeError, ValueError):
                     logger.exception('Invalid job received, ignoring')
-                    self.liveliness_recorder.remove_waiting_task(guid)
+                    await self.liveness_recorder.remove_waiting_task(job_key)
                     continue
 
                 remaining_time = int(timestamp + duration - time.time())
@@ -185,7 +187,7 @@ class Worker(object):
                 except asyncio.TimeoutError:
                     logger.exception(f'Timeout processing artifact {uri} on task {task_index}')
 
-                self.liveliness_recorder.remove_waiting_task(guid)
+                await self.liveness_recorder.remove_waiting_task(job_key)
 
                 j = json.dumps({
                     'index': index,

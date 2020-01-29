@@ -8,6 +8,7 @@ base58==0.2.5
 git+https://github.com/polyswarm/python-clamd.git@async#egg=clamd
 click==6.7
 coverage==4.5.1
+dataclasses==0.7; python_version == '3.6'
 jsonschema==3.0.2
 hypothesis==3.82.1
 tox==3.4.0
