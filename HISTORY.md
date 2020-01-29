@@ -1,5 +1,14 @@
 # Release History
 
+### 2.7.2 (2020-1-29)
+
+* **Fix** - Fix liveness crash when removing a task that is not waiting
+* **Fix** - Catch `ConnectionForcedCloseError` when redis is closed
+
+#### Deprecation
+
+1. The command `liveliness` has been deprecated in favor of `liveness`
+
 ### 2.7.1 (2020-1-17)
 
 * **Fix** - Simplify Liveliness `__hash__()` definition
