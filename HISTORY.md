@@ -1,5 +1,9 @@
 # Release History
 
+### 2.7.3 (2020-1-30)
+
+* **Fix** - Check that job is correct before adding to liveness waiting task in worker
+
 ### 2.7.2 (2020-1-29)
 
 * **Fix** - Fix liveness crash when removing a task that is not waiting
