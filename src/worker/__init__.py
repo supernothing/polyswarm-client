@@ -144,33 +144,27 @@ class Worker(object):
                     if timestamp + duration <= math.floor(time.time()):
                         raise ExpiredException()
 
-                    job_key = f'{guid}:{index}'
-                    await self.liveness_recorder.add_waiting_task(job_key, round(time.time()))
-
                 except OSError:
                     logger.exception('Redis connection down')
-                    await self.liveness_recorder.remove_waiting_task(job_key)
                     continue
                 except aioredis.errors.ReplyError:
                     logger.exception('Redis out of memory')
-                    await self.liveness_recorder.remove_waiting_task(job_key)
                     continue
                 except KeyError as e:
                     logger.exception(f'Bad message format on task {task_index}: {e}')
-                    await self.liveness_recorder.remove_waiting_task(job_key)
                     continue
                 except ExpiredException:
                     logger.exception(f'Received expired job {guid} index {index}')
-                    await self.liveness_recorder.remove_waiting_task(job_key)
                     continue
                 except ApiKeyException:
                     logger.exception('Refusing to send API key over insecure transport')
-                    await self.liveness_recorder.remove_waiting_task(job_key)
                     continue
                 except (AttributeError, TypeError, ValueError):
                     logger.exception('Invalid job received, ignoring')
-                    await self.liveness_recorder.remove_waiting_task(job_key)
                     continue
+
+                job_key = f'{guid}:{index}'
+                await self.liveness_recorder.add_waiting_task(job_key, round(time.time()))
 
                 remaining_time = int(timestamp + duration - time.time())
                 # Setup default response as ScanResult, in case we exceeded uses
