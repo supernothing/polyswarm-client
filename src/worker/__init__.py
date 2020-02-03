@@ -162,11 +162,13 @@ class Worker:
     async def process_job(self, job: JobRequest, session: ClientSession):
         await self.liveness_recorder.add_waiting_task(job.key, round(time.time()))
         # Setup default response as ScanResult, in case we exceeded uses
+        remaining_time = 0
         try:
             remaining_time = self.get_remaining_time(job)
             content = await self.download(job, session)
             scan_result = await asyncio.wait_for(self.scan(job, content), timeout=remaining_time)
-            response = JobResponse(job.index, scan_result.bit, scan_result.verdict, scan_result.confidence, scan_result.metadata)
+            response = JobResponse(job.index, scan_result.bit, scan_result.verdict, scan_result.confidence,
+                                   scan_result.metadata)
             await self.respond(job, response)
             self.tries = 0
         except OSError:
@@ -182,7 +184,8 @@ class Worker:
         except ApiKeyException:
             logger.exception('Refusing to send API key over insecure transport')
         except asyncio.TimeoutError:
-            logger.exception(f'Timeout processing artifact', extra={'extra': job.asdict()})
+            logger.exception(f'Timeout processing artifact after %s seconds', remaining_time,
+                             extra={'extra': job.asdict()})
         except asyncio.CancelledError:
             logger.exception(f'Worker shutdown while processing job', extra={'extra': job.asdict()})
         finally:
