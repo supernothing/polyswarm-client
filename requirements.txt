@@ -4,6 +4,7 @@ aioredis==1.2.0
 aioresponses==0.6.0
 aiorwlock==0.6.0
 asynctest==0.12.2
+backoff==1.10.0
 base58==0.2.5
 git+https://github.com/polyswarm/python-clamd.git@async#egg=clamd
 click==6.7

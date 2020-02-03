@@ -1,8 +1,8 @@
 import click
 import importlib.util
 import logging
-import multiprocessing
 import sys
+import warnings
 
 from worker import Worker
 from polyswarmclient.config import init_logging, validate_apikey
@@ -60,11 +60,11 @@ def choose_backend(backend):
               help='API key to use with polyswarmd')
 @click.option('--backend', envvar='BACKEND', required=True,
               help='Backend to use')
-@click.option('--tasks', envvar='TASKS', default=multiprocessing.cpu_count(),
-              help='Number of simultaneous worker tasks. (A task is read redis, download file, and then scan)')
-@click.option('--download-limit', envvar='DOWNLOAD_LIMIT', default=multiprocessing.cpu_count(),
+@click.option('--tasks', envvar='TASKS', default=0,
+              help='Deprecated')
+@click.option('--download-limit', envvar='DOWNLOAD_LIMIT', default=0,
               help='Limit number of simultaneous file downloads')
-@click.option('--scan-limit', envvar='SCAN_LIMIT', default=1,
+@click.option('--scan-limit', envvar='SCAN_LIMIT', default=0,
               help='Limit number of simultaneous scans')
 @click.option('--testing', default=0,
               help='Activate testing mode for integration testing, respond to N bounties and N offers then exit')
@@ -73,6 +73,10 @@ def choose_backend(backend):
 def main(log, client_log, redis_addr, queue, backend, tasks, download_limit, scan_limit, api_key, testing, log_format):
     """Entrypoint for the worker driver
     """
+    if tasks != 0:
+        warnings.warn('Use of --tasks or TASKS is deprecated', DeprecationWarning)
+
+    tasks = 0 if download_limit == 0 or scan_limit == 0 else max(download_limit, scan_limit)
     loglevel = getattr(logging, log.upper(), None)
     clientlevel = getattr(logging, client_log.upper(), None)
     if not isinstance(loglevel, int) or not isinstance(clientlevel, int):
@@ -85,8 +89,7 @@ def main(log, client_log, redis_addr, queue, backend, tasks, download_limit, sca
     init_logging(['worker', 'microengine', logger_name], log_format, loglevel)
     init_logging(['polyswarmclient'], log_format, clientlevel)
 
-    logger.info('Running worker with %s tasks', tasks)
-
+    logger.info('Running worker with %s tasks', tasks if tasks > 0 else 'unlimited')
     worker = Worker(redis_addr, queue, tasks, download_limit, scan_limit, api_key, testing, scanner)
     worker.run()
 

@@ -46,6 +46,16 @@ class LivenessRecorder(ABC):
         self.waiting_lock = None
         self.record_lock = None
 
+    async def start(self):
+        loop = asyncio.get_event_loop()
+        await self.setup()
+        loop.create_task(self.run_liveness_loop())
+
+    async def run_liveness_loop(self):
+        while True:
+            await self.advance_loop()
+            await asyncio.sleep(1)
+
     async def setup(self):
         self.waiting_lock = asyncio.Lock()
         self.record_lock = asyncio.Lock()
@@ -70,10 +80,8 @@ class LivenessRecorder(ABC):
     async def remove_waiting_task(self, key):
         """Mark a task as done processing"""
         async with self.waiting_lock:
-            try:
+            if key in self.waiting:
                 del self.waiting[key]
-            except KeyError:
-                logger.exception('%s not found in waiting tasks', key)
 
     async def advance_time(self, current_time):
         """ Trigger an update to the average, based on the current time.

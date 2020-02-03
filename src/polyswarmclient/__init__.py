@@ -147,11 +147,8 @@ class Client(object):
         # We can now create our locks, because we are assured that the event loop is set
         self.nonce_managers = {chain: NonceManager(self, chain) for chain in chains}
         self.__schedules = {chain: events.Schedule() for chain in chains}
-
+        await self.liveness_recorder.start()
         try:
-
-            await self.liveness_recorder.setup()
-            asyncio.get_event_loop().create_task(Client.start_liveness_loop(self.liveness_recorder))
             # XXX: Set the timeouts here to reasonable values, probably should be configurable
             # No limits on connections
             conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
@@ -382,12 +379,6 @@ class Client(object):
                 logger.error('Connection to polyswarmd timed out')
 
         return None
-
-    @staticmethod
-    async def start_liveness_loop(liveness_recorder):
-        while True:
-            await liveness_recorder.advance_loop()
-            await asyncio.sleep(1)
 
     @staticmethod
     def to_wei(amount, unit='ether'):

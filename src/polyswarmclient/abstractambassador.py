@@ -8,11 +8,11 @@ from abc import ABC, abstractmethod
 
 from polyswarmclient import Client
 from polyswarmclient.events import SettleBounty
+from polyswarmclient.exceptions import LowBalanceError
 from polyswarmclient.utils import asyncio_stop, exit
 
 logger = logging.getLogger(__name__)  # Initialize logger
 
-MAX_TRIES = int(os.environ.get('MAX_TRIES', 10))
 BOUNTY_QUEUE_SIZE = int(os.environ.get('BOUNTY_QUEUE_SIZE', 10))
 MAX_BOUNTIES_IN_FLIGHT = int(os.environ.get('MAX_BOUNTIES_IN_FLIGHT', 10))
 MAX_BOUNTIES_PER_BLOCK = int(os.environ.get('MAX_BOUNTIES_PER_BLOCK', 1))
@@ -185,10 +185,9 @@ class AbstractAmbassador(ABC):
                     logger.info('Got None for bounty value, moving on to next block')
                     break
 
-                await self.client.liveness_recorder.add_waiting_task(bounty.ipfs_uri, self.last_block)
                 bounties_this_block += 1
                 await self.bounty_semaphores[chain].acquire()
-
+                await self.client.liveness_recorder.add_waiting_task(bounty.ipfs_uri, self.last_block)
                 asyncio.get_event_loop().create_task(self.submit_bounty(bounty, chain))
 
     async def submit_bounty(self, bounty, chain):
@@ -198,77 +197,60 @@ class AbstractAmbassador(ABC):
             bounty (QueuedBounty): Bounty to submit
             chain: Name of the chain to post to
         """
-        assertion_reveal_window = await self.client.bounties.parameters[chain].get('assertion_reveal_window')
-        arbiter_vote_window = await self.client.bounties.parameters[chain].get('arbiter_vote_window')
         bounty_fee = await self.client.bounties.parameters[chain].get('bounty_fee')
-
-        tries = 0
-        while tries < MAX_TRIES:
-            balance = await self.client.balances.get_nct_balance(chain)
-
-            # If we don't have the balance, don't submit. Wait and try a few times, then skip
-            if balance < bounty.amount + bounty_fee:
-                # Skip to next bounty, so one ultra high value bounty doesn't DOS ambassador
-                if self.client.tx_error_fatal and tries >= MAX_TRIES:
-                    logger.error('Failed %s attempts to post bounty due to low balance. Exiting', tries)
-                    exit(1)
-                    return
-                else:
-                    tries += 1
-                    logger.critical('Insufficient balance to post bounty on %s. Have %s NCT. '
-                                    'Need %s NCT.', chain, balance,
-                                    bounty.amount + bounty_fee,
-                                    extra={'extra': bounty})
-                    await asyncio.sleep(tries * tries)
-                    continue
-
-            metadata = None
-            if bounty.metadata is not None:
-                ipfs_hash = await self.client.bounties.post_metadata(bounty.metadata, chain)
-                metadata = ipfs_hash if ipfs_hash is not None else None
-
-            await self.on_before_bounty_posted(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration,
-                                               chain)
-            bounties = await self.client.bounties.post_bounty(bounty.artifact_type, bounty.amount, bounty.ipfs_uri,
-                                                              bounty.duration, chain, api_key=bounty.api_key,
-                                                              metadata=metadata)
+        try:
+            await self.client.balances.raise_low_balance(bounty.amount + bounty_fee, chain)
+        except LowBalanceError:
             await self.client.liveness_recorder.remove_waiting_task(bounty.ipfs_uri)
-            if not bounties:
-                await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration,
-                                                 chain, metadata=bounty.metadata)
-            else:
-                async with self.bounties_posted_locks[chain]:
-                    bounties_posted = self.bounties_posted.get(chain, 0)
-                    logger.info('Submitted bounty %s', bounties_posted, extra={'extra': bounty})
-                    self.bounties_posted[chain] = bounties_posted + len(bounties)
-
-                async with self.bounties_pending_locks[chain]:
-                    bounties_pending = self.bounties_pending.get(chain, set())
-                    self.bounties_pending[chain] = bounties_pending | {b.get('guid') for b in bounties if 'guid' in b}
-
-            for b in bounties:
-                guid = b.get('guid')
-                expiration = int(b.get('expiration', 0))
-
-                if guid is None or expiration == 0:
-                    logger.error('Processing invalid bounty, not scheduling settle')
-                    continue
-
-                # Handle any additional steps in derived implementations
-                await self.on_after_bounty_posted(guid, bounty.artifact_type, bounty.amount, bounty.ipfs_uri,
-                                                  expiration, chain, metadata=bounty.metadata)
-
-                sb = SettleBounty(guid)
-                self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
-
+            await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration,
+                                             chain, metadata=bounty.metadata)
             self.bounty_queues[chain].task_done()
             self.bounty_semaphores[chain].release()
-            return
+            if self.client.tx_error_fatal:
+                logger.error('Failed to post bounty due to low balance. Exiting')
+                exit(1)
 
-        logger.warning('Failed %s attempts to post bounty due to low balance. Skipping', tries, extra={'extra': bounty})
-        await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration, chain,
-                                         metadata=bounty.metadata)
+        assertion_reveal_window = await self.client.bounties.parameters[chain].get('assertion_reveal_window')
+        arbiter_vote_window = await self.client.bounties.parameters[chain].get('arbiter_vote_window')
+        metadata = None
+        if bounty.metadata is not None:
+            metadata = await self.client.bounties.post_metadata(bounty.metadata, chain)
+
+        await self.on_before_bounty_posted(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration, chain)
+        bounties = await self.client.bounties.post_bounty(bounty.artifact_type, bounty.amount, bounty.ipfs_uri,
+                                                          bounty.duration, chain, api_key=bounty.api_key,
+                                                          metadata=metadata)
         await self.client.liveness_recorder.remove_waiting_task(bounty.ipfs_uri)
+        if not bounties:
+            await self.on_bounty_post_failed(bounty.artifact_type, bounty.amount, bounty.ipfs_uri, bounty.duration,
+                                             chain, metadata=bounty.metadata)
+        else:
+            async with self.bounties_posted_locks[chain]:
+                bounties_posted = self.bounties_posted.get(chain, 0)
+                logger.info('Submitted bounty %s', bounties_posted, extra={'extra': bounty})
+                self.bounties_posted[chain] = bounties_posted + len(bounties)
+
+            async with self.bounties_pending_locks[chain]:
+                bounties_pending = self.bounties_pending.get(chain, set())
+                self.bounties_pending[chain] = bounties_pending | {b.get('guid') for b in bounties if 'guid' in b}
+
+        for b in bounties:
+            guid = b.get('guid')
+            expiration = int(b.get('expiration', 0))
+
+            if guid is None or expiration == 0:
+                logger.error('Processing invalid bounty, not scheduling settle')
+                continue
+
+            # Handle any additional steps in derived implementations
+            await self.on_after_bounty_posted(guid, bounty.artifact_type, bounty.amount, bounty.ipfs_uri,
+                                              expiration, chain, metadata=bounty.metadata)
+
+            sb = SettleBounty(guid)
+            self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
+
+        self.bounty_queues[chain].task_done()
+        self.bounty_semaphores[chain].release()
 
     async def on_before_bounty_posted(self, artifact_type, amount, ipfs_uri, duration, chain, metadata=None):
         """Override this to implement additional steps before the bounty is posted

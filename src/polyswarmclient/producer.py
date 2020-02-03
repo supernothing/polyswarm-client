@@ -1,9 +1,13 @@
 import aioredis
 import asyncio
+import dataclasses
 import json
 import logging
 import time
 
+from typing import Optional, Any, Dict
+
+from polyswarmartifact import ArtifactType
 from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.filters.filter import MetadataFilter
 
@@ -11,6 +15,41 @@ logger = logging.getLogger(__name__)
 
 WAIT_TIME = 20
 KEY_TIMEOUT = WAIT_TIME + 10
+
+
+@dataclasses.dataclass
+class JobRequest:
+    polyswarmd_uri: str
+    guid: str
+    index: int
+    uri: str
+    artifact_type: int
+    duration: int
+    metadata: Optional[Dict[str, Any]]
+    chain: str
+    ts: int
+
+    @property
+    def key(self):
+        return f'{self.guid}:{self.index}'
+
+    def get_artifact_type(self) -> ArtifactType:
+        return ArtifactType(self.artifact_type)
+
+    def asdict(self):
+        return dataclasses.asdict(self)
+
+
+@dataclasses.dataclass
+class JobResponse:
+    index: int
+    bit: bool
+    verdict: bool
+    confidence: float
+    metadata: str
+
+    def asdict(self):
+        return dataclasses.asdict(self)
 
 
 class Producer:
@@ -58,16 +97,16 @@ class Producer:
 
                         await asyncio.sleep(1)
 
-                    j = json.loads(result.decode('utf-8'))
+                    response = JobResponse(**json.loads(result.decode('utf-8')))
 
                     # increase perf counter for autoscaling
                     q_counter = f'{self.queue}_scan_result_counter'
                     await redis.incr(q_counter)
-                    confidence = j['confidence'] if not self.confidence_modifier \
-                        else self.confidence_modifier.modify(metadata[j['index']], j['confidence'])
+                    confidence = response.confidence if not self.confidence_modifier \
+                        else self.confidence_modifier.modify(metadata[response.index], response.confidence)
 
-                    return j['index'], ScanResult(bit=j['bit'], verdict=j['verdict'], confidence=confidence,
-                                                  metadata=j['metadata'])
+                    return response.index, ScanResult(bit=response.bit, verdict=response.verdict, confidence=confidence,
+                                                      metadata=response.metadata)
             except aioredis.errors.ReplyError:
                 logger.exception('Redis out of memory')
             except aioredis.errors.ConnectionForcedCloseError:
@@ -86,17 +125,16 @@ class Producer:
         for i in range(num_artifacts):
             if (self.bounty_filter is None or self.bounty_filter.is_allowed(metadata[i])) \
              and (self.rate_limit is None or await self.rate_limit.use()):
-                jobs.append(json.dumps({
-                    'ts': time.time() // 1,
-                    'guid': guid,
-                    'artifact_type': artifact_type.value,
-                    'uri': uri,
-                    'index': i,
-                    'chain': chain,
-                    'duration': timeout,
-                    'polyswarmd_uri': self.client.polyswarmd_uri,
-                    'metadata': metadata[i]}
-                ))
+                job = JobRequest(polyswarmd_uri=self.client.polyswarmd_uri,
+                                 guid=guid,
+                                 index=i,
+                                 uri=uri,
+                                 artifact_type=artifact_type.value,
+                                 duration=duration,
+                                 metadata=metadata[i],
+                                 chain=chain,
+                                 ts=int(time.time()))
+                jobs.append(json.dumps(job.asdict()))
 
         if jobs:
             try:

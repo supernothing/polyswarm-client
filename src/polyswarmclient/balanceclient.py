@@ -1,11 +1,26 @@
 import logging
+import os
+
+import backoff
+
+from polyswarmclient.exceptions import LowBalanceError
 
 logger = logging.getLogger(__name__)  # Initialize logger
+MAX_TRIES = int(os.environ.get('MAX_TRIES', 10))
 
 
 class BalanceClient(object):
     def __init__(self, client):
         self.__client = client
+
+    @backoff.on_exception(backoff.expo, LowBalanceError, max_tries=MAX_TRIES)
+    async def raise_low_balance(self, request_nct, chain):
+        balance = await self.get_nct_balance(chain)
+        # If we don't have the balance, don't submit. Wait and try a few times, then skip
+        if balance < request_nct:
+            logger.critical('Insufficient balance to send transaction on %s. Have %s NCT. Need %s NCT.', chain, balance,
+                            request_nct)
+            raise LowBalanceError
 
     async def get_nct_balance(self, chain, api_key=None):
         """Get nectar balance from polyswarmd
