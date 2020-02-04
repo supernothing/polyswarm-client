@@ -13,10 +13,11 @@ from typing import AsyncGenerator
 
 from polyswarmartifact import DecodeError
 from polyswarmclient.liveness.local import LocalLivenessRecorder
-from polyswarmclient.exceptions import ApiKeyException, ExpiredException
+from polyswarmclient.exceptions import ApiKeyException
 from polyswarmclient.abstractscanner import ScanResult
 from polyswarmclient.producer import JobResponse, JobRequest
 from polyswarmclient.utils import asyncio_join, asyncio_stop, exit, MAX_WAIT, configure_event_loop
+from worker.exceptions import EmptyJobsQueueException, ExpiredException
 
 logger = logging.getLogger(__name__)
 
@@ -144,8 +145,11 @@ class Worker:
                 # Lock sets up our task limit, the lock is released
                 try:
                     await self.job_semaphore.acquire()
-                    # Intentionally using without a timeout since there is just a single task listening to the queue
-                    _, job = await redis.blpop(self.queue)
+                    job = await redis.blpop(self.queue, timeout=1)
+                    if not job:
+                        raise EmptyJobsQueueException
+
+                    _, job = job
                     job = json.loads(job.decode('utf-8'))
                     logger.info(f'Received job', extra={'extra': job})
                     yield JobRequest(**job)
@@ -158,12 +162,13 @@ class Worker:
                 except (TypeError, KeyError):
                     logger.exception('Invalid job received, ignoring')
                     self.job_semaphore.release()
+                except EmptyJobsQueueException:
+                    self.job_semaphore.release()
 
     async def process_job(self, job: JobRequest, session: ClientSession):
-        await self.liveness_recorder.add_waiting_task(job.key, round(time.time()))
-        # Setup default response as ScanResult, in case we exceeded uses
         remaining_time = 0
         try:
+            await self.liveness_recorder.add_waiting_task(job.key, round(time.time()))
             remaining_time = self.get_remaining_time(job)
             content = await self.download(job, session)
             scan_result = await asyncio.wait_for(self.scan(job, content), timeout=remaining_time)
