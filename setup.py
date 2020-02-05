@@ -19,7 +19,7 @@ setup(
     python_requires='>=3.6.5,<4',
     install_requires=[
         'aiodns==1.2.0',
-        'aiohttp==3.5.4',
+        'aiohttp==3.6.2',
         'aioredis==1.2.0',
         'aioresponses==0.6.0',
         'aiorwlock==0.6.0',
