@@ -8,6 +8,7 @@ import platform
 import signal
 import time
 
+import backoff
 from aiohttp import ClientSession
 from typing import AsyncGenerator
 
@@ -141,9 +142,10 @@ class Worker:
                 with await self.redis as redis:
                     loop.create_task(self.process_job(job, session, redis))
 
+    @backoff.on_exception(backoff.constant(1), (OSError, aioredis.errors.ReplyError))
     async def get_jobs(self) -> AsyncGenerator[JobRequest, None]:
-        while not self.finished:
-            with await self.redis as redis:
+        with await self.redis as redis:
+            while not self.finished:
                 # Lock sets up our task limit, the lock is released
                 try:
                     await self.job_semaphore.acquire()
@@ -166,6 +168,10 @@ class Worker:
                     self.job_semaphore.release()
                 except EmptyJobsQueueException:
                     self.job_semaphore.release()
+                except (OSError, aioredis.errors.ReplyError):
+                    logger.exception('Error reading jobs from redis')
+                    self.job_semaphore.release()
+                    raise
 
     async def process_job(self, job: JobRequest, session: ClientSession, redis: Redis):
         remaining_time = 0
