@@ -138,7 +138,7 @@ class Worker:
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
         async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
             async for job in self.get_jobs():
-                async with self.redis as redis:
+                with await self.redis as redis:
                     loop.create_task(self.process_job(job, session, redis))
 
     async def get_jobs(self) -> AsyncGenerator[JobRequest, None]:
