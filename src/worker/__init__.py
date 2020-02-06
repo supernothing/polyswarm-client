@@ -11,6 +11,7 @@ import time
 from aiohttp import ClientSession
 from typing import AsyncGenerator
 
+from aioredis import Redis
 from polyswarmartifact import DecodeError
 from polyswarmclient.liveness.local import LocalLivenessRecorder
 from polyswarmclient.exceptions import ApiKeyException
@@ -96,7 +97,7 @@ class Worker:
         self.setup_semaphores(loop)
         self.setup_graceful_shutdown(loop)
         await self.setup_liveness(loop)
-        await self.setup_redis(loop)
+        await self.setup_redis()
         if not await self.scanner.setup():
             logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
             exit(1)
@@ -128,8 +129,8 @@ class Worker:
         await self.liveness_recorder.start()
         loop.create_task(advance_liveness_time(self.liveness_recorder))
 
-    async def setup_redis(self, loop: asyncio.AbstractEventLoop):
-        self.redis = await aioredis.create_redis_pool(self.redis_uri, loop=loop)
+    async def setup_redis(self):
+        self.redis = await aioredis.create_redis_pool(self.redis_uri)
 
     async def run_task(self):
         loop = asyncio.get_event_loop()
@@ -137,11 +138,12 @@ class Worker:
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
         async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
             async for job in self.get_jobs():
-                loop.create_task(self.process_job(job, session))
+                async with self.redis as redis:
+                    loop.create_task(self.process_job(job, session, redis))
 
     async def get_jobs(self) -> AsyncGenerator[JobRequest, None]:
-        with await self.redis as redis:
-            while not self.finished:
+        while not self.finished:
+            with await self.redis as redis:
                 # Lock sets up our task limit, the lock is released
                 try:
                     await self.job_semaphore.acquire()
@@ -165,7 +167,7 @@ class Worker:
                 except EmptyJobsQueueException:
                     self.job_semaphore.release()
 
-    async def process_job(self, job: JobRequest, session: ClientSession):
+    async def process_job(self, job: JobRequest, session: ClientSession, redis: Redis):
         remaining_time = 0
         try:
             await self.liveness_recorder.add_waiting_task(job.key, round(time.time()))
@@ -174,7 +176,7 @@ class Worker:
             scan_result = await asyncio.wait_for(self.scan(job, content), timeout=remaining_time)
             response = JobResponse(job.index, scan_result.bit, scan_result.verdict, scan_result.confidence,
                                    scan_result.metadata)
-            await self.respond(job, response)
+            asyncio.get_event_loop().create_task(self.respond(job, response, redis))
             self.tries = 0
         except OSError:
             logger.exception('Redis connection down')
@@ -221,8 +223,8 @@ class Worker:
             return await self.scanner.scan(job.guid, artifact_type, artifact_type.decode_content(content), job.metadata,
                                            job.chain)
 
-    async def respond(self, job: JobRequest, response: JobResponse):
+    async def respond(self, job: JobRequest, response: JobResponse, redis: Redis):
         logger.info('Scan results for job %s', job.key, extra={'extra': response.asdict()})
         key = f'{self.queue}_{job.guid}_{job.chain}_results'
-        with await self.redis as redis:
-            await redis.rpush(key, json.dumps(response.asdict()))
+        json_response = json.dumps(response.asdict())
+        await redis.rpush(key, json_response)
