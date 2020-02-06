@@ -138,11 +138,11 @@ class Worker:
         conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
         async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
-            async for job in self.get_jobs():
-                with await self.redis as redis:
-                    loop.create_task(self.process_job(job, session, redis))
+            while True:
+                async for job in self.get_jobs():
+                    with await self.redis as redis:
+                        loop.create_task(self.process_job(job, session, redis))
 
-    @backoff.on_exception(backoff.constant(1), (OSError, aioredis.errors.ReplyError))
     async def get_jobs(self) -> AsyncGenerator[JobRequest, None]:
         with await self.redis as redis:
             while not self.finished:
@@ -171,7 +171,7 @@ class Worker:
                 except (OSError, aioredis.errors.ReplyError):
                     logger.exception('Error reading jobs from redis')
                     self.job_semaphore.release()
-                    raise
+                    raise StopAsyncIteration
 
     async def process_job(self, job: JobRequest, session: ClientSession, redis: Redis):
         remaining_time = 0
