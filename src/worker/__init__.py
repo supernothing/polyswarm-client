@@ -140,8 +140,7 @@ class Worker:
         async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
             while True:
                 async for job in self.get_jobs():
-                    with await self.redis as redis:
-                        loop.create_task(self.process_job(job, session, redis))
+                    loop.create_task(self.process_job(job, session))
 
     async def get_jobs(self) -> AsyncGenerator[JobRequest, None]:
         with await self.redis as redis:
@@ -173,7 +172,7 @@ class Worker:
                     self.job_semaphore.release()
                     raise StopAsyncIteration
 
-    async def process_job(self, job: JobRequest, session: ClientSession, redis: Redis):
+    async def process_job(self, job: JobRequest, session: ClientSession):
         remaining_time = 0
         try:
             await self.liveness_recorder.add_waiting_task(job.key, round(time.time()))
@@ -182,7 +181,7 @@ class Worker:
             scan_result = await asyncio.wait_for(self.scan(job, content), timeout=remaining_time)
             response = JobResponse(job.index, scan_result.bit, scan_result.verdict, scan_result.confidence,
                                    scan_result.metadata)
-            asyncio.get_event_loop().create_task(self.respond(job, response, redis))
+            asyncio.get_event_loop().create_task(self.respond(job, response))
             self.tries = 0
         except OSError:
             logger.exception('Redis connection down')
@@ -229,8 +228,9 @@ class Worker:
             return await self.scanner.scan(job.guid, artifact_type, artifact_type.decode_content(content), job.metadata,
                                            job.chain)
 
-    async def respond(self, job: JobRequest, response: JobResponse, redis: Redis):
+    async def respond(self, job: JobRequest, response: JobResponse):
         logger.info('Scan results for job %s', job.key, extra={'extra': response.asdict()})
         key = f'{self.queue}_{job.guid}_{job.chain}_results'
         json_response = json.dumps(response.asdict())
-        await redis.rpush(key, json_response)
+        with await self.redis as redis:
+            await redis.rpush(key, json_response)
