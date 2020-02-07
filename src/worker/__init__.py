@@ -232,5 +232,4 @@ class Worker:
         logger.info('Scan results for job %s', job.key, extra={'extra': response.asdict()})
         key = f'{self.queue}_{job.guid}_{job.chain}_results'
         json_response = json.dumps(response.asdict())
-        with await self.redis as redis:
-            await redis.rpush(key, json_response)
+        await self.redis.rpush(key, json_response)
