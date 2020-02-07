@@ -181,7 +181,7 @@ class Worker:
             scan_result = await asyncio.wait_for(self.scan(job, content), timeout=remaining_time)
             response = JobResponse(job.index, scan_result.bit, scan_result.verdict, scan_result.confidence,
                                    scan_result.metadata)
-            asyncio.get_event_loop().create_task(self.respond(job, response))
+            await self.respond(job, response)
             self.tries = 0
         except OSError:
             logger.exception('Redis connection down')
