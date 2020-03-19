@@ -90,8 +90,6 @@ release-latest-windows:
   stage: release
   tags:
     - win-participants
-  only:
-    - master
   script:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
