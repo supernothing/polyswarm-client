@@ -8,6 +8,7 @@ import platform
 import signal
 import time
 
+import backoff
 from aiohttp import ClientSession
 from typing import AsyncGenerator
 
@@ -55,12 +56,13 @@ class Worker:
         self.api_key = api_key
         self.testing = testing
         self.scanner = scanner
-        self.task_count = task_count
+        self.max_task_count = task_count
+        self.current_task_count = 0
+        self.task_count_lock = None
         self.download_limit = download_limit
         self.scan_limit = scan_limit
         self.download_semaphore = None
         self.scan_semaphore = None
-        self.job_semaphore = None
         self.tries = 0
         self.finished = False
         # Setup a liveness instance
@@ -93,7 +95,7 @@ class Worker:
         loop.run_until_complete(self.run_task())
 
     async def setup(self, loop: asyncio.AbstractEventLoop):
-        self.setup_semaphores(loop)
+        self.setup_synchronization(loop)
         self.setup_graceful_shutdown(loop)
         await self.setup_liveness(loop)
         await self.setup_redis(loop)
@@ -101,10 +103,10 @@ class Worker:
             logger.critical('Scanner instance reported unsuccessful setup. Exiting.')
             exit(1)
 
-    def setup_semaphores(self, loop: asyncio.AbstractEventLoop):
+    def setup_synchronization(self, loop: asyncio.AbstractEventLoop):
         self.scan_semaphore = OptionalSemaphore(value=self.scan_limit, loop=loop)
         self.download_semaphore = OptionalSemaphore(value=self.download_limit, loop=loop)
-        self.job_semaphore = OptionalSemaphore(value=self.task_count, loop=loop)
+        self.task_count_lock = asyncio.Condition()
 
     def setup_graceful_shutdown(self, loop: asyncio.AbstractEventLoop):
         # K8 uses SIGTERM on linux and SIGINT and windows
@@ -140,30 +142,29 @@ class Worker:
                 loop.create_task(self.process_job(job, session))
 
     async def get_jobs(self) -> AsyncGenerator[JobRequest, None]:
-        with await self.redis as redis:
-            while not self.finished:
-                # Lock sets up our task limit, the lock is released
-                try:
-                    await self.job_semaphore.acquire()
-                    job = await redis.blpop(self.queue, timeout=1)
-                    if not job:
-                        raise EmptyJobsQueueException
+        while not self.finished:
+            try:
+                with await self.redis as redis:
+                    async with self.task_count_lock:
+                        # Wait for task to complete, if at maximum
+                        if 0 < self.max_task_count <= self.current_task_count:
+                            await self.task_count_lock.wait()
 
-                    _, job = job
-                    job = json.loads(job.decode('utf-8'))
-                    logger.info(f'Received job', extra={'extra': job})
+                        job = await redis.blpop(self.queue, timeout=1)
+                        if not job:
+                            continue
+
+                        _, job = job
+                        job = json.loads(job.decode('utf-8'))
+                        logger.info(f'Received job', extra={'extra': job})
+                        self.current_task_count += 1
                     yield JobRequest(**job)
-                except OSError:
-                    logger.exception('Redis connection down')
-                    self.job_semaphore.release()
-                except aioredis.errors.ReplyError:
-                    logger.exception('Redis out of memory')
-                    self.job_semaphore.release()
-                except (TypeError, KeyError):
-                    logger.exception('Invalid job received, ignoring')
-                    self.job_semaphore.release()
-                except EmptyJobsQueueException:
-                    self.job_semaphore.release()
+            except OSError:
+                logger.exception('Redis connection down')
+            except aioredis.errors.ReplyError:
+                logger.exception('Redis out of memory')
+            except (TypeError, KeyError):
+                logger.exception('Invalid job received, ignoring')
 
     async def process_job(self, job: JobRequest, session: ClientSession):
         remaining_time = 0
@@ -195,7 +196,9 @@ class Worker:
             logger.exception(f'Worker shutdown while processing job', extra={'extra': job.asdict()})
         finally:
             await self.liveness_recorder.remove_waiting_task(job.key)
-            self.job_semaphore.release()
+            async with self.task_count_lock:
+                self.current_task_count -= 1
+                self.task_count_lock.notify()
 
     @staticmethod
     def get_remaining_time(job: JobRequest) -> int:
@@ -221,8 +224,12 @@ class Worker:
             return await self.scanner.scan(job.guid, artifact_type, artifact_type.decode_content(content), job.metadata,
                                            job.chain)
 
+    @backoff.on_exception(backoff.constant, OSError, interval=1, max_tries=3)
     async def respond(self, job: JobRequest, response: JobResponse):
-        logger.info('Scan results for job %s', job.key, extra={'extra': response.asdict()})
-        key = f'{self.queue}_{job.guid}_{job.chain}_results'
-        with await self.redis as redis:
-            await redis.rpush(key, json.dumps(response.asdict()))
+        try:
+            logger.info('Scan results for job %s', job.key, extra={'extra': response.asdict()})
+            key = f'{self.queue}_{job.guid}_{job.chain}_results'
+            await self.redis.rpush(key, json.dumps(response.asdict()))
+        except OSError:
+            logger.exception('Error pushing results for %s', job.guid)
+            raise

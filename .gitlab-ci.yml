@@ -44,8 +44,14 @@ build-windows:
     - $env:DOCKER_HOST = ''
     - aws ecr get-login --no-include-email --region us-east-1 | Powershell
     - docker pull $REPO_URL/$BASE_IMAGE_NAME-windows:latest
-    - docker build -t $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA -f docker/windows/Dockerfile --cache-from=$REPO_URL/$BASE_IMAGE_NAME-windows:latest .
+    - docker build
+      -f docker/windows/Dockerfile
+      -t $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA
+      -t $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_REF_SLUG
+      --cache-from=$REPO_URL/$BASE_IMAGE_NAME-windows:latest
+      .
     - docker push $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_SHA
+    - docker push $REPO_URL/$BASE_IMAGE_NAME-windows:$CI_COMMIT_REF_SLUG
 
 ###############################################################
 # Test Stage

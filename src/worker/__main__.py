@@ -3,6 +3,7 @@ import importlib.util
 import logging
 import sys
 import warnings
+import multiprocessing
 
 from worker import Worker
 from polyswarmclient.config import init_logging, validate_apikey
@@ -62,9 +63,9 @@ def choose_backend(backend):
               help='Backend to use')
 @click.option('--tasks', envvar='TASKS', default=0,
               help='Deprecated')
-@click.option('--download-limit', envvar='DOWNLOAD_LIMIT', default=0,
+@click.option('--download-limit', envvar='DOWNLOAD_LIMIT', default=multiprocessing.cpu_count(),
               help='Limit number of simultaneous file downloads')
-@click.option('--scan-limit', envvar='SCAN_LIMIT', default=0,
+@click.option('--scan-limit', envvar='SCAN_LIMIT', default=multiprocessing.cpu_count(),
               help='Limit number of simultaneous scans')
 @click.option('--testing', default=0,
               help='Activate testing mode for integration testing, respond to N bounties and N offers then exit')
