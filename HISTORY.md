@@ -1,5 +1,10 @@
 # Release History
 
+### 2.7.4 (2020-3-30)
+
+* **Fix** - Update aiohttp to 3.6.2
+* **Feature** - Create task per job in worker (up to an optional limit), rather than a set number of long running tasks 
+
 ### 2.7.3 (2020-1-30)
 
 * **Fix** - Check that job is correct before adding to liveness waiting task in worker
