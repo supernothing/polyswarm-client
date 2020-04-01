@@ -23,6 +23,7 @@ setup(
         'aioredis==1.2.0',
         'aioresponses==0.6.0',
         'aiorwlock==0.6.0',
+        'backoff==1.10.0',
         'base58==0.2.5',
         'click==6.7',
         'dataclasses==0.7; python_version == "3.6"',
