@@ -8,7 +8,7 @@ with open("README.md", "r") as readme:
 
 def parse_requirements():
     with open('requirements.txt', 'r') as f:
-        return ['{2} @ {0}'.format(*r.partition('#egg=')) if '#egg=' in r else r for r in f.read().splitlines()]
+        return ['{2} @ {0}{1}{2}'.format(*r.partition('#egg=')) if '#egg=' in r else r for r in f.read().splitlines()]
 
 setup(
     name='polyswarm-client',
