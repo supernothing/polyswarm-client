@@ -6,6 +6,10 @@ with open("README.md", "r") as readme:
     long_description = readme.read()
 
 
+def parse_requirements():
+    with open('requirements.txt', 'r') as f:
+        return ['{2} @ {0}'.format(*r.partition('#egg=')) if '#egg=' in r else r for r in f.read().splitlines()]
+
 setup(
     name='polyswarm-client',
     version='2.7.4',
@@ -17,24 +21,7 @@ setup(
     url='https://github.com/polyswarm/polyswarm-client',
     license='MIT',
     python_requires='>=3.6.5,<4',
-    install_requires=[
-        'aiodns==1.2.0',
-        'aiohttp==3.6.2',
-        'aioredis==1.2.0',
-        'aioresponses==0.6.0',
-        'aiorwlock==0.6.0',
-        'backoff==1.10.0',
-        'base58==0.2.5',
-        'click==6.7',
-        'dataclasses==0.7; python_version == "3.6"',
-        'polyswarm-artifact>=1.3.1',
-        'python-json-logger==0.1.9',
-        'python-magic-bin==0.4.14;platform_system=="Windows"',
-        'python-magic==0.4.15;platform_system=="Linux"',
-        'web3==4.8.2',
-        'websockets==6.0',
-        'yara-python==3.7.0',
-    ],
+    install_requires=parse_requirements(),
     include_package_data=True,
     packages=find_packages('src'),
     package_dir={'': 'src'},
