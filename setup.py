@@ -28,10 +28,16 @@ setup(name='polyswarm-client',
       package_dir={'': 'src'},
       packages=find_packages('src'),
       python_requires='>=3.6.5,<4',
-      setup_requires=['pytest'],
+      setup_requires=[
+          'pytest-runner',
+      ],
       test_suite='tests',
-      tests_require=['pytest-runner'],
-
+      tests_require=[
+          'pytest==3.9.2',
+          'pytest-asyncio==0.9.0',
+          'pytest-cov==2.6.0',
+          'pytest-timeout==1.3.2',
+      ],
       entry_points={
           'console_scripts': [
               'ambassador=ambassador.__main__:main',
