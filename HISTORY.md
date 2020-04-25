@@ -1,5 +1,9 @@
 # Release History
 
+### 2.7.5 (2020-4-24)
+
+* **Fix** - Install backoff for pypi release 
+
 ### 2.7.4 (2020-3-30)
 
 * **Fix** - Update aiohttp to 3.6.2
