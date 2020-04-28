@@ -293,6 +293,8 @@ kick-after-complete12:
 
 kick-after-complete13:
   stage: deployment
+  variables:
+    BASE_IMAGE_NAME: poly-mon
   only:
     - master
   trigger: externalci/poly-mon
