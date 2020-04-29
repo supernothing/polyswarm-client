@@ -1,6 +1,16 @@
 from setuptools import find_packages, setup
 
 
+def parse_requirements():
+    with open('requirements.txt', 'r') as f:
+        return ['{2} @ {0}'.format(*r.partition('#egg=')) if '#egg=' in r else r for r in f.read().splitlines()]
+
+
+def parse_test_requirements():
+    with open('requirements-test.txt', 'r') as f:
+        return ['{2} @ {0}'.format(*r.partition('#egg=')) if '#egg=' in r else r for r in f.read().splitlines()]
+
+
 # The README.md will be used as the content for the PyPi package details page on the Python Package Index.
 with open("README.md", "r") as readme:
     long_description = readme.read()
@@ -15,41 +25,12 @@ setup(name='polyswarm-client',
       url='https://github.com/polyswarm/polyswarm-client',
       license='MIT',
       include_package_data=True,
-      install_requires=[
-          'async-timeout<4.0,>=3.0',
-          'aiohttp==3.6.2',
-          'aiodns==1.2.0',
-          'aioredis==1.3.1',
-          'aioresponses==0.6.0',
-          'aiorwlock==0.6.0',
-          'asynctest==0.12.2',
-          'backoff==1.10.0',
-          'base58==0.2.5',
-          'click~=7.0',
-          "dataclasses==0.7; python_version == '3.6'",
-          'jsonschema==3.0.2',
-          'hypothesis==3.82.1',
-          'polyswarm-artifact>=1.3.1',
-          'pycryptodome>=3.4.7',
-          'python-json-logger==0.1.9',
-          'python-magic-bin==0.4.14;platform_system=="Windows"',
-          'python-magic==0.4.15;platform_system=="Linux"',
-          'web3==4.8.2',
-          'websockets==6.0',
-          'yara-python==3.7.0',
-      ],
+      install_requires=parse_requirements(),
       package_dir={'': 'src'},
       packages=find_packages('src'),
       python_requires='>=3.6.5,<4',
       test_suite='tests',
-      tests_require=[
-          'coverage==4.5.1',
-          'tox==3.4.0',
-          'pytest==3.9.2',
-          'pytest-asyncio==0.9.0',
-          'pytest-cov==2.6.0',
-          'pytest-timeout==1.3.2',
-      ],
+      tests_require=parse_test_requirements(),
       entry_points={
           'console_scripts': [
               'ambassador=ambassador.__main__:main',
