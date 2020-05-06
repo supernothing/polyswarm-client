@@ -151,7 +151,7 @@ class Client(object):
         try:
             # XXX: Set the timeouts here to reasonable values, probably should be configurable
             # No limits on connections
-            conn = aiohttp.TCPConnector(limit=0, limit_per_host=0)
+            conn = aiohttp.TCPConnector(limit=100)
             timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
             async with aiohttp.ClientSession(connector=conn, timeout=timeout) as self.__session:
                 self.bounties = BountiesClient(self)
