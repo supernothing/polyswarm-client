@@ -15,7 +15,6 @@ variables:
   BASE_IMAGE_NAME: polyswarm-client
 
 default:
-  stage: build
   before_script:
     - pip install $END_TO_END_LIB@$CI_COMMIT_REF_NAME || pip install $END_TO_END_LIB
     - e2e init
